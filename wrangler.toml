@@ -8,6 +8,10 @@ compatibility_date = "2026-09-01"
 binding = "DB"
 id = "7a5f3505aed24657afb0cc924445a9c2"
 
+# Логи в Cloudflare (вкладка Observability), помогают искать ошибки
+[observability]
+enabled = true
+
 [vars]
 DAILY_AI_LIMIT = "40"
 # GEMINI_MODEL = "gemini-3.5-flash"
