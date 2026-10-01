@@ -174,25 +174,26 @@ async function sendEmojiIds(env, chatId, msg) {
   return tgRaw(env, "sendMessage", { chat_id: chatId, parse_mode: "HTML", text: "🔢 Номера иконок:\n\n" + lines.join("\n") });
 }
 
-// Свои иконки FITTER: бот создаёт два набора в аккаунте того, кто отправил /makeemoji
-//  • чёрно-белый (перекрашивается под цвет текста): весы, дневник, логотип
-//  • цветной: всё, что связано с едой
-// Картинки 100×100 лежат в репозитории в папке icons/ (цветные — в icons/color/)
+// Свои иконки FITTER: бот создаёт один набор «FITTER ICONS» в аккаунте того, кто отправил /makeemoji
+// Еда — цветная, весы и дневник — серые, логотип — чёрно-белая плашка
+// Картинки 100×100 лежат в репозитории в папке icons/pack/
 const ICON_BASE = "https://raw.githubusercontent.com/sailxx/fitter-ai/main/icons/";
 const ICON_SETS = [
   {
-    suffix: "icons", title: "FITTER Icons", repaint: true, folder: "",
+    suffix: "", title: "FITTER ICONS", repaint: false, folder: "pack/",
     // файл, эмодзи для набора, какой эмодзи в боте заменить
-    icons: [["scales", "⚖️", "⚖"], ["diary", "📔", "📱"], ["fitter", "🍏", "🍏"]],
-  },
-  {
-    suffix: "food", title: "FITTER Food", repaint: false, folder: "color/",
-    icons: [["plate", "🍽", "🍽"], ["protein", "🍗", "🥩"], ["fat", "💧", "🧈"], ["carbs", "🌾", "🍞"], ["kcal", "🔥", "🔥"]],
+    icons: [
+      ["plate", "🍽", "🍽"], ["protein", "🍗", "🥩"], ["fat", "💧", "🧈"], ["carbs", "🌾", "🍞"], ["kcal", "🔥", "🔥"],
+      ["scales", "⚖️", "⚖"], ["diary", "📔", "📱"], ["fitter", "🍏", "🍏"],
+      ["sofa", "🛋", "🛋"], ["walk", "🚶", "🚶"], ["run", "🏃", "🏃"], ["muscle", "💪", "💪"], ["lose", "📉", "📉"],
+    ],
   },
 ];
+// Старые наборы из прошлых версий — удаляются, чтобы остался один
+const OLD_SETS = ["icons", "food"];
 
 async function ensureEmojiSet(env, from, botName, cfg) {
-  const name = `fitter_${cfg.suffix}_by_${botName}`;
+  const name = `fitter${cfg.suffix ? "_" + cfg.suffix : ""}_by_${botName}`;
   const sticker = ([file, emoji]) => ({ sticker: ICON_BASE + cfg.folder + file + ".png", format: "static", emoji_list: [emoji] });
   let set = await tgRaw(env, "getStickerSet", { name });
   if (!set.ok) {
@@ -223,7 +224,8 @@ async function ensureEmojiSet(env, from, botName, cfg) {
 async function makeEmojiPack(env, chatId, from) {
   if (env.ADMIN_ID && String(from.id) !== String(env.ADMIN_ID)) return send(env, chatId, "Эта команда только для владельца бота");
   const me = await tgRaw(env, "getMe", {});
-  await send(env, chatId, "🔄 Создаю наборы иконок FITTER…");
+  await send(env, chatId, "🔄 Создаю набор FITTER ICONS…");
+  for (const o of OLD_SETS) await tgRaw(env, "deleteStickerSet", { name: `fitter_${o}_by_${me.result.username}` });
   const map = {};
   const links = [];
   for (const cfg of ICON_SETS) {
