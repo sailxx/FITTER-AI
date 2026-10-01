@@ -434,12 +434,12 @@ async function onMessage(msg, env) {
   }
   if (!u.targets) return startOnboarding(env, u, chatId);
 
-  // Ждём новый вес продукта
+  // Ждём исправление продукта: новый вес и/или название
   if (u.state && u.state.type === "edit") {
-    const g = parseNum(text);
     if (text && !text.startsWith("/") && !isMenu(text)) {
-      if (!(g > 0 && g <= 3000)) return send(env, chatId, "Напиши вес числом в граммах, например <b>150</b>");
-      return applyEdit(env, u, chatId, g);
+      const fix = parseFix(text);
+      if (!fix) return send(env, chatId, "Напиши вес (<b>150</b>), название (<b>форель</b>) или всё вместе (<b>форель 200 г</b>)");
+      return applyEdit(env, u, chatId, fix);
     }
     u.state = null;
     await saveUser(env, u);
@@ -615,9 +615,16 @@ async function onCallback(q, env) {
     u.state = { type: "edit", date: a, mealId: b, idx: Number(c), msgId };
     await saveUser(env, u);
     await answer();
-    return send(env, chatId, `Сколько граммов на самом деле? Сейчас «${esc(it.name)}» — <b>${it.grams} г</b>.\nНапиши число, например <b>${it.grams}</b>`, {
-      reply_markup: { force_reply: true, input_field_placeholder: "Вес в граммах" },
-    });
+    return send(
+      env, chatId,
+      `✏️ Сейчас: «${esc(it.name)}» — <b>${it.grams} г</b>\n\n` +
+        `Напиши, что исправить:\n` +
+        `• только вес: <b>150</b>\n` +
+        `• только название: <b>форель</b>\n` +
+        `• всё вместе: <b>форель 200 г</b>\n\n` +
+        `Если поменяешь название, я заново посчитаю калории для нового продукта.`,
+      { reply_markup: { force_reply: true, input_field_placeholder: "Например: форель 200 г" } }
+    );
   }
   if (kind === "x" && isDate(a)) {
     const day = await getDay(env, u.id, a);
@@ -691,22 +698,102 @@ async function saveMealAndReply(env, u, chatId, waitId, title, items, source, co
   return send(env, chatId, text, extra);
 }
 
-async function applyEdit(env, u, chatId, grams) {
+// Разбираем исправление: «150», «150 г», «форель», «форель 200 г», «200г форели»
+function parseFix(text) {
+  const t = text.trim().replace(/\s+/g, " ");
+  if (/^\d+([.,]\d+)?\s*(г|гр|грамм[а-я]*|g)?\.?$/i.test(t)) {
+    const g = parseNum(t);
+    return g > 0 && g <= 3000 ? { grams: g } : null;
+  }
+  let grams = null;
+  const m = t.match(/(\d+([.,]\d+)?)\s*(г|гр|грамм[а-я]*|g)\.?(?=\s|$)/i);
+  let name = t;
+  if (m) {
+    grams = parseNum(m[1]);
+    if (!(grams > 0 && grams <= 3000)) return null;
+    name = (t.slice(0, m.index) + " " + t.slice(m.index + m[0].length)).trim();
+  }
+  name = name.replace(/^[,.\-–—:\s]+|[,.\-–—:\s]+$/g, "").slice(0, 60);
+  if (!name) return grams ? { grams } : null;
+  return { name, grams };
+}
+
+const FIX_SCHEMA = {
+  type: "OBJECT",
+  properties: {
+    name: { type: "STRING", description: "Название продукта по-русски, коротко, с большой буквы" },
+    kcal_100: { type: "NUMBER" },
+    protein_100: { type: "NUMBER" },
+    fat_100: { type: "NUMBER" },
+    carbs_100: { type: "NUMBER" },
+    meal_title: { type: "STRING", description: "Новое короткое название всего приёма пищи" },
+  },
+  required: ["name", "kcal_100", "protein_100", "fat_100", "carbs_100", "meal_title"],
+};
+
+// Нейросеть пересчитывает КБЖУ продукта под новое название
+async function recalcItem(env, meal, idx, name, grams) {
+  const it = meal.items[idx];
+  const others = meal.items.filter((_, i) => i !== idx).map((x) => x.name).join(", ");
+  const res = await gemini(env, [{
+    text:
+      `Ты нутрициолог. Пользователь исправил продукт в приёме пищи.\n` +
+      `Было: «${it.name}». Стало: «${name}».\n` +
+      `Остальные продукты в тарелке: ${others || "нет"}.\n` +
+      `Дай типичные калории, белки, жиры и углеводы НА 100 ГРАММ для «${name}» в том виде, как его обычно едят ` +
+      `(если в старом названии было указано приготовление, соус или гарнир — учти это).\n` +
+      `В name верни аккуратное название продукта. В meal_title — новое короткое название всего приёма пищи.`,
+  }], FIX_SCHEMA);
+  const clean = cleanItems([{ ...res, grams: grams || it.grams }])[0];
+  if (!clean) throw new Error("пустой ответ");
+  Object.assign(it, clean);
+  if (res.meal_title) meal.title = String(res.meal_title).slice(0, 60);
+}
+
+async function applyEdit(env, u, chatId, fix) {
   const { date, mealId, idx, msgId } = u.state;
   u.state = null;
-  await saveUser(env, u);
   const day = await getDay(env, u.id, date);
   const meal = day.meals.find((m) => m.id === mealId);
-  if (!meal || !meal.items[idx]) return send(env, chatId, "Эта запись уже удалена 🤷");
-  const old = meal.items[idx].grams;
-  meal.items[idx].grams = round(grams);
+  if (!meal || !meal.items[idx]) {
+    await saveUser(env, u);
+    return send(env, chatId, "Эта запись уже удалена 🤷");
+  }
+  const it = meal.items[idx];
+  const before = { name: it.name, grams: it.grams, kcal: round(itemTotals(it).kcal) };
+  let waitId = null;
+
+  if (fix.name) {
+    if (!checkAiLimit(env, u)) {
+      await saveUser(env, u);
+      return send(env, chatId, "На сегодня лимит запросов к нейросети закончился 😔 Вес можно поправить, а название — завтра.");
+    }
+    await saveUser(env, u);
+    const wait = await send(env, chatId, "🔄 Пересчитываю для нового продукта…");
+    waitId = wait.result?.message_id;
+    try {
+      await recalcItem(env, meal, idx, fix.name, fix.grams);
+    } catch (e) {
+      console.error("fix error:", e && e.stack ? e.stack : e);
+      return edit(env, chatId, waitId, "😔 Не получилось пересчитать. Попробуй ещё раз: нажми ✏️ у продукта.");
+    }
+  } else {
+    await saveUser(env, u);
+    it.grams = round(fix.grams);
+  }
+
   await saveDay(env, u.id, date, day);
   const text = mealCard(u, meal, day, date);
   const extra = { reply_markup: mealKeyboard(env, date, meal) };
   if (msgId) await edit(env, chatId, msgId, text, extra);
-  return send(env, chatId, `✅ «${esc(meal.items[idx].name)}»: ${old} г → <b>${meal.items[idx].grams} г</b>. Пересчитал!\n\n${remainingText(u, day, date)}`, {
-    reply_markup: MAIN_KEYBOARD,
-  });
+  const after = round(itemTotals(it).kcal);
+  const what =
+    before.name !== it.name
+      ? `«${esc(before.name)}» ${before.grams} г → <b>«${esc(it.name)}» ${it.grams} г</b>`
+      : `«${esc(it.name)}»: ${before.grams} г → <b>${it.grams} г</b>`;
+  const summary = `✅ ${what}\n${before.kcal} → <b>${after} ккал</b>. Пересчитал!\n\n${remainingText(u, day, date)}`;
+  if (waitId) return edit(env, chatId, waitId, summary);
+  return send(env, chatId, summary, { reply_markup: MAIN_KEYBOARD });
 }
 
 // ── Текст: записать еду или ответить на вопрос ──
@@ -892,6 +979,21 @@ async function api(request, url, env) {
       await saveDay(env, u.id, body.date, day);
       return json({ ok: true });
     }
+    if (url.pathname === "/api/item/rename") {
+      const idx = Number(body.idx);
+      const name = String(body.name || "").trim().slice(0, 60);
+      if (!meal.items[idx] || !name) return json({ error: "bad name" }, 400);
+      if (!checkAiLimit(env, u)) return json({ error: "limit" }, 429);
+      await saveUser(env, u);
+      try {
+        await recalcItem(env, meal, idx, name, null);
+      } catch (e) {
+        console.error("rename error:", e && e.stack ? e.stack : e);
+        return json({ error: "ai" }, 502);
+      }
+      await saveDay(env, u.id, body.date, day);
+      return json({ ok: true });
+    }
     if (url.pathname === "/api/item/delete") {
       meal.items.splice(Number(body.idx), 1);
       if (!meal.items.length) day.meals = day.meals.filter((m) => m !== meal);
@@ -1033,6 +1135,9 @@ const APP_HTML = `<!doctype html>
   .it .n small{color:var(--hint);font-size:12px}
   .it input{width:64px;padding:6px 8px;border-radius:8px;border:1px solid var(--line);background:var(--bg);color:var(--text);font:inherit;text-align:right}
   .it .g{color:var(--hint);font-size:13px}
+  .it .nm{cursor:pointer}
+  .it .nm:after{content:" ✏️";font-size:11px;opacity:.6}
+  .it .ren{width:100%;padding:4px 6px;border-radius:6px;border:1px solid var(--accent);background:var(--bg);color:var(--text);font:inherit;text-align:left}
   .del{border:0;background:transparent;color:var(--danger);font:inherit;font-size:13px;padding:8px 0 0}
   .empty{text-align:center;color:var(--hint);padding:28px 12px}
   .empty div{font-size:40px;margin-bottom:6px}
@@ -1128,7 +1233,7 @@ const APP_HTML = `<!doctype html>
     var meals = d.meals.length ? '<h3>Приёмы пищи</h3>' + d.meals.map(function(m){
       return '<div class="card meal"><div class="hd"><div class="t">' + esc(m.title) + '<span class="tm">' + esc(m.time) + '</span></div><div class="k">' + r(m.totals.kcal) + ' ккал</div></div>' +
         m.items.map(function(it, i){
-          return '<div class="it"><div class="n"><div>' + esc(it.name) + '</div><small>' + r(it.totals.kcal) + ' ккал · Б ' + r(it.totals.p) + ' · Ж ' + r(it.totals.f) + ' · У ' + r(it.totals.c) + '</small></div>' +
+          return '<div class="it"><div class="n"><div class="nm" data-meal="' + m.id + '" data-idx="' + i + '">' + esc(it.name) + '</div><small>' + r(it.totals.kcal) + ' ккал · Б ' + r(it.totals.p) + ' · Ж ' + r(it.totals.f) + ' · У ' + r(it.totals.c) + '</small></div>' +
             '<input type="number" inputmode="numeric" min="1" max="3000" value="' + it.grams + '" data-meal="' + m.id + '" data-idx="' + i + '"><span class="g">г</span></div>';
         }).join("") +
         '<button class="del" data-del="' + m.id + '">Удалить приём пищи</button></div>';
@@ -1137,7 +1242,32 @@ const APP_HTML = `<!doctype html>
     root.innerHTML = week + sum + meals + weightBlock(d.weights);
   }
 
+  function rename(el){
+    var old = el.textContent, mealId = el.dataset.meal, idx = Number(el.dataset.idx);
+    var inp = document.createElement("input");
+    inp.className = "ren"; inp.value = old; inp.placeholder = "Например: форель";
+    el.replaceWith(inp); inp.focus(); inp.select();
+    var done = false;
+    function finish(save){
+      if (done) return; done = true;
+      var v = inp.value.trim();
+      if (!save || !v || v === old) { load(state.date); return; }
+      inp.disabled = true; inp.value = "Пересчитываю…";
+      call("POST", "/api/item/rename", { date: state.date, mealId: mealId, idx: idx, name: v })
+        .then(function(){ haptic(); load(state.date); })
+        .catch(function(err){
+          var msg = err && err.error === "limit" ? "На сегодня лимит запросов к нейросети закончился" : "Не получилось пересчитать, попробуй ещё раз";
+          if (tg && tg.showAlert) tg.showAlert(msg); else alert(msg);
+          load(state.date);
+        });
+    }
+    inp.addEventListener("keydown", function(e){ if (e.key === "Enter") finish(true); if (e.key === "Escape") finish(false); });
+    inp.addEventListener("blur", function(){ finish(true); });
+  }
+
   root.addEventListener("click", function(e){
+    var nm = e.target.closest(".nm");
+    if (nm) { rename(nm); return; }
     var b = e.target.closest("button");
     if (!b) return;
     if (b.dataset.date) { haptic(); load(b.dataset.date); }
@@ -1165,4 +1295,4 @@ const APP_HTML = `<!doctype html>
 </html>`;
 
 // Для тестов
-export const _test = { calcTargets, verifyInitData, cleanItems, sumItems, APP_HTML };
+export const _test = { calcTargets, verifyInitData, cleanItems, sumItems, parseFix, APP_HTML };
