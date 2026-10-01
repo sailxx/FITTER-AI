@@ -44,7 +44,7 @@ export default {
         return new Response(APP_HTML, { headers: { "content-type": "text/html; charset=utf-8" } });
       }
       if (url.pathname.startsWith("/api/")) return await api(request, url, E);
-      if (url.pathname === "/") return new Response("Fitter AI работает ✅", { headers: { "content-type": "text/plain; charset=utf-8" } });
+      if (url.pathname === "/") return new Response("FITTER работает ✅", { headers: { "content-type": "text/plain; charset=utf-8" } });
       return new Response("not found", { status: 404 });
     } catch (e) {
       console.error(e && e.stack ? e.stack : e);
@@ -374,7 +374,7 @@ const TEXT_SCHEMA = {
   required: ["intent", "answer", "title", "items"],
 };
 
-const PHOTO_PROMPT = `Ты нутрициолог-ассистент приложения Fitter AI. Посмотри на фото.
+const PHOTO_PROMPT = `Ты нутрициолог-ассистент приложения FITTER. Посмотри на фото.
 Если на фото нет еды или напитков — верни is_food=false и пустой items.
 Если еда есть — перечисли каждый отдельный продукт или блюдо на фото.
 Для каждого оцени вес порции в граммах по размеру тарелки, приборов и упаковки,
@@ -383,7 +383,7 @@ const PHOTO_PROMPT = `Ты нутрициолог-ассистент прило�
 Не дроби блюдо слишком мелко: суп, салат, бутерброд — одна позиция.
 Названия пиши по-русски, коротко. Будь реалистичен, не занижай и не завышай.`;
 
-const TEXT_PROMPT = `Ты дружелюбный нутрициолог-ассистент Telegram-бота Fitter AI. Пиши по-русски.
+const TEXT_PROMPT = `Ты дружелюбный нутрициолог-ассистент Telegram-бота FITTER. Пиши по-русски.
 Определи, что прислал пользователь:
 • food_log — он сообщает, что съел или выпил (например «съел 2 яйца и тост», «выпил латте 300 мл»).
   Тогда заполни items: продукты, вес в граммах (оцени, если не указан), КБЖУ на 100 г; title — короткое название;
@@ -535,7 +535,7 @@ function mealKeyboard(env, date, meal) {
   return { inline_keyboard: rows };
 }
 
-const HELP = `🍏 <b>Fitter AI</b> — одно фото, полный контроль 📸
+const HELP = `🍏 <b>FITTER</b> — одно фото, полный контроль 📸
 
 <b>Как пользоваться</b>
 1. Сфотографируй еду и отправь сюда фото
@@ -556,7 +556,7 @@ const HELP = `🍏 <b>Fitter AI</b> — одно фото, полный конт
 /app — открыть дневник
 /reset — пройти анкету заново
 
-<i>Fitter AI считает примерно и не заменяет врача или диетолога.</i>`;
+<i>FITTER считает примерно и не заменяет врача или диетолога.</i>`;
 
 // ───────────────────────────── Обработка сообщений ─────────────────────────────
 
@@ -665,7 +665,7 @@ async function startOnboarding(env, u, chatId) {
   await saveUser(env, u);
   await send(
     env, chatId,
-    `Привет${u.name ? ", " + esc(u.name) : ""}! 👋 Я 🍏 <b>Fitter AI</b>.\n\n` +
+    `Привет${u.name ? ", " + esc(u.name) : ""}! 👋 Я 🍏 <b>FITTER</b> — твой счётчик калорий 🥦\n\n` +
       `Отправляешь фото еды — я определяю продукты, считаю калории, белки, жиры и углеводы и веду твой дневник питания.\n\n` +
       `Сначала короткая анкета, чтобы посчитать твою дневную норму. Это 6 вопросов ⏱`,
     { reply_markup: { remove_keyboard: true } }
@@ -1185,8 +1185,8 @@ async function setup(url, env) {
   const page = (rows) =>
     new Response(
       `<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">` +
-        `<title>Fitter AI — настройка</title><body style="font:16px/1.5 system-ui;max-width:640px;margin:32px auto;padding:0 16px">` +
-        `<h2>Fitter AI — настройка</h2>${rows.map(([ok, t]) => `<p>${ok ? "✅" : "❌"} ${t}</p>`).join("")}</body>`,
+        `<title>FITTER — настройка</title><body style="font:16px/1.5 system-ui;max-width:640px;margin:32px auto;padding:0 16px">` +
+        `<h2>FITTER — настройка</h2>${rows.map(([ok, t]) => `<p>${ok ? "✅" : "❌"} ${t}</p>`).join("")}</body>`,
       { headers: { "content-type": "text/html; charset=utf-8" } }
     );
   if (!env.WEBHOOK_SECRET) return page([[false, "Не задана переменная WEBHOOK_SECRET"]]);
@@ -1231,7 +1231,7 @@ async function setup(url, env) {
   rows.push([menu.ok, "Кнопка «Дневник» (Mini App) добавлена"]);
 
   await tg(env, "setMyDescription", {
-    description: "Fitter AI — одно фото, полный контроль 📸\nОтправь фото еды, и нейросеть посчитает калории, белки, жиры и углеводы и запишет всё в дневник питания.",
+    description: "FITTER — одно фото, полный контроль 📸\nОтправь фото еды, и нейросеть посчитает калории, белки, жиры и углеводы и запишет всё в дневник питания.",
   });
   await tg(env, "setMyShortDescription", { short_description: "Считаю калории по фото еды 📸 Одно фото. Полный контроль." });
 
@@ -1254,7 +1254,7 @@ const APP_HTML = `<!doctype html>
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
-<title>Fitter AI — дневник</title>
+<title>FITTER — дневник</title>
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
 <style>
   :root{
@@ -1323,7 +1323,7 @@ const APP_HTML = `<!doctype html>
 </head>
 <body>
 <div class="top">
-  <div class="logo">Fitter AI<small>Одно фото. Полный контроль.</small></div>
+  <div class="logo">FITTER<small>Одно фото. Полный контроль.</small></div>
   <div class="nav"><button id="prev">‹</button><span class="d" id="dl">…</span><button id="next">›</button></div>
 </div>
 <div id="root"><div class="empty">Загрузка…</div></div>
@@ -1353,7 +1353,7 @@ const APP_HTML = `<!doctype html>
       state.date = d.date; state.data = d; render();
     }).catch(function(e){
       var msg = e && e.error === "no_profile" ? "Сначала пройди анкету в боте: нажми /start" :
-                e && e.error === "unauthorized" ? "Открой дневник через кнопку в боте Fitter AI" : "Не получилось загрузить дневник. Попробуй ещё раз.";
+                e && e.error === "unauthorized" ? "Открой дневник через кнопку в боте FITTER" : "Не получилось загрузить дневник. Попробуй ещё раз.";
       root.innerHTML = '<div class="err">' + msg + '</div>';
     });
   }
