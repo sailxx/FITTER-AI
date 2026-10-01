@@ -55,17 +55,99 @@ export default {
 
 // ───────────────────────────── Telegram ─────────────────────────────
 
-async function tg(env, method, payload) {
+// ── Свои иконки вместо обычных эмодзи ──
+// Обычный эмодзи → номер иконки из набора (custom_emoji_id).
+// Работает, если у владельца бота есть Telegram Premium. Если нет — бот сам покажет обычные эмодзи.
+// Номер иконки можно узнать: отправь её боту, он ответит номером. Весь набор: /emojipack имя_набора
+const CUSTOM_EMOJI = {
+  // "🍽": "5368324170671202286",
+};
+
+const stripVS = (s) => s.replace(/\uFE0F/g, "");
+const EMOJI_KEYS = Object.keys(CUSTOM_EMOJI).sort((a, b) => b.length - a.length);
+const EMOJI_RE = EMOJI_KEYS.length
+  ? new RegExp(EMOJI_KEYS.map((k) => stripVS(k).replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "\\uFE0F?").join("|"), "gu")
+  : null;
+const emojiId = (e) => CUSTOM_EMOJI[e] || CUSTOM_EMOJI[stripVS(e)] || CUSTOM_EMOJI[stripVS(e) + "\uFE0F"];
+
+function withIcons(text) {
+  if (!EMOJI_RE || !text) return text;
+  // Не трогаем то, что уже внутри <tg-emoji>
+  return text.split(/(<tg-emoji[^>]*>.*?<\/tg-emoji>)/gs).map((part, i) =>
+    i % 2 ? part : part.replace(EMOJI_RE, (m) => `<tg-emoji emoji-id="${emojiId(m)}">${m}</tg-emoji>`)
+  ).join("");
+}
+
+function buttonIcons(markup) {
+  if (!EMOJI_RE || !markup) return markup;
+  const rows = markup.inline_keyboard || markup.keyboard;
+  if (!rows) return markup;
+  const conv = (b) => {
+    const m = b.text.match(new RegExp("^(" + EMOJI_RE.source + ")\\s*", "u"));
+    if (!m) return b;
+    return { ...b, text: b.text.slice(m[0].length), icon_custom_emoji_id: emojiId(m[1]) };
+  };
+  const out = rows.map((row) => row.map(conv));
+  return markup.inline_keyboard ? { ...markup, inline_keyboard: out } : { ...markup, keyboard: out };
+}
+
+async function tgRaw(env, method, payload) {
   const r = await fetch(`https://api.telegram.org/bot${env.BOT_TOKEN}/${method}`, {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify(payload),
   });
-  const j = await r.json().catch(() => ({ ok: false, description: "bad json" }));
+  return r.json().catch(() => ({ ok: false, description: "bad json" }));
+}
+
+async function tg(env, method, payload) {
+  let j;
+  const fancy = EMOJI_RE && env.CUSTOM_EMOJI !== "off" && (method === "sendMessage" || method === "editMessageText");
+  if (fancy) {
+    const p = { ...payload };
+    if (p.parse_mode === "HTML") p.text = withIcons(p.text);
+    if (p.reply_markup) p.reply_markup = buttonIcons(p.reply_markup);
+    j = await tgRaw(env, method, p);
+    // Если Telegram не принял иконки (например, закончился Premium) — отправляем с обычными эмодзи
+    if (!j.ok && !(j.description || "").includes("message is not modified")) {
+      console.error("custom emoji rejected, fallback:", j.description);
+      j = await tgRaw(env, method, payload);
+    }
+  } else {
+    j = await tgRaw(env, method, payload);
+  }
   if (!j.ok && !(j.description || "").includes("message is not modified")) {
     console.error("telegram error", method, JSON.stringify(j));
   }
   return j;
+}
+
+// Служебное: показать номера своих эмодзи из сообщения
+async function sendEmojiIds(env, chatId, msg) {
+  const ents = (msg.entities || msg.caption_entities || []).filter((e) => e.type === "custom_emoji");
+  const text = msg.text || msg.caption || "";
+  const seen = new Set();
+  const lines = [];
+  for (const e of ents) {
+    if (seen.has(e.custom_emoji_id)) continue;
+    seen.add(e.custom_emoji_id);
+    const ch = text.substr(e.offset, e.length);
+    lines.push(`<tg-emoji emoji-id="${e.custom_emoji_id}">${ch}</tg-emoji> <code>${e.custom_emoji_id}</code>`);
+  }
+  return tgRaw(env, "sendMessage", { chat_id: chatId, parse_mode: "HTML", text: "🔢 Номера иконок:\n\n" + lines.join("\n") });
+}
+
+// Служебное: показать весь набор иконок с номерами (/emojipack tgiosicons)
+async function sendEmojiPack(env, chatId, name) {
+  if (!name) return send(env, chatId, "Напиши так: <code>/emojipack tgiosicons</code>\nИмя набора — это конец ссылки t.me/addemoji/<b>имя</b>");
+  const set = await tgRaw(env, "getStickerSet", { name });
+  if (!set.ok) return send(env, chatId, `Не нашёл набор «${esc(name)}» 🤔`);
+  const all = set.result.stickers.filter((s) => s.custom_emoji_id);
+  const lines = all.map((s, i) => `${i + 1}. <tg-emoji emoji-id="${s.custom_emoji_id}">${s.emoji || "⭐"}</tg-emoji> ${s.emoji || ""} <code>${s.custom_emoji_id}</code>`);
+  await tgRaw(env, "sendMessage", { chat_id: chatId, parse_mode: "HTML", text: `Набор «${esc(set.result.title)}»: ${all.length} иконок` });
+  for (let i = 0; i < lines.length; i += 40) {
+    await tgRaw(env, "sendMessage", { chat_id: chatId, parse_mode: "HTML", text: lines.slice(i, i + 40).join("\n") });
+  }
 }
 
 function send(env, chatId, text, extra = {}) {
@@ -414,6 +496,11 @@ async function onMessage(msg, env) {
   let u = (await getUser(env, msg.from.id)) || newUser(msg.from);
   const text = (msg.text || "").trim();
 
+  // Служебные команды для своих иконок
+  if ((msg.entities || msg.caption_entities || []).some((e) => e.type === "custom_emoji")) return sendEmojiIds(env, chatId, msg);
+  if (text.startsWith("/emojipack")) return sendEmojiPack(env, chatId, text.split(/\s+/)[1]);
+  if (text === "/emojiid") return send(env, chatId, "Отправь мне иконки из набора, и я пришлю их номера 🔢");
+
   if (text === "/start" || text.startsWith("/start ")) {
     if (u.targets) {
       u.state = null;
@@ -460,16 +547,16 @@ async function onMessage(msg, env) {
   if (msg.photo && msg.photo.length) return onPhoto(env, u, chatId, msg);
   if (msg.document && /^image\//.test(msg.document.mime_type || "")) return onPhoto(env, u, chatId, msg);
 
-  const cmd = text.split(/\s+/)[0].replace(/@\w+$/, "");
+  const cmd = MENU[menuLabel(text)] || text.split(/\s+/)[0].replace(/@\w+$/, "");
   switch (cmd) {
-    case "/today": case "📊": return sendDay(env, u, chatId, today(u));
-    case "/week": case "📅": return sendWeek(env, u, chatId);
-    case "/profile": case "👤": return sendProfile(env, u, chatId);
-    case "/help": case "❓": return send(env, chatId, HELP, { reply_markup: MAIN_KEYBOARD });
+    case "/today": return sendDay(env, u, chatId, today(u));
+    case "/week": return sendWeek(env, u, chatId);
+    case "/profile": return sendProfile(env, u, chatId);
+    case "/help": return send(env, chatId, HELP, { reply_markup: MAIN_KEYBOARD });
     case "/app":
       return send(env, chatId, "Твой дневник питания по дням 👇", { reply_markup: { inline_keyboard: [[appButton(env)]] } });
-    case "/weight": case "⚖️": {
-      const kg = parseNum(text.slice(cmd.length));
+    case "/weight": {
+      const kg = text.startsWith("/weight") ? parseNum(text.slice(7)) : NaN;
       if (kg >= 30 && kg <= 300) return logWeight(env, u, chatId, kg);
       u.state = { type: "weight" };
       await saveUser(env, u);
@@ -481,7 +568,10 @@ async function onMessage(msg, env) {
   return send(env, chatId, "Пришли фото еды 📸 или напиши, что съел ✍️");
 }
 
-const isMenu = (t) => ["📊 Сегодня", "📅 Неделя", "⚖️ Вес", "👤 Профиль", "❓ Помощь"].includes(t);
+// Кнопки меню: с иконкой Telegram присылает текст без эмодзи, поэтому смотрим только на слово
+const MENU = { "Сегодня": "/today", "Неделя": "/week", "Вес": "/weight", "Профиль": "/profile", "Помощь": "/help" };
+const menuLabel = (t) => String(t).replace(/^[^A-Za-zА-Яа-яЁё]+/, "").trim();
+const isMenu = (t) => !!MENU[menuLabel(t)];
 
 // ── Анкета ──
 
