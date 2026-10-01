@@ -1,0 +1,18 @@
+# Настройки для запуска через командную строку (npx wrangler deploy).
+# Если запускаешь через сайт Cloudflare — этот файл не нужен, смотри SETUP.md
+name = "fitter-ai"
+main = "worker.js"
+compatibility_date = "2026-09-01"
+
+[[kv_namespaces]]
+binding = "DB"
+id = "ВСТАВЬ_СЮДА_ID_KV_ХРАНИЛИЩА"
+
+[vars]
+DAILY_AI_LIMIT = "40"
+# GEMINI_MODEL = "gemini-3.5-flash"
+
+# Секреты задаются командами (не храни их в этом файле!):
+#   npx wrangler secret put BOT_TOKEN
+#   npx wrangler secret put GEMINI_API_KEY
+#   npx wrangler secret put WEBHOOK_SECRET
