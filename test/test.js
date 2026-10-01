@@ -98,9 +98,9 @@ geminiReply = {
 };
 geminiCalls = [];
 s = await call({ message: { message_id: 2, from, chat, photo: [
-  { file_id: "small", width: 90, height: 90 }, { file_id: "mid", width: 1280, height: 960 }, { file_id: "big", width: 2560, height: 1920 },
+  { file_id: "small", width: 90, height: 90 }, { file_id: "mid", width: 800, height: 600 }, { file_id: "big", width: 1280, height: 960 },
 ], caption: "это обед" } });
-assert.equal(s.find((x) => x.method === "getFile").body.file_id, "mid", "выбираем фото до 1280px");
+assert.equal(s.find((x) => x.method === "getFile").body.file_id, "mid", "выбираем фото до 1000px");
 assert.equal(geminiCalls.length, 2, "первая модель 404 → запасная");
 const g = geminiCalls[1].body;
 assert.equal(g.contents[0].parts[1].inline_data.mime_type, "image/jpeg");
