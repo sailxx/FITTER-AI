@@ -115,13 +115,34 @@ console.log("✓ фото распознано:\n" + card.body.text + "\n");
 
 // 4. Исправление веса
 s = await cb(editBtn);
-assert.match(lastText(s), /Сколько граммов/);
+assert.match(lastText(s), /Напиши, что исправить/);
 s = await msg("200");
 assert.match(lastText(s), /150 г → <b>200 г<\/b>/);
 const date = editBtn.split("|")[1];
 let day = await env.DB.get(`d:42:${date}`, "json");
 assert.equal(day.meals[0].items[0].grams, 200);
 console.log("✓ вес исправлен");
+
+// 4б. Исправление названия: «форель 180 г» → нейросеть пересчитывает КБЖУ
+const pf = _test.parseFix;
+assert.deepEqual(pf("150"), { grams: 150 });
+assert.deepEqual(pf("150 г"), { grams: 150 });
+assert.deepEqual(pf("форель"), { name: "форель", grams: null });
+assert.deepEqual(pf("форель 200 г"), { name: "форель", grams: 200 });
+assert.deepEqual(pf("200 грамм форели"), { name: "форели", grams: 200 });
+assert.deepEqual(pf("2 яйца"), { name: "2 яйца", grams: null });
+assert.equal(pf("0"), null);
+geminiReply = { name: "Форель с овощами", kcal_100: 150, protein_100: 20, fat_100: 7, carbs_100: 2, meal_title: "Форель с рисом" };
+s = await cb(editBtn);
+assert.match(lastText(s), /всё вместе/);
+s = await msg("форель 180 г");
+assert.match(lastText(s), /«Гречка» 200 г → <b>«Форель с овощами» 180 г<\/b>/);
+assert.match(lastText(s), /270 ккал/);
+day = await env.DB.get(`d:42:${date}`, "json");
+assert.equal(day.meals[0].title, "Форель с рисом");
+assert.equal(day.meals[0].items[0].kcal_100, 150);
+assert.ok(geminiCalls.at(-1).body.contents[0].parts[0].text.includes("Стало: «форель»"));
+console.log("✓ название исправлено, КБЖУ пересчитаны");
 
 // 5. Текст: запись еды и вопрос
 geminiReply = { intent: "food_log", answer: "Записал!", title: "Банан", items: [{ name: "Банан", grams: 120, kcal_100: 89, protein_100: 1.1, fat_100: 0.3, carbs_100: 22.8 }] };
@@ -179,11 +200,16 @@ assert.equal(d.week.length, 7);
 assert.ok(d.week.some((w) => w.date === d.date && w.meals === 2));
 r = await apiCall("/api/item/edit", "POST", { date: d.date, mealId: d.meals[0].id, idx: 1, grams: 100 });
 assert.equal(r.status, 200);
+geminiReply = { name: "Индейка", kcal_100: 140, protein_100: 29, fat_100: 2, carbs_100: 0, meal_title: "Форель и индейка" };
+r = await apiCall("/api/item/rename", "POST", { date: d.date, mealId: d.meals[0].id, idx: 1, name: "индейка" });
+assert.equal(r.status, 200);
 r = await apiCall("/api/meal/delete", "POST", { date: d.date, mealId: d.meals[1].id });
 assert.equal(r.status, 200);
 d = await (await apiCall("/api/day?date=" + d.date)).json();
 assert.equal(d.meals.length, 1);
 assert.equal(d.meals[0].items[1].grams, 100);
+assert.equal(d.meals[0].items[1].name, "Индейка");
+assert.equal(Math.round(d.meals[0].items[1].totals.kcal), 140);
 console.log("✓ Mini App API, итого за день:", Math.round(d.totals.kcal), "ккал");
 
 // 9. Страницы
