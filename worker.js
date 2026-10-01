@@ -174,50 +174,76 @@ async function sendEmojiIds(env, chatId, msg) {
   return tgRaw(env, "sendMessage", { chat_id: chatId, parse_mode: "HTML", text: "🔢 Номера иконок:\n\n" + lines.join("\n") });
 }
 
-// Свой набор иконок Fitter: бот создаёт его в аккаунте того, кто отправил /makeemoji
-// Картинки 100×100 лежат в репозитории в папке icons/
+// Свои иконки FITTER: бот создаёт два набора в аккаунте того, кто отправил /makeemoji
+//  • чёрно-белый (перекрашивается под цвет текста): весы, дневник, логотип
+//  • цветной: всё, что связано с едой
+// Картинки 100×100 лежат в репозитории в папке icons/ (цветные — в icons/color/)
 const ICON_BASE = "https://raw.githubusercontent.com/sailxx/fitter-ai/main/icons/";
-const FITTER_ICONS = [
-  // файл, эмодзи для набора, какой эмодзи в боте заменить
-  ["plate", "🍽", "🍽"],
-  ["scales", "⚖️", "⚖"],
-  ["protein", "🍗", "🥩"],
-  ["fat", "💧", "🧈"],
-  ["carbs", "🌾", "🍞"],
-  ["diary", "📔", "📱"],
-  ["fitter", "🍏", "🍏"],
+const ICON_SETS = [
+  {
+    suffix: "icons", title: "FITTER Icons", repaint: true, folder: "",
+    // файл, эмодзи для набора, какой эмодзи в боте заменить
+    icons: [["scales", "⚖️", "⚖"], ["diary", "📔", "📱"], ["fitter", "🍏", "🍏"]],
+  },
+  {
+    suffix: "food", title: "FITTER Food", repaint: false, folder: "color/",
+    icons: [["plate", "🍽", "🍽"], ["protein", "🍗", "🥩"], ["fat", "💧", "🧈"], ["carbs", "🌾", "🍞"], ["kcal", "🔥", "🔥"]],
+  },
 ];
+
+async function ensureEmojiSet(env, from, botName, cfg) {
+  const name = `fitter_${cfg.suffix}_by_${botName}`;
+  const sticker = ([file, emoji]) => ({ sticker: ICON_BASE + cfg.folder + file + ".png", format: "static", emoji_list: [emoji] });
+  let set = await tgRaw(env, "getStickerSet", { name });
+  if (!set.ok) {
+    const res = await tgRaw(env, "createNewStickerSet", {
+      user_id: from.id, name, title: cfg.title, sticker_type: "custom_emoji",
+      needs_repainting: cfg.repaint, stickers: cfg.icons.map(sticker),
+    });
+    if (!res.ok) throw new Error(`${cfg.title}: ${res.description || "ошибка"}`);
+    set = await tgRaw(env, "getStickerSet", { name });
+    if (!set.ok) throw new Error(`${cfg.title}: не получилось прочитать набор`);
+  }
+  // Иконки ищем по их эмодзи, чтобы порядок в наборе был неважен
+  const map = {};
+  const has = new Set(set.result.stickers.map((s) => stripVS(s.emoji || "")));
+  for (const ic of cfg.icons) {
+    if (!has.has(stripVS(ic[1]))) {
+      await tgRaw(env, "addStickerToSet", { user_id: from.id, name, sticker: sticker(ic) });
+    }
+  }
+  set = await tgRaw(env, "getStickerSet", { name });
+  for (const s of set.result.stickers) {
+    const ic = cfg.icons.find((x) => stripVS(x[1]) === stripVS(s.emoji || ""));
+    if (ic && s.custom_emoji_id && !map[ic[2]]) map[ic[2]] = s.custom_emoji_id;
+  }
+  return { name, map };
+}
 
 async function makeEmojiPack(env, chatId, from) {
   if (env.ADMIN_ID && String(from.id) !== String(env.ADMIN_ID)) return send(env, chatId, "Эта команда только для владельца бота");
   const me = await tgRaw(env, "getMe", {});
-  const name = `fitter_icons_by_${me.result.username}`;
-  await send(env, chatId, "🔄 Создаю набор иконок Fitter…");
-  let set = await tgRaw(env, "getStickerSet", { name });
-  if (!set.ok) {
-    const res = await tgRaw(env, "createNewStickerSet", {
-      user_id: from.id,
-      name,
-      title: "Fitter AI Icons",
-      sticker_type: "custom_emoji",
-      needs_repainting: true,
-      stickers: FITTER_ICONS.map(([file, emoji]) => ({ sticker: ICON_BASE + file + ".png", format: "static", emoji_list: [emoji] })),
-    });
-    if (!res.ok) return send(env, chatId, `😔 Не получилось создать набор: ${esc(res.description || "ошибка")}`);
-    set = await tgRaw(env, "getStickerSet", { name });
-    if (!set.ok) return send(env, chatId, "😔 Набор создан, но не получилось его прочитать. Попробуй /makeemoji ещё раз");
-  }
+  await send(env, chatId, "🔄 Создаю наборы иконок FITTER…");
   const map = {};
-  set.result.stickers.forEach((s, i) => {
-    if (FITTER_ICONS[i] && s.custom_emoji_id) map[FITTER_ICONS[i][2]] = s.custom_emoji_id;
-  });
+  const links = [];
+  for (const cfg of ICON_SETS) {
+    try {
+      const r = await ensureEmojiSet(env, from, me.result.username, cfg);
+      Object.assign(map, r.map);
+      links.push(`${cfg.title}: t.me/addemoji/${r.name}`);
+    } catch (e) {
+      return send(env, chatId, `😔 Не получилось создать набор ${esc(String(e.message || e))}`);
+    }
+  }
   await env.DB.put("cfg:emoji", JSON.stringify(map));
   emojiLoadedAt = 0;
-  const list = FITTER_ICONS.map(([file, , key]) => map[key] ? `<tg-emoji emoji-id="${map[key]}">${key}</tg-emoji> ${file} <code>${map[key]}</code>` : "").join("\n");
+  const list = ICON_SETS.flatMap((c) => c.icons).map(([file, , key]) =>
+    map[key] ? `<tg-emoji emoji-id="${map[key]}">${key}</tg-emoji> ${file}` : `${key} ${file} — не найдена`
+  ).join("\n");
   return tgRaw(env, "sendMessage", {
     chat_id: chatId,
     parse_mode: "HTML",
-    text: `🎉 Набор готов и подключён к боту!\n\n${list}\n\nДобавить себе: t.me/addemoji/${name}`,
+    text: `🎉 Иконки готовы и подключены к боту!\n\n${list}\n\n${links.join("\n")}`,
   });
 }
 
