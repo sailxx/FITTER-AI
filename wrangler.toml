@@ -6,7 +6,7 @@ compatibility_date = "2026-09-01"
 
 [[kv_namespaces]]
 binding = "DB"
-id = "ВСТАВЬ_СЮДА_ID_KV_ХРАНИЛИЩА"
+id = "7a5f3505aed24657afb0cc924445a9c2"
 
 [vars]
 DAILY_AI_LIMIT = "40"
