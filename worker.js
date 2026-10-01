@@ -84,26 +84,42 @@ const CUSTOM_EMOJI = {
 };
 
 const stripVS = (s) => s.replace(/\uFE0F/g, "");
-const EMOJI_KEYS = Object.keys(CUSTOM_EMOJI).sort((a, b) => b.length - a.length);
-const EMOJI_RE = EMOJI_KEYS.length
-  ? new RegExp(EMOJI_KEYS.map((k) => stripVS(k).replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "\\uFE0F?").join("|"), "gu")
-  : null;
-const emojiId = (e) => CUSTOM_EMOJI[e] || CUSTOM_EMOJI[stripVS(e)] || CUSTOM_EMOJI[stripVS(e) + "\uFE0F"];
+
+// Итоговый список = список из кода + свои иконки, которые бот сохранил в базе (/makeemoji)
+let emojiMap = { ...CUSTOM_EMOJI };
+let emojiRe = null;
+let emojiLoadedAt = 0;
+function buildEmojiRe() {
+  const keys = Object.keys(emojiMap).sort((a, b) => b.length - a.length);
+  emojiRe = keys.length
+    ? new RegExp(keys.map((k) => stripVS(k).replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "\\uFE0F?").join("|"), "gu")
+    : null;
+}
+buildEmojiRe();
+async function loadEmojiMap(env) {
+  if (!env.DB || Date.now() - emojiLoadedAt < 60000) return;
+  emojiLoadedAt = Date.now();
+  const extra = (await env.DB.get("cfg:emoji", "json").catch(() => null)) || {};
+  emojiMap = { ...CUSTOM_EMOJI, ...extra };
+  buildEmojiRe();
+}
+const emojiId = (e) => emojiMap[e] || emojiMap[stripVS(e)] || emojiMap[stripVS(e) + "\uFE0F"];
 
 function withIcons(text) {
-  if (!EMOJI_RE || !text) return text;
+  if (!emojiRe || !text) return text;
   // Не трогаем то, что уже внутри <tg-emoji>
   return text.split(/(<tg-emoji[^>]*>.*?<\/tg-emoji>)/gs).map((part, i) =>
-    i % 2 ? part : part.replace(EMOJI_RE, (m) => `<tg-emoji emoji-id="${emojiId(m)}">${m}</tg-emoji>`)
+    i % 2 ? part : part.replace(emojiRe, (m) => `<tg-emoji emoji-id="${emojiId(m)}">${m}</tg-emoji>`)
   ).join("");
 }
 
 function buttonIcons(markup) {
-  if (!EMOJI_RE || !markup) return markup;
+  if (!emojiRe || !markup) return markup;
   const rows = markup.inline_keyboard || markup.keyboard;
   if (!rows) return markup;
+  const start = new RegExp("^(" + emojiRe.source + ")\\s*", "u");
   const conv = (b) => {
-    const m = b.text.match(new RegExp("^(" + EMOJI_RE.source + ")\\s*", "u"));
+    const m = b.text.match(start);
     if (!m) return b;
     return { ...b, text: b.text.slice(m[0].length), icon_custom_emoji_id: emojiId(m[1]) };
   };
@@ -122,7 +138,8 @@ async function tgRaw(env, method, payload) {
 
 async function tg(env, method, payload) {
   let j;
-  const fancy = EMOJI_RE && env.CUSTOM_EMOJI !== "off" && (method === "sendMessage" || method === "editMessageText");
+  if (method === "sendMessage" || method === "editMessageText") await loadEmojiMap(env);
+  const fancy = emojiRe && env.CUSTOM_EMOJI !== "off" && (method === "sendMessage" || method === "editMessageText");
   if (fancy) {
     const p = { ...payload };
     if (p.parse_mode === "HTML") p.text = withIcons(p.text);
@@ -155,6 +172,53 @@ async function sendEmojiIds(env, chatId, msg) {
     lines.push(`<tg-emoji emoji-id="${e.custom_emoji_id}">${ch}</tg-emoji> <code>${e.custom_emoji_id}</code>`);
   }
   return tgRaw(env, "sendMessage", { chat_id: chatId, parse_mode: "HTML", text: "🔢 Номера иконок:\n\n" + lines.join("\n") });
+}
+
+// Свой набор иконок Fitter: бот создаёт его в аккаунте того, кто отправил /makeemoji
+// Картинки 100×100 лежат в репозитории в папке icons/
+const ICON_BASE = "https://raw.githubusercontent.com/sailxx/fitter-ai/main/icons/";
+const FITTER_ICONS = [
+  // файл, эмодзи для набора, какой эмодзи в боте заменить
+  ["plate", "🍽", "🍽"],
+  ["scales", "⚖️", "⚖"],
+  ["protein", "🍗", "🥩"],
+  ["fat", "💧", "🧈"],
+  ["carbs", "🌾", "🍞"],
+  ["diary", "📔", "📱"],
+  ["fitter", "🍏", "🍏"],
+];
+
+async function makeEmojiPack(env, chatId, from) {
+  if (env.ADMIN_ID && String(from.id) !== String(env.ADMIN_ID)) return send(env, chatId, "Эта команда только для владельца бота");
+  const me = await tgRaw(env, "getMe", {});
+  const name = `fitter_icons_by_${me.result.username}`;
+  await send(env, chatId, "🔄 Создаю набор иконок Fitter…");
+  let set = await tgRaw(env, "getStickerSet", { name });
+  if (!set.ok) {
+    const res = await tgRaw(env, "createNewStickerSet", {
+      user_id: from.id,
+      name,
+      title: "Fitter AI Icons",
+      sticker_type: "custom_emoji",
+      needs_repainting: true,
+      stickers: FITTER_ICONS.map(([file, emoji]) => ({ sticker: ICON_BASE + file + ".png", format: "static", emoji_list: [emoji] })),
+    });
+    if (!res.ok) return send(env, chatId, `😔 Не получилось создать набор: ${esc(res.description || "ошибка")}`);
+    set = await tgRaw(env, "getStickerSet", { name });
+    if (!set.ok) return send(env, chatId, "😔 Набор создан, но не получилось его прочитать. Попробуй /makeemoji ещё раз");
+  }
+  const map = {};
+  set.result.stickers.forEach((s, i) => {
+    if (FITTER_ICONS[i] && s.custom_emoji_id) map[FITTER_ICONS[i][2]] = s.custom_emoji_id;
+  });
+  await env.DB.put("cfg:emoji", JSON.stringify(map));
+  emojiLoadedAt = 0;
+  const list = FITTER_ICONS.map(([file, , key]) => map[key] ? `<tg-emoji emoji-id="${map[key]}">${key}</tg-emoji> ${file} <code>${map[key]}</code>` : "").join("\n");
+  return tgRaw(env, "sendMessage", {
+    chat_id: chatId,
+    parse_mode: "HTML",
+    text: `🎉 Набор готов и подключён к боту!\n\n${list}\n\nДобавить себе: t.me/addemoji/${name}`,
+  });
 }
 
 // Служебное: показать весь набор иконок с номерами (/emojipack tgiosicons)
@@ -471,7 +535,7 @@ function mealKeyboard(env, date, meal) {
   return { inline_keyboard: rows };
 }
 
-const HELP = `<b>Fitter AI</b> — одно фото, полный контроль 📸
+const HELP = `🍏 <b>Fitter AI</b> — одно фото, полный контроль 📸
 
 <b>Как пользоваться</b>
 1. Сфотографируй еду и отправь сюда фото
@@ -520,6 +584,7 @@ async function onMessage(msg, env) {
   if ((msg.entities || msg.caption_entities || []).some((e) => e.type === "custom_emoji")) return sendEmojiIds(env, chatId, msg);
   if (text.startsWith("/emojipack")) return sendEmojiPack(env, chatId, text.split(/\s+/)[1]);
   if (text === "/emojiid") return send(env, chatId, "Отправь мне иконки из набора, и я пришлю их номера 🔢");
+  if (text === "/makeemoji") return makeEmojiPack(env, chatId, msg.from);
 
   if (text === "/start" || text.startsWith("/start ")) {
     if (u.targets) {
@@ -600,7 +665,7 @@ async function startOnboarding(env, u, chatId) {
   await saveUser(env, u);
   await send(
     env, chatId,
-    `Привет${u.name ? ", " + esc(u.name) : ""}! 👋 Я <b>Fitter AI</b>.\n\n` +
+    `Привет${u.name ? ", " + esc(u.name) : ""}! 👋 Я 🍏 <b>Fitter AI</b>.\n\n` +
       `Отправляешь фото еды — я определяю продукты, считаю калории, белки, жиры и углеводы и веду твой дневник питания.\n\n` +
       `Сначала короткая анкета, чтобы посчитать твою дневную норму. Это 6 вопросов ⏱`,
     { reply_markup: { remove_keyboard: true } }
