@@ -229,20 +229,40 @@ const TEXT_PROMPT = `Ты дружелюбный нутрициолог-асси
 Для question и other верни пустой items и пустой title.`;
 
 let lastModelUsed = null;
+let workingModel = null; // модель, которая ответила в прошлый раз (чтобы не тратить время на недоступные)
+
+// Cloudflare даёт фоновой задаче ~30 секунд, поэтому укладываемся в 24
+const AI_DEADLINE_MS = 24000;
 
 async function gemini(env, parts, schema, temperature = 0.2) {
   if (!env.GEMINI_API_KEY) throw new Error("GEMINI_API_KEY не задан");
-  const models = [...new Set([env.GEMINI_MODEL, ...MODEL_FALLBACKS].filter(Boolean))];
+  const started = Date.now();
+  if (!workingModel && env.DB) workingModel = await env.DB.get("cfg:model").catch(() => null);
+  const models = [...new Set([env.GEMINI_MODEL, workingModel, ...MODEL_FALLBACKS].filter(Boolean))];
+  const body = JSON.stringify({
+    contents: [{ role: "user", parts }],
+    generationConfig: { temperature, responseMimeType: "application/json", responseSchema: schema },
+  });
   let lastErr = null;
   for (const model of models) {
-    const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
-      method: "POST",
-      headers: { "content-type": "application/json", "x-goog-api-key": env.GEMINI_API_KEY },
-      body: JSON.stringify({
-        contents: [{ role: "user", parts }],
-        generationConfig: { temperature, responseMimeType: "application/json", responseSchema: schema },
-      }),
-    });
+    const left = AI_DEADLINE_MS - (Date.now() - started);
+    if (left < 3000) break;
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), left);
+    let r;
+    try {
+      r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
+        method: "POST",
+        headers: { "content-type": "application/json", "x-goog-api-key": env.GEMINI_API_KEY },
+        body,
+        signal: ctrl.signal,
+      });
+    } catch (e) {
+      clearTimeout(timer);
+      lastErr = new Error(`Gemini ${model}: нет ответа за ${Math.round(left / 1000)} с`);
+      break;
+    }
+    clearTimeout(timer);
     if (r.ok) {
       const j = await r.json();
       const text = (j.candidates?.[0]?.content?.parts || [])
@@ -251,14 +271,21 @@ async function gemini(env, parts, schema, temperature = 0.2) {
         .join("");
       if (!text) { lastErr = new Error(`Gemini ${model}: пустой ответ`); continue; }
       lastModelUsed = model;
+      if (workingModel !== model) {
+        workingModel = model;
+        if (env.DB) await env.DB.put("cfg:model", model).catch(() => {});
+      }
+      console.log(`Gemini ${model}: ${Date.now() - started} мс`);
       return JSON.parse(text);
     }
-    const body = await r.text();
-    lastErr = new Error(`Gemini ${model} ${r.status}: ${body.slice(0, 300)}`);
+    const errText = await r.text();
+    lastErr = new Error(`Gemini ${model} ${r.status}: ${errText.slice(0, 300)}`);
+    console.error(lastErr.message);
+    if (model === workingModel) workingModel = null;
     // Модель не найдена / лимит / сбой — пробуем следующую. Неверный ключ — нет смысла пробовать дальше.
     if (![404, 429, 500, 503].includes(r.status)) break;
   }
-  throw lastErr;
+  throw lastErr || new Error("Gemini: не успели получить ответ");
 }
 
 function cleanItems(items) {
@@ -609,7 +636,8 @@ async function onCallback(q, env) {
 function pickPhoto(msg) {
   if (msg.document) return msg.document.file_id;
   const photos = msg.photo;
-  const ok = photos.filter((p) => Math.max(p.width, p.height) <= 1280);
+  // Фото до 1000 px: нейросети хватает, а работает быстрее
+  const ok = photos.filter((p) => Math.max(p.width, p.height) <= 1000);
   return (ok.length ? ok[ok.length - 1] : photos[0]).file_id;
 }
 
