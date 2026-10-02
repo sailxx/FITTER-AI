@@ -243,6 +243,42 @@ assert.equal(d.meals[0].items[1].name, "Индейка");
 assert.equal(Math.round(d.meals[0].items[1].totals.kcal), 140);
 console.log("✓ Mini App API, итого за день:", Math.round(d.totals.kcal), "ккал");
 
+// 8b. Запись еды текстом из дневника
+{
+  geminiReply = { intent: "food_log", answer: "", title: "Яйца и тост", items: [
+    { name: "Яйцо варёное", grams: 110, kcal_100: 155, protein_100: 13, fat_100: 11, carbs_100: 1.1 },
+    { name: "Тост", grams: 30, kcal_100: 265, protein_100: 9, fat_100: 3.2, carbs_100: 49 }] };
+  let a = await apiCall("/api/meal/add", "POST", { date: d.date, text: "2 яйца и тост" });
+  assert.equal(a.status, 200);
+  const added = await a.json();
+  assert.equal(added.title, "Яйца и тост");
+  assert.equal(added.kcal, 250);
+  let dd = await (await apiCall("/api/day?date=" + d.date)).json();
+  const m = dd.meals.find((x) => x.id === added.id);
+  assert.equal(m.source, "app");
+  assert.equal(m.items.length, 2);
+  geminiReply = { intent: "question", answer: "Это не похоже на еду 🙂", title: "", items: [] };
+  a = await apiCall("/api/meal/add", "POST", { date: d.date, text: "как дела" });
+  assert.equal(a.status, 422);
+  assert.equal((await a.json()).answer, "Это не похоже на еду 🙂");
+  a = await apiCall("/api/meal/add", "POST", { date: d.date, text: " " });
+  assert.equal(a.status, 400);
+  a = await apiCall("/api/meal/add", "POST", { date: "2099-01-01", text: "банан" });
+  assert.equal(a.status, 400);
+  // Вчерашний день: запись попадает в нужный день
+  geminiReply = { intent: "food_log", answer: "", title: "Банан", items: [{ name: "Банан", grams: 120, kcal_100: 89, protein_100: 1.1, fat_100: 0.3, carbs_100: 22.8 }] };
+  const y = new Date(Date.parse(d.date + "T00:00:00Z") - 864e5).toISOString().slice(0, 10);
+  a = await apiCall("/api/meal/add", "POST", { date: y, text: "банан" });
+  assert.equal(a.status, 200);
+  dd = await (await apiCall("/api/day?date=" + y)).json();
+  assert.ok(dd.meals.some((x) => x.title === "Банан" && x.time === "—"));
+  a = await apiCall("/api/meal/delete", "POST", { date: y, mealId: dd.meals.find((x) => x.title === "Банан").id });
+  a = await apiCall("/api/meal/delete", "POST", { date: d.date, mealId: added.id });
+  assert.equal(a.status, 200);
+  assert.match(_test.APP_HTML, /id="addt"/);
+  console.log("✓ дневник: запись еды текстом");
+}
+
 // 9. Страницы
 r = await worker.fetch(new Request(base + "/app"), env, ctx);
 const html = await r.text();
