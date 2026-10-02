@@ -386,7 +386,7 @@ console.log("✓ /app и /setup");
   assert.equal(geminiCalls.length, calls, "разбор берётся из кэша");
   // Воскресная рассылка
   sent.length = 0;
-  await worker.scheduled({ cron: "0 17 * * 0" }, env, ctx);
+  await worker.scheduled({ cron: "0 17 * * SUN" }, env, ctx);
   await Promise.all(pending.splice(0));
   assert.ok(sent.some((x) => x.body.chat_id === 77 && /Разбор недели/.test(x.body.text || "")), "разбор пришёл по расписанию");
   const off = sent.find((x) => x.body.chat_id === 77).body.reply_markup.inline_keyboard.flat().find((b) => b.callback_data === "an_off");
