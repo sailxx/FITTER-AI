@@ -641,6 +641,62 @@ function newUser(from) {
   return { id: from.id, name: from.first_name || "", tz: DEFAULT_TZ, created: Date.now(), state: null };
 }
 
+// Метка источника из /start: только латиница, цифры, _ и -, до 32 символов
+function startSource(text) {
+  const m = String(text || "").match(/^\/start\s+([A-Za-z0-9_-]{1,32})$/);
+  return m ? m[1].toLowerCase() : "direct";
+}
+
+const pct = (a, b) => (b ? Math.round((a / b) * 100) : 0);
+
+// /stats [дней] — статистика для владельца: новые люди, анкета, еда, удержание по источникам
+async function sendStats(env, chatId, from, text) {
+  if (!env.ADMIN_ID) {
+    return send(env, chatId,
+      `Статистика доступна только владельцу.\n\nТвой Telegram ID: <code>${from.id}</code>\n` +
+      `Добавь переменную <b>ADMIN_ID</b> с этим числом в настройках воркера в Cloudflare, и команда заработает.`);
+  }
+  if (String(from.id) !== String(env.ADMIN_ID)) return send(env, chatId, "Эта команда только для владельца бота");
+  const days = Math.min(365, Math.max(1, parseInt(text.split(/\s+/)[1], 10) || 30));
+  const now = Date.now(), since = now - days * 864e5;
+  const users = [];
+  let cursor;
+  do {
+    const page = await env.DB.list({ prefix: "u:", cursor });
+    const batch = await Promise.all(page.keys.map((k) => env.DB.get(k.name, "json")));
+    users.push(...batch.filter(Boolean));
+    cursor = page.list_complete ? null : page.cursor;
+  } while (cursor);
+
+  const ate = (u) => (u.st?.meals || 0) > 0 || !!u.streak?.last;
+  const lastMeal = (u) => (u.streak?.last ? Date.parse(u.streak.last + "T12:00:00Z") : 0);
+  const returned = (u) => lastMeal(u) - (u.created || now) >= 7 * 864e5;
+  const fresh = users.filter((u) => (u.created || 0) >= since);
+  const day1 = users.filter((u) => (u.created || 0) >= now - 864e5).length;
+  const active7 = users.filter((u) => lastMeal(u) >= now - 8 * 864e5).length;
+
+  const bySrc = {};
+  for (const u of fresh) {
+    const r = (bySrc[u.src || "direct"] ||= { n: 0, form: 0, ate: 0 });
+    r.n++;
+    if (u.targets) r.form++;
+    if (ate(u)) r.ate++;
+  }
+  const rows = Object.entries(bySrc).sort((a, b) => b[1].n - a[1].n)
+    .map(([k, r]) => `• <b>${esc(k)}</b> — ${r.n} · анкета ${pct(r.form, r.n)}% · еда ${pct(r.ate, r.n)}%`);
+  const form = fresh.filter((u) => u.targets).length, food = fresh.filter(ate).length;
+  const old = fresh.filter((u) => (u.created || now) <= now - 7 * 864e5);
+
+  return send(env, chatId,
+    `📊 <b>Статистика FITTER</b>\n\n` +
+    `<blockquote>👥 Всего: <b>${users.length}</b>\n🆕 За сутки: <b>${day1}</b>\n🔥 Записывали еду за 7 дней: <b>${active7}</b></blockquote>\n` +
+    `<b>Новые за ${days} дн.: ${fresh.length}</b>\n` +
+    `<blockquote>📝 Прошли анкету: <b>${form}</b> (${pct(form, fresh.length)}%)\n🍽 Записали еду: <b>${food}</b> (${pct(food, fresh.length)}%)\n` +
+    `🔁 Вернулись через неделю: <b>${old.filter(returned).length}</b> из ${old.length}</blockquote>\n` +
+    `<b>По источникам</b>\n${rows.join("\n") || "Пока никого"}\n\n` +
+    `<i>Ссылка с меткой: t.me/FitterFoodBot?start=habr · период: /stats 7</i>`);
+}
+
 function parseNum(text) {
   const m = String(text).replace(",", ".").match(/-?\d+(\.\d+)?/);
   return m ? Number(m[0]) : NaN;
@@ -649,8 +705,13 @@ function parseNum(text) {
 async function onMessage(msg, env) {
   if (msg.chat.type !== "private" || !msg.from) return;
   const chatId = msg.chat.id;
-  let u = (await getUser(env, msg.from.id)) || newUser(msg.from);
+  const known = await getUser(env, msg.from.id);
+  let u = known || newUser(msg.from);
   const text = (msg.text || "").trim();
+  // Откуда пришёл новый пользователь: t.me/FitterFoodBot?start=habr → «habr»
+  if (!known) u.src = startSource(text);
+
+  if (text === "/stats" || text.startsWith("/stats ")) return sendStats(env, chatId, msg.from, text);
 
   // Служебные команды для своих иконок
   if ((msg.entities || msg.caption_entities || []).some((e) => e.type === "custom_emoji")) return sendEmojiIds(env, chatId, msg);
@@ -2433,4 +2494,4 @@ const APP_HTML = `<!doctype html>
 </html>`;
 
 // Для тестов
-export const _test = { waterTick, ACHIEVEMENTS, baseEmoji, calcTargets, verifyInitData, cleanItems, sumItems, parseFix, parseWater, cleanBarcode, waterGoal, APP_HTML };
+export const _test = { waterTick, startSource, ACHIEVEMENTS, baseEmoji, calcTargets, verifyInitData, cleanItems, sumItems, parseFix, parseWater, cleanBarcode, waterGoal, APP_HTML };
