@@ -7,6 +7,7 @@ const TOKEN = "123:TEST";
 const sent = [];
 let geminiReply = null;
 let geminiCalls = [];
+let offCalls = 0;
 
 class FakeKV {
   constructor() { this.m = new Map(); }
@@ -36,6 +37,15 @@ globalThis.fetch = async (url, opts = {}) => {
     if (url.includes("gemini-3.5-flash:")) return new Response("model not found", { status: 404 }); // проверяем запасную модель
     const reply = typeof geminiReply === "function" ? geminiReply(body) : geminiReply;
     return Response.json({ candidates: [{ content: { parts: [{ text: JSON.stringify(reply) }] } }] });
+  }
+  if (url.startsWith("https://world.openfoodfacts.org/api/v2/product/")) {
+    offCalls++;
+    const code = url.split("/product/")[1].split(".")[0];
+    if (code === "4607001771234") {
+      return Response.json({ status: 1, product: { product_name: "Йогурт греческий 2%", brands: "Тестовый", product_quantity: 140,
+        nutriments: { "energy-kcal_100g": 66, proteins_100g: 8, fat_100g: 2, carbohydrates_100g: 3.8 } } });
+    }
+    return Response.json({ status: 0 }, { status: 404 });
   }
   throw new Error("unexpected fetch " + url);
 };
@@ -225,7 +235,71 @@ assert.match(setupHtml, /Всё готово/);
 assert.equal(sent.find((x) => x.method === "setWebhook").body.url, base + "/webhook");
 console.log("✓ /app и /setup");
 
-// 10. Лимит запросов к ИИ
+// 10. Вода
+{
+  const pw = _test.parseWater;
+  assert.equal(pw("вода 300"), 300);
+  assert.equal(pw("+500"), 500);
+  assert.equal(pw("выпил 330 мл воды"), 330);
+  assert.equal(pw("0,5 л воды"), 500);
+  assert.equal(pw("2 стакана воды"), 500);
+  assert.equal(pw("стакан воды"), 250);
+  assert.equal(pw("200"), null);
+  assert.equal(pw("съел 2 яйца"), null);
+  assert.equal(_test.waterGoal({ weight: 65.5 }), 1950);
+  const W = (await env.DB.get("u:42", "json")).weight;
+  const goalL = String(_test.waterGoal({ weight: W }) / 1000).replace(".", ",") + " л";
+  s = await msg("💧 Вода");
+  assert.match(lastText(s), /Вода за сегодня/);
+  assert.ok(lastText(s).includes("0 л</b> из " + goalL));
+  const wbtn = s.find((x) => x.method === "sendMessage").body.reply_markup.inline_keyboard[0][0].callback_data;
+  s = await cb(wbtn);
+  assert.ok(lastText(s).includes("0,25 л</b> из " + goalL));
+  s = await msg("вода 500");
+  assert.match(lastText(s), /\+500 мл записал/);
+  assert.match(lastText(s), /0,75 л/);
+  s = await msg("/today");
+  assert.ok(lastText(s).includes("Вода: 0,75 л / " + goalL));
+  d = await (await apiCall("/api/day")).json();
+  assert.equal(d.water, 750);
+  r = await apiCall("/api/water", "POST", { date: d.date, delta: -250 });
+  assert.equal((await r.json()).water, 500);
+  r = await apiCall("/api/water", "POST", { date: d.date, delta: 9999 });
+  assert.equal(r.status, 400);
+  console.log("✓ вода: кнопки, текст, дневник, Mini App");
+}
+
+// 11. Штрихкод и упаковка
+{
+  assert.equal(_test.cleanBarcode("4607001771234"), "4607001771234");
+  assert.equal(_test.cleanBarcode("4607001771235"), null, "неверная контрольная цифра");
+  assert.equal(_test.cleanBarcode("96385074"), "96385074", "EAN-8");
+  s = await msg("4607001771234");
+  assert.match(lastText(s), /Йогурт греческий 2% Тестовый — 140 г — 92 ккал/);
+  assert.match(lastText(s), /Нашёл по штрихкоду/);
+  assert.doesNotMatch(lastText(s), /💡 📦/);
+  const calls = offCalls;
+  await msg("4607001771234");
+  assert.equal(offCalls, calls, "второй раз берём из кэша");
+  s = await msg("4600000000008");
+  assert.match(lastText(s), /Не нашёл штрихкод/);
+  s = await msg("4607001771235");
+  assert.match(lastText(s), /цифры не сходятся/);
+  // Фото упаковки без этикетки, но со штрихкодом: КБЖУ из базы
+  geminiReply = { is_food: true, title: "Йогурт", comment: "", is_package: true, label_found: false, barcode: "4607001771234",
+    items: [{ name: "Йогурт", grams: 120, kcal_100: 90, protein_100: 3, fat_100: 3, carbs_100: 12 }] };
+  s = await call({ message: { message_id: 3, from, chat, photo: [{ file_id: "p", width: 800, height: 800 }] } });
+  assert.match(lastText(s), /Йогурт греческий 2% Тестовый — 140 г — 92 ккал/);
+  // Фото этикетки: КБЖУ как на этикетке
+  geminiReply = { is_food: true, title: "Батончик", comment: "", is_package: true, label_found: true, barcode: "",
+    items: [{ name: "Протеиновый батончик", grams: 60, kcal_100: 350, protein_100: 33, fat_100: 10, carbs_100: 30 }] };
+  s = await call({ message: { message_id: 4, from, chat, photo: [{ file_id: "p", width: 800, height: 800 }] } });
+  assert.match(lastText(s), /Протеиновый батончик — 60 г — 210 ккал/);
+  assert.match(lastText(s), /КБЖУ взяты с этикетки/);
+  console.log("✓ штрихкод, кэш, фото упаковки и этикетки");
+}
+
+// 12. Лимит запросов к ИИ
 env.DAILY_AI_LIMIT = "1";
 s = await msg("что поесть?");
 assert.match(lastText(s), /лимит/);
