@@ -193,6 +193,9 @@ assert.match(lastText(s), /<b>Неделя<\/b>/);
 assert.match(lastText(s), /🟩|🟦|🟥/);
 assert.match(lastText(s), /В норме <b>\d из \d<\/b>/);
 assert.match(lastText(s), /💡/);
+assert.match(lastText(s), /📊(<\/tg-emoji>)? <b>Итоги<\/b>/);
+assert.match(lastText(s), /<i>сегодня<\/i>/);
+assert.ok(s.at(-1).body.reply_markup.inline_keyboard.flat().some((b) => b.callback_data === "advice"));
 s = await msg("👤 Профиль");
 assert.match(lastText(s), /💪 Набрать массу<\/blockquote>/);
 assert.match(lastText(s), /🎂 16 лет/);
@@ -469,6 +472,32 @@ console.log("✓ /app и /setup");
   assert.deepEqual(JSON.parse(await env.DB.get("wr:ids")), []);
   assert.ok(base > 0);
   console.log("✓ напоминания о воде: частота, начало и конец дня, ночь, норма");
+}
+
+// 11a. Что съесть: советы от ИИ и запись варианта
+{
+  geminiReply = { intro: "Сделай упор на белок", options: [
+    { title: "Творог с бананом", why: "много белка", items: [{ name: "Творог 5%", grams: 200, kcal_100: 121, protein_100: 17, fat_100: 5, carbs_100: 1.8 }, { name: "Банан", grams: 120, kcal_100: 89, protein_100: 1.1, fat_100: 0.3, carbs_100: 22.8 }] },
+    { title: "Омлет", why: "быстро", items: [{ name: "Омлет", grams: 180, kcal_100: 154, protein_100: 10, fat_100: 12, carbs_100: 1 }] },
+    { title: "Кефир", why: "лёгкий перекус", items: [{ name: "Кефир 1%", grams: 250, kcal_100: 40, protein_100: 3, fat_100: 1, carbs_100: 4 }] }] };
+  let a = await msg("/advice");
+  let t = lastText(a);
+  assert.match(t, /🥗(<\/tg-emoji>)? <b>Что съесть<\/b>/);
+  assert.match(t, /<b>Творог с бананом<\/b> · 349 ккал/);
+  assert.match(t, /Творог 5% 200 г, Банан 120 г/);
+  assert.ok(geminiCalls.at(-1).body.contents[0].parts[0].text.includes("Осталось:"));
+  const kb = a.at(-1).body.reply_markup.inline_keyboard;
+  assert.equal(kb[0].length, 3);
+  assert.equal(kb[0][0].callback_data, "adv|0");
+  a = await cb("adv|0");
+  assert.match(lastText(a), /Творог с бананом/);
+  const advMeal = [...env.DB.m.entries()].filter(([k]) => k.startsWith("d:42:")).flatMap(([, v]) => JSON.parse(v).meals).find((m) => m.source === "advice");
+  assert.equal(advMeal.title, "Творог с бананом");
+  assert.equal(advMeal.items.length, 2);
+  a = await cb("adv|1");
+  assert.equal(a.find((x) => x.method === "answerCallbackQuery").body.text, "Варианты устарели, нажми «Что съесть» ещё раз");
+  assert.match(_test.weekTip({ goal: "gain" }, 1000, 2500), /Не хватает в среднем 1500 ккал/);
+  console.log("✓ что съесть: советы и запись варианта");
 }
 
 // 11b. Метки источников и /stats
