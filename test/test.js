@@ -31,7 +31,7 @@ globalThis.fetch = async (url, opts = {}) => {
     if (method === "getStickerSet") {
       if (body.name !== "fitter_by_fitter_test_bot") return Response.json({ ok: false, description: "STICKERSET_INVALID" });
       // Так Telegram может хранить эмодзи: с полом, оттенком кожи и без FE0F
-      const em = ["🍽", "🍗", "💧", "🌾", "🔥", "⚖", "📔", "🍏", "🛋", "🚶‍♂️", "🏃‍♂️", "💪🏻", "📉", "🥤", "📦"];
+      const em = ["🍽", "🍗", "💧", "🌾", "🔥", "⚖", "📔", "🍏", "🛋", "🚶‍♂️", "🏃‍♂️", "💪🏻", "📉", "🥤", "📦", "📏", "🎂", "🏆"];
       return Response.json({ ok: true, result: { title: "FITTER ICONS", stickers: em.map((e, i) => ({ emoji: e, custom_emoji_id: String(9000 + i) })) } });
     }
     if (method === "sendMessage") return Response.json({ ok: true, result: { message_id: ++msgId } });
@@ -179,9 +179,14 @@ assert.match(lastText(s), /Не вижу на фото еды/);
 s = await msg("📊 Сегодня");
 assert.match(lastText(s), /Приёмы пищи/);
 s = await msg("📅 Неделя");
-assert.match(lastText(s), /Последние 7 дней/);
+assert.match(lastText(s), /<b>Неделя<\/b>/);
+assert.match(lastText(s), /🟩|🟦|🟥/);
+assert.match(lastText(s), /В норме <b>\d из \d<\/b>/);
+assert.match(lastText(s), /💡/);
 s = await msg("👤 Профиль");
-assert.match(lastText(s), /Цель: 💪 Набрать массу/);
+assert.match(lastText(s), /💪 Набрать массу<\/blockquote>/);
+assert.match(lastText(s), /🎂 16 лет/);
+assert.match(lastText(s), /💧 Вода — <b>/);
 s = await msg("/weight 66.2");
 assert.match(lastText(s), /66.2 кг/);
 s = await msg("⚖️ Вес");
@@ -322,7 +327,7 @@ console.log("✓ /app и /setup");
   assert.equal(map["🚶"], "9009");
   assert.equal(map["💧"], "9013", "вода — стакан");
   assert.equal(map["🧈"], "9002", "жиры — капля");
-  assert.equal(Object.keys(map).length, 15);
+  assert.equal(Object.keys(map).length, 18);
   assert.ok(!s.some((x) => x.method === "addStickerToSet"), "ничего не добавляем заново");
   s = await msg("/profile");
   const prof = s.find((x) => x.method === "sendMessage").body.text;
