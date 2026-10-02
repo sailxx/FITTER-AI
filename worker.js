@@ -193,6 +193,7 @@ const ICON_SETS = [
       ["scales", "⚖️", "⚖"], ["diary", "📔", "📱"], ["fitter", "🍏", "🍏"],
       ["sofa", "🛋", "🛋"], ["walk", "🚶", "🚶"], ["run", "🏃", "🏃"], ["muscle", "💪", "💪"], ["lose", "📉", "📉"],
       ["water", "🥤", "💧"], ["barcode", "📦", "📦"],
+      ["ruler", "📏", "📏"], ["cake", "🎂", "🎂"], ["trophy", "🏆", "🏆"],
     ],
   },
 ];
@@ -845,6 +846,16 @@ async function onCallback(q, env) {
     await answer();
     return sendDay(env, u, chatId, today(u));
   }
+  if (kind === "week") {
+    await answer();
+    return sendWeek(env, u, chatId);
+  }
+  if (kind === "askw") {
+    u.state = { type: "weight" };
+    await saveUser(env, u);
+    await answer();
+    return send(env, chatId, `Сколько ты сейчас весишь? Напиши в кг, например <b>${u.weight || 70}</b>`);
+  }
   if (kind === "e" && isDate(a)) {
     const day = await getDay(env, u.id, a);
     const meal = day.meals.find((m) => m.id === b);
@@ -1240,34 +1251,108 @@ async function sendDay(env, u, chatId, date) {
   return send(env, chatId, text, { reply_markup: { inline_keyboard: [[{ text: "💧 +250 мл воды", callback_data: `w|${date}|250` }, appButton(env)]] } });
 }
 
+// Цветная полоска из 5 квадратиков: зелёный — норма, синий — мало, красный — больше нормы
+function weekBar(pct) {
+  if (pct === null) return "⬜⬜⬜⬜⬜";
+  const sq = pct < 0.8 ? "🟦" : pct <= 1.1 ? "🟩" : "🟥";
+  const n = Math.max(1, Math.min(5, Math.round(pct * 5)));
+  return sq.repeat(n) + "⬜".repeat(5 - n);
+}
+const plural = (n, one, few, many) => {
+  const m10 = n % 10, m100 = n % 100;
+  return m10 === 1 && m100 !== 11 ? one : m10 >= 2 && m10 <= 4 && (m100 < 12 || m100 > 14) ? few : many;
+};
+
 async function sendWeek(env, u, chatId) {
   const end = today(u);
+  const norm = u.targets.kcal;
   const dates = [...Array(7)].map((_, i) => shiftDate(end, i - 6));
-  const days = await Promise.all(dates.map((d) => getDay(env, u.id, d)));
-  let sum = 0, cnt = 0;
-  const lines = dates.map((d, i) => {
-    const k = round(dayTotals(days[i]).kcal);
+  const [days, weights] = await Promise.all([Promise.all(dates.map((d) => getDay(env, u.id, d))), getWeights(env, u.id)]);
+
+  const rows = dates.map((d, i) => {
     const wd = WEEKDAYS[new Date(d + "T00:00:00Z").getUTCDay()];
-    if (!days[i].meals.length) return `${wd} ${d.slice(8)}.${d.slice(5, 7)} — нет записей`;
-    sum += k; cnt++;
-    const pct = k / u.targets.kcal;
-    const mark = pct < 0.8 ? "🔵" : pct <= 1.1 ? "🟢" : "🔴";
-    return `${mark} ${wd} ${d.slice(8)}.${d.slice(5, 7)} — ${k} ккал`;
+    const has = days[i].meals.length > 0;
+    const k = round(dayTotals(days[i]).kcal);
+    const label = `${wd} ${d.slice(8)}`;
+    if (!has) return { d, has, k: 0, line: `${weekBar(null)}  ${label} · <i>нет записей</i>` };
+    const pct = k / norm;
+    return { d, has, k, pct, line: `${weekBar(pct)}  ${d === end ? "<b>" + label + "</b>" : label} · <b>${k}</b> ккал` };
   });
-  const avg = cnt ? round(sum / cnt) : 0;
-  const text =
-    `📅 <b>Последние 7 дней</b>\nНорма: ${u.targets.kcal} ккал\n\n${lines.join("\n")}\n\n` +
-    (cnt ? `В среднем: <b>${avg} ккал</b> в день (${cnt} дн. с записями)\n` : "") +
-    `🔵 мало · 🟢 в норме · 🔴 больше нормы`;
-  return send(env, chatId, text, { reply_markup: { inline_keyboard: [[appButton(env)]] } });
+
+  // Среднее считаем по законченным дням: сегодняшний ещё не завершён
+  const done = rows.filter((r) => r.has && r.d !== end);
+  const base = done.length ? done : rows.filter((r) => r.has);
+  const avg = base.length ? round(base.reduce((a, r) => a + r.k, 0) / base.length) : 0;
+  const inNorm = rows.filter((r) => r.has && r.pct >= 0.8 && r.pct <= 1.1).length;
+  const recorded = rows.filter((r) => r.has).length;
+  const best = rows.filter((r) => r.has).sort((a, b) => Math.abs(1 - a.pct) - Math.abs(1 - b.pct))[0];
+  const water = days.map((d) => d.water || 0).filter(Boolean);
+  const avgWater = water.length ? water.reduce((a, b) => a + b, 0) / water.length : 0;
+
+  let text =
+    `📅 <b>Неделя</b>\n<i>${humanDate(dates[0])} — ${humanDate(end)}</i>\n\n` +
+    `${rows.map((r) => r.line).join("\n")}\n\n` +
+    `<i>🟩 норма · 🟦 мало · 🟥 больше · норма ${norm} ккал</i>\n\n`;
+
+  if (!recorded) {
+    text += "📸 За неделю пока нет записей. Отправь фото еды, и я начну считать";
+  } else {
+    const stats = [
+      `🔥 В среднем <b>${avg} ккал</b> в день${done.length ? "" : " (пока только сегодня)"}`,
+      `🎯 В норме <b>${inNorm} из ${recorded}</b> ${recorded === 1 ? "дня" : "дней"}`,
+    ];
+    if (best) stats.push(`🏆 Лучший день: <b>${WEEKDAYS[new Date(best.d + "T00:00:00Z").getUTCDay()]}, ${humanDate(best.d)}</b> — ${best.k} ккал`);
+    if (avgWater) stats.push(`💧 Вода в среднем <b>${liters(avgWater)}</b> из ${liters(waterGoal(u))}`);
+    const wk = weights.filter((w) => w.date >= dates[0]);
+    if (wk.length > 1) {
+      const diff = r1(wk[wk.length - 1].kg - wk[0].kg);
+      stats.push(`⚖️ Вес: <b>${wk[wk.length - 1].kg} кг</b> (${diff > 0 ? "+" : ""}${diff} кг за неделю)`);
+    }
+    text += `<blockquote>${stats.join("\n")}</blockquote>\n`;
+
+    // Короткий совет по итогам недели
+    const pct = avg / norm;
+    let tip;
+    if (pct < 0.8) {
+      tip = u.goal === "gain"
+        ? `Не хватает в среднем ${norm - avg} ккал. Для набора массы добавь перекусы: творог, орехи, банан, кашу`
+        : `Ты ешь меньше нормы на ${norm - avg} ккал. Слишком большой дефицит мешает результату, держись хотя бы 80% нормы`;
+    } else if (pct > 1.1) {
+      tip = u.goal === "lose"
+        ? `В среднем больше нормы на ${avg - norm} ккал. Попробуй заменить сладкое и снеки на фрукты и белок`
+        : `В среднем больше нормы на ${avg - norm} ккал. Следи за порциями и вечерними перекусами`;
+    } else {
+      tip = "Отлично, ты держишься в норме! Так держать 💪";
+    }
+    text += `💡 ${tip}`;
+  }
+  return send(env, chatId, text, { reply_markup: { inline_keyboard: [[{ text: "📊 Сегодня", callback_data: "today" }, appButton(env, "📱 Дневник")]] } });
 }
 
 async function sendProfile(env, u, chatId) {
+  const t = u.targets;
+  const yrs = `${u.age} ${plural(u.age, "год", "года", "лет")}`;
   const text =
-    `👤 <b>Профиль</b>\n` +
-    `Пол: ${u.sex === "m" ? "мужской" : "женский"}\nВозраст: ${u.age}\nРост: ${u.height} см\nВес: ${u.weight} кг\n` +
-    `Активность: ${ACTIVITY[u.activity]}\nЦель: ${GOALS[u.goal]}\n\n${targetsText(u)}`;
-  return send(env, chatId, text, { reply_markup: { inline_keyboard: [[{ text: "✏️ Пройти анкету заново", callback_data: "reset" }]] } });
+    `👤 <b>${esc(u.name || "Профиль")}</b>\n\n` +
+    `<blockquote>${u.sex === "m" ? "👨 Мужской" : "👩 Женский"} · 🎂 ${yrs}\n` +
+    `📏 ${u.height} см · ⚖️ ${u.weight} кг\n` +
+    `${ACTIVITY[u.activity]}\n` +
+    `${GOALS[u.goal]}</blockquote>\n\n` +
+    `🎯 <b>Дневная норма</b>\n` +
+    `🔥 <b>${t.kcal} ккал</b>\n` +
+    `<blockquote>🥩 Белки — <b>${t.p} г</b>\n` +
+    `🧈 Жиры — <b>${t.f} г</b>\n` +
+    `🍞 Углеводы — <b>${t.c} г</b>\n` +
+    `💧 Вода — <b>${liters(waterGoal(u))}</b></blockquote>\n` +
+    `<i>Норма пересчитывается, когда ты записываешь новый вес</i>`;
+  return send(env, chatId, text, {
+    reply_markup: {
+      inline_keyboard: [
+        [{ text: "⚖️ Записать вес", callback_data: "askw" }, { text: "📅 Неделя", callback_data: "week" }],
+        [{ text: "✏️ Изменить анкету", callback_data: "reset" }],
+      ],
+    },
+  });
 }
 
 async function logWeight(env, u, chatId, kg) {
