@@ -30,6 +30,10 @@ globalThis.fetch = async (url, opts = {}) => {
     if (method === "getFile") return Response.json({ ok: true, result: { file_path: "photos/file_1.jpg" } });
     if (method === "getMe") return Response.json({ ok: true, result: { username: "fitter_test_bot" } });
     if (method === "getStickerSet") {
+      if (body.name === "fitter_ui_by_fitter_test_bot") {
+        const ui = ["📊", "📅", "⚖️", "👤", "❓", "✏️", "🗑", "💡", "🎯", "✅", "📸", "🔍", "✍️", "👋", "🤔", "😔", "🔄", "🎉", "📱", "↩️", "✨", "⌨️"];
+        return Response.json({ ok: true, result: { title: "FITTER UI", stickers: ui.map((e, i) => ({ emoji: e, custom_emoji_id: String(8000 + i) })) } });
+      }
       if (body.name !== "fitter_by_fitter_test_bot") return Response.json({ ok: false, description: "STICKERSET_INVALID" });
       // Так Telegram может хранить эмодзи: с полом, оттенком кожи и без FE0F
       const em = ["🍽", "🍗", "💧", "🌾", "🔥", "⚖", "📔", "🍏", "🛋", "🚶‍♂️", "🏃‍♂️", "💪🏻", "📉", "🥤", "📦", "📏", "🎂", "🏆", "1️⃣", "2️⃣", "3️⃣", "4️⃣"];
@@ -344,7 +348,10 @@ console.log("✓ /app и /setup");
   assert.equal(map["🚶"], "9009");
   assert.equal(map["💧"], "9013", "вода — стакан");
   assert.equal(map["🧈"], "9002", "жиры — капля");
-  assert.equal(Object.keys(map).length, 22);
+  assert.equal(map["📊"], "8000", "монохромная иконка «Сегодня»");
+  assert.equal(map["⚖"], "8002", "весы из FITTER UI");
+  assert.equal(map["↩"], "8019");
+  assert.equal(Object.keys(map).length, 22 + 20);
   assert.equal(map["1️⃣"], "9018");
   assert.ok(!s.some((x) => x.method === "addStickerToSet"), "ничего не добавляем заново");
   s = await msg("/profile");
