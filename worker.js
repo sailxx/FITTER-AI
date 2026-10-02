@@ -1484,124 +1484,178 @@ const APP_HTML = `<!doctype html>
 <html lang="ru">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <title>FITTER — дневник</title>
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
 <style>
   :root{
-    --bg:var(--tg-theme-secondary-bg-color,#f2f3f5);
+    --bg:var(--tg-theme-secondary-bg-color,#f3f5f2);
     --card:var(--tg-theme-bg-color,#ffffff);
-    --text:var(--tg-theme-text-color,#14171a);
-    --hint:var(--tg-theme-hint-color,#8a8f98);
-    --accent:var(--tg-theme-button-color,#2fb36b);
-    --accent-text:var(--tg-theme-button-text-color,#ffffff);
-    --danger:var(--tg-theme-destructive-text-color,#e5484d);
-    --line:rgba(127,127,127,.15);
-    --p:#4f8cff; --f:#f5a524; --c:#2fb36b;
+    --text:var(--tg-theme-text-color,#13201a);
+    --hint:var(--tg-theme-hint-color,#8a948e);
+    --danger:#ff5a4e;
+    --line:rgba(127,127,127,.14);
+    --g1:#2ee59d; --g2:#16b86a; --g3:#0e8f6e;
+    --p:#ff7a2f; --p-bg:rgba(255,122,47,.13);
+    --f:#f5a524; --f-bg:rgba(245,165,36,.15);
+    --c:#22b36b; --c-bg:rgba(34,179,107,.13);
+    --w1:#5ab8ff; --w2:#2a7bf0;
+    --shadow:0 6px 24px rgba(16,40,28,.08);
   }
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
-  body{margin:0;background:var(--bg);color:var(--text);font:15px/1.4 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;padding:12px 12px 32px}
-  .top{display:flex;align-items:center;justify-content:space-between;margin:4px 4px 12px}
-  .logo{font-weight:700;font-size:18px}
-  .logo small{display:block;font-weight:400;font-size:12px;color:var(--hint)}
+  html,body{margin:0;background:var(--bg);color:var(--text);font:15px/1.4 -apple-system,BlinkMacSystemFont,"SF Pro Rounded","Segoe UI",Roboto,sans-serif}
+  body{padding-bottom:28px;overflow-x:hidden}
+  button{font:inherit;border:0;cursor:pointer;transition:transform .14s cubic-bezier(.3,1.6,.5,1),filter .14s;touch-action:manipulation}
+  button:active{transform:scale(.9);filter:brightness(.94)}
+  .ic{width:24px;height:24px;flex:none;display:block}
+
+  /* ── Шапка ── */
+  .hero{position:relative;color:#fff;padding:14px 14px 22px;border-radius:0 0 30px 30px;overflow:hidden;
+    background:radial-gradient(120% 90% at 100% 0,#7cf3c1 0,rgba(124,243,193,0) 55%),linear-gradient(150deg,var(--g1),var(--g2) 55%,var(--g3));
+    box-shadow:0 14px 34px rgba(22,184,106,.28)}
+  .hero:before,.hero:after{content:"";position:absolute;border-radius:50%;background:rgba(255,255,255,.12);pointer-events:none}
+  .hero:before{width:220px;height:220px;right:-70px;top:-90px}
+  .hero:after{width:150px;height:150px;left:-60px;bottom:-70px;background:rgba(255,255,255,.08)}
+  .top{position:relative;z-index:1;display:flex;align-items:center;justify-content:space-between}
+  .logo{display:flex;align-items:center;gap:8px;font-weight:800;font-size:19px;letter-spacing:.5px}
+  .logo .mk{width:30px;height:30px;border-radius:9px;background:#0d1512;display:flex;align-items:center;justify-content:center}
+  .logo small{display:block;font-weight:500;font-size:11px;opacity:.85;letter-spacing:0;white-space:nowrap}
   .nav{display:flex;align-items:center;gap:6px}
-  .nav button{border:0;background:var(--card);color:var(--text);width:36px;height:36px;border-radius:10px;font-size:18px}
-  .nav .d{min-width:110px;text-align:center;font-weight:600}
-  .card{background:var(--card);border-radius:16px;padding:14px;margin-bottom:12px}
-  .week{display:grid;grid-template-columns:repeat(7,1fr);gap:4px}
-  .wd{border:0;background:transparent;color:var(--text);border-radius:12px;padding:6px 0;display:flex;flex-direction:column;align-items:center;gap:2px;font:inherit}
-  .wd small{color:var(--hint);font-size:11px}
+  .nav button{width:34px;height:34px;border-radius:11px;background:rgba(255,255,255,.2);color:#fff;font-size:20px;line-height:1;backdrop-filter:blur(6px)}
+  .nav .d{min-width:78px;text-align:center;font-weight:700;font-size:15px}
+  .week{position:relative;z-index:1;display:grid;grid-template-columns:repeat(7,1fr);gap:5px;margin:14px 0 8px}
+  .wd{background:rgba(255,255,255,.14);color:#fff;border-radius:14px;padding:7px 0 6px;display:flex;flex-direction:column;align-items:center;gap:1px}
+  .wd small{font-size:11px;opacity:.8}
   .wd b{font-size:16px}
-  .wd i{width:6px;height:6px;border-radius:50%;background:transparent}
-  .wd.sel{background:var(--accent);color:var(--accent-text)}
-  .wd.sel small{color:var(--accent-text);opacity:.8}
-  .wd.today b{text-decoration:underline}
-  .sum{display:flex;gap:16px;align-items:center}
-  .ring{position:relative;width:120px;height:120px;flex:none}
-  .ring svg{transform:rotate(-90deg)}
+  .wd i{width:5px;height:5px;border-radius:50%;background:transparent;margin-top:2px}
+  .wd.sel{background:#fff;color:var(--g3);box-shadow:0 6px 16px rgba(0,0,0,.12)}
+  .wd.sel small{opacity:.7}
+  .wd.today:not(.sel) b{text-decoration:underline;text-underline-offset:3px}
+  .main{position:relative;z-index:1;display:flex;flex-direction:column;align-items:center;margin-top:6px}
+  .ring{position:relative;width:196px;height:196px}
+  .ring svg{transform:rotate(-90deg);overflow:visible}
+  .ring .arc{transition:stroke-dashoffset 1.2s cubic-bezier(.2,.8,.2,1)}
+  .ring.ok .arc{filter:drop-shadow(0 0 8px rgba(255,255,255,.9))}
   .ring .in{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center}
-  .ring .in b{font-size:22px}
-  .ring .in small{color:var(--hint);font-size:12px}
-  .macros{flex:1;display:flex;flex-direction:column;gap:10px}
-  .m .row{display:flex;justify-content:space-between;font-size:13px}
-  .m .row span{color:var(--hint)}
-  .track{height:6px;border-radius:3px;background:var(--line);overflow:hidden;margin-top:3px}
-  .track div{height:100%;border-radius:3px}
-  .left{margin-top:12px;padding-top:10px;border-top:1px solid var(--line);font-size:14px;color:var(--hint)}
-  .left b{color:var(--text)}
-  h3{margin:18px 4px 8px;font-size:15px;color:var(--hint);font-weight:600}
-  .meal .hd{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
-  .meal .t{font-weight:600}
-  .meal .tm{color:var(--hint);font-size:12px;margin-left:6px;font-weight:400}
-  .meal .k{font-weight:700;white-space:nowrap}
-  .it{display:flex;align-items:center;gap:8px;padding:8px 0;border-top:1px solid var(--line)}
-  .it:first-of-type{margin-top:8px}
+  .ring .in .ic{width:30px;height:30px;margin-bottom:2px}
+  .ring .in b{font-size:40px;font-weight:800;letter-spacing:-1px;line-height:1.05}
+  .ring .in small{font-size:13px;opacity:.9}
+  .chip{margin-top:10px;display:inline-flex;align-items:center;gap:6px;padding:7px 14px;border-radius:99px;background:rgba(255,255,255,.22);font-weight:600;font-size:14px;backdrop-filter:blur(6px)}
+  .chip.over{background:rgba(255,90,78,.9)}
+
+  .wrap{padding:0 12px}
+  /* ── БЖУ ── */
+  .macros{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:-14px;position:relative;z-index:2}
+  .mc{background:var(--card);border-radius:20px;padding:12px 10px 11px;box-shadow:var(--shadow);position:relative;overflow:hidden}
+  .mc .ib{width:38px;height:38px;border-radius:13px;display:flex;align-items:center;justify-content:center;margin-bottom:8px}
+  .mc .ib .ic{width:26px;height:26px}
+  .mc .lb{font-size:12px;color:var(--hint);font-weight:600}
+  .mc .vl{font-size:18px;font-weight:800;margin:1px 0 7px}
+  .mc .vl small{font-size:12px;color:var(--hint);font-weight:600}
+  .bar{height:7px;border-radius:9px;background:var(--line);overflow:hidden}
+  .bar div{height:100%;width:0;border-radius:9px;transition:width 1s cubic-bezier(.2,.8,.2,1)}
+  .mc.p .ib{background:var(--p-bg)} .mc.p .bar div{background:linear-gradient(90deg,#ffb36b,var(--p))}
+  .mc.f .ib{background:var(--f-bg)} .mc.f .bar div{background:linear-gradient(90deg,#ffe07a,var(--f))}
+  .mc.c .ib{background:var(--c-bg)} .mc.c .bar div{background:linear-gradient(90deg,#8fe6b2,var(--c))}
+
+  /* ── Вода ── */
+  .water{margin-top:12px;border-radius:24px;padding:14px;color:#fff;display:flex;align-items:center;gap:14px;position:relative;overflow:hidden;
+    background:linear-gradient(135deg,var(--w1),var(--w2));box-shadow:0 10px 26px rgba(42,123,240,.28);transition:box-shadow .4s}
+  .water:after{content:"";position:absolute;width:160px;height:160px;border-radius:50%;right:-50px;top:-70px;background:rgba(255,255,255,.12)}
+  .water.done{box-shadow:0 0 0 3px rgba(255,255,255,.7) inset,0 10px 30px rgba(42,123,240,.45)}
+  .glass{width:58px;height:78px;flex:none;position:relative}
+  .glass svg{width:100%;height:100%;overflow:visible}
+  .glass .lvl{transition:transform 1s cubic-bezier(.2,.8,.2,1)}
+  .glass .wave{animation:wave 2.4s linear infinite}
+  .glass .wave2{animation:wave 3.6s linear infinite reverse;opacity:.55}
+  @keyframes wave{from{transform:translateX(0)}to{transform:translateX(-40px)}}
+  .wt{flex:1;position:relative;z-index:1}
+  .wt .lb{font-size:13px;opacity:.9;font-weight:600}
+  .wt b{font-size:26px;font-weight:800;letter-spacing:-.5px}
+  .wt small{font-size:13px;opacity:.9}
+  .wbtn{display:flex;flex-direction:column;gap:6px;position:relative;z-index:1}
+  .wbtn button{height:38px;border-radius:13px;padding:0 14px;font-weight:700;background:rgba(255,255,255,.22);color:#fff}
+  .wbtn button.add{background:#fff;color:var(--w2);box-shadow:0 4px 12px rgba(0,0,0,.12)}
+
+  /* ── Приёмы пищи ── */
+  h3{margin:20px 4px 10px;font-size:17px;font-weight:800;display:flex;align-items:center;justify-content:space-between}
+  h3 small{font-size:13px;color:var(--hint);font-weight:600}
+  .meal{background:var(--card);border-radius:22px;padding:12px 14px 6px;margin-bottom:10px;box-shadow:var(--shadow)}
+  .meal .hd{display:flex;align-items:center;gap:10px;margin-bottom:4px}
+  .meal .ib{width:42px;height:42px;border-radius:14px;background:var(--c-bg);display:flex;align-items:center;justify-content:center;flex:none}
+  .meal .ib .ic{width:30px;height:30px}
+  .meal .t{flex:1;min-width:0;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .meal .t small{display:block;color:var(--hint);font-weight:500;font-size:12px}
+  .meal .k{flex:none;padding:6px 10px;border-radius:99px;background:linear-gradient(135deg,#ffb36b,#ff6a3d);color:#fff;font-weight:800;font-size:13px}
+  .it{display:flex;align-items:center;gap:10px;padding:10px 0;border-top:1px solid var(--line)}
+  .it .dot{width:8px;height:8px;border-radius:50%;flex:none}
   .it .n{flex:1;min-width:0}
-  .it .n div{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .it .n div{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:600}
   .it .n small{color:var(--hint);font-size:12px}
-  .it input{width:64px;padding:6px 8px;border-radius:8px;border:1px solid var(--line);background:var(--bg);color:var(--text);font:inherit;text-align:right}
-  .it .g{color:var(--hint);font-size:13px}
   .it .nm{cursor:pointer}
-  .it .nm:after{content:" ✏️";font-size:11px;opacity:.6}
-  .it .ren{width:100%;padding:4px 6px;border-radius:6px;border:1px solid var(--accent);background:var(--bg);color:var(--text);font:inherit;text-align:left}
-  .del{border:0;background:transparent;color:var(--danger);font:inherit;font-size:13px;padding:8px 0 0}
-  .empty{text-align:center;color:var(--hint);padding:28px 12px}
-  .empty div{font-size:40px;margin-bottom:6px}
-  .wt{display:flex;justify-content:space-between;align-items:center}
-  .wt b{font-size:20px}
-  .err{color:var(--danger);text-align:center;padding:24px}
-  .wa{display:flex;align-items:center;gap:10px}
-  .wa .wl{flex:1}
-  .wa .wl small{color:var(--hint)}
-  .wa button{border:0;border-radius:10px;height:36px;padding:0 12px;font:inherit;font-weight:600;background:var(--bg);color:var(--text)}
-  .wa button.add{background:#3b9bff;color:#fff}
-  /* Эффекты: кнопки «чувствуют» нажатие, полоски и кольцо плавно заполняются */
-  button{transition:transform .14s cubic-bezier(.3,1.6,.5,1),filter .14s;touch-action:manipulation}
-  button:active{transform:scale(.9);filter:brightness(.92)}
-  .track div{width:0;transition:width .9s cubic-bezier(.2,.8,.2,1)}
-  .ring .arc{transition:stroke-dashoffset 1.1s cubic-bezier(.2,.8,.2,1),stroke .3s}
-  .ring.ok .arc{filter:drop-shadow(0 0 5px var(--accent))}
-  .card{animation:rise .4s cubic-bezier(.2,.8,.2,1) both}
-  .card:nth-of-type(2){animation-delay:.04s}.card:nth-of-type(3){animation-delay:.08s}.card:nth-of-type(n+4){animation-delay:.12s}
-  @keyframes rise{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
-  .wa{transition:box-shadow .4s}
-  .wa.done{box-shadow:0 0 0 2px rgba(59,155,255,.45),0 8px 24px rgba(59,155,255,.25)}
+  .it .nm:after{content:" ✎";font-size:12px;color:var(--hint)}
+  .it .gr{display:flex;align-items:center;background:var(--bg);border-radius:11px;padding:0 8px 0 2px}
+  .it input{width:52px;padding:7px 2px;border:0;background:transparent;color:var(--text);font:inherit;font-weight:700;text-align:right;outline:none}
+  .it .g{color:var(--hint);font-size:13px}
+  .it .ren{width:100%;padding:5px 8px;border-radius:9px;border:2px solid var(--g2);background:var(--bg);color:var(--text);font:inherit;outline:none}
+  .del{display:block;width:100%;background:transparent;color:var(--danger);font-size:13px;font-weight:600;padding:8px 0;border-top:1px solid var(--line)}
+  .empty{background:var(--card);border-radius:22px;padding:26px 16px;text-align:center;color:var(--hint);box-shadow:var(--shadow)}
+  .empty .ib{width:64px;height:64px;border-radius:20px;margin:0 auto 10px;background:var(--c-bg);display:flex;align-items:center;justify-content:center}
+  .empty .ib .ic{width:42px;height:42px}
+  .empty b{display:block;color:var(--text);font-size:16px;margin-bottom:4px}
+
+  /* ── Вес ── */
+  .wcard{background:var(--card);border-radius:22px;padding:14px;box-shadow:var(--shadow);display:flex;align-items:center;gap:12px}
+  .wcard .ib{width:42px;height:42px;border-radius:14px;background:rgba(127,140,155,.14);display:flex;align-items:center;justify-content:center;flex:none;color:#8e9aa6}
+  .wcard .v{flex:1}
+  .wcard .v b{font-size:22px;font-weight:800}
+  .wcard .v small{display:block;color:var(--hint);font-size:12px}
+  .err{color:var(--danger);text-align:center;padding:40px 24px}
+  .load{padding:60px 0;text-align:center;opacity:.8}
+
+  /* ── Анимации ── */
+  .rise{animation:rise .45s cubic-bezier(.2,.8,.2,1) both}
+  @keyframes rise{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
   .pop{animation:pop .5s cubic-bezier(.3,1.6,.5,1)}
-  @keyframes pop{0%{transform:scale(1)}35%{transform:scale(1.06)}100%{transform:scale(1)}}
-  .fl{position:fixed;z-index:30;pointer-events:none;font-weight:700;font-size:14px;color:#3b9bff;animation:fup .9s ease-out forwards}
-  .fl.minus{color:var(--hint)}
-  @keyframes fup{to{transform:translateY(-44px);opacity:0}}
+  @keyframes pop{0%{transform:scale(1)}35%{transform:scale(1.05)}100%{transform:scale(1)}}
+  .fl{position:fixed;z-index:30;pointer-events:none;font-weight:800;font-size:15px;color:#fff;text-shadow:0 1px 4px rgba(0,0,0,.25);animation:fup .9s ease-out forwards}
+  @keyframes fup{to{transform:translateY(-46px);opacity:0}}
   .fx{position:fixed;z-index:40;pointer-events:none;font-size:20px;line-height:1;will-change:transform,opacity}
   @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 </style>
 </head>
 <body>
-<div class="top">
-  <div class="logo">FITTER<small>Одно фото. Полный контроль.</small></div>
-  <div class="nav"><button id="prev">‹</button><span class="d" id="dl">…</span><button id="next">›</button></div>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs><symbol id="i-plate" viewBox="0 0 24 24"><defs><linearGradient id="pl" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFFFFF"/><stop offset="1" stop-color="#DCE3EA"/></linearGradient></defs> <ellipse cx="12" cy="13" rx="10" ry="9" fill="#AFBBC7"/> <ellipse cx="12" cy="12.4" rx="10" ry="9" fill="url(#pl)"/> <ellipse cx="12" cy="12.4" rx="6.6" ry="5.9" fill="#EEF2F6" stroke="#C9D3DD" stroke-width=".6"/> <path d="M8.2 13.6c-.6-2.6 1.2-4.6 3.4-4.4-1 1.4-1.6 2.9-1.5 4.6z" fill="#4CC38A"/> <path d="M10.1 13.8c0-2.6 2.2-4.2 4.3-3.4-1.4 1-2.4 2.2-2.6 3.6z" fill="#2FA36B"/> <circle cx="14.6" cy="13.4" r="1.9" fill="#FF6B4A"/> <circle cx="14.2" cy="12.8" r=".5" fill="#FFB4A3"/> <ellipse cx="11.6" cy="15.2" rx="2.4" ry="1.3" fill="#FFB547"/></symbol><symbol id="i-protein" viewBox="0 0 24 24"><defs><linearGradient id="pr" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#FFB15C"/><stop offset="1" stop-color="#D9662B"/></linearGradient></defs> <path d="M15.2 2.8c3.5 0 6 2.7 6 6 0 4.2-3.9 7.3-8 6.6L10 18.6l-3.2-3.2 3.2-3.2c-.6-4.6 1.6-9.4 5.2-9.4z" fill="url(#pr)"/> <path d="M17.6 5.6c1.2.6 1.9 1.8 1.9 3.1" stroke="#FFD9AE" stroke-width="1.2" stroke-linecap="round" fill="none"/> <path d="M10.6 15.5 7.3 18.8" stroke="#F3E9DA" stroke-width="2.6" stroke-linecap="round"/> <circle cx="5.6" cy="18.4" r="1.9" fill="#F3E9DA" stroke="#C9BBA6" stroke-width=".5"/> <circle cx="7.6" cy="20.4" r="1.9" fill="#F3E9DA" stroke="#C9BBA6" stroke-width=".5"/></symbol><symbol id="i-fat" viewBox="0 0 24 24"><defs><linearGradient id="ft" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFE27A"/><stop offset="1" stop-color="#F5A524"/></linearGradient></defs> <path d="M12 2.2c-1 1.8-7.2 8.7-7.2 13.1a7.2 7.2 0 0 0 14.4 0C19.2 10.9 13 4 12 2.2z" fill="url(#ft)"/> <path d="M12 2.2c-1 1.8-7.2 8.7-7.2 13.1a7.2 7.2 0 0 0 14.4 0C19.2 10.9 13 4 12 2.2z" fill="none" stroke="#D98A12" stroke-width=".6"/> <path d="M8.6 15.6a3.4 3.4 0 0 0 3 3.2" stroke="#FFF6CF" stroke-width="1.5" stroke-linecap="round" fill="none"/></symbol><symbol id="i-carbs" viewBox="0 0 24 24"><path d="M12 22.2V8.6" stroke="#C98A1F" stroke-width="2" stroke-linecap="round"/> <g fill="#F7C04A" stroke="#C98A1F" stroke-width=".6"> <path d="M11.6 12.6c-3.4.3-5.8-1.8-6-5 3.3-.2 5.7 1.8 6 5z"/> <path d="M12.4 12.6c3.4.3 5.8-1.8 6-5-3.3-.2-5.7 1.8-6 5z"/> <path d="M11.6 18c-3.4.3-5.8-1.8-6-5 3.3-.2 5.7 1.8 6 5z"/> <path d="M12.4 18c3.4.3 5.8-1.8 6-5-3.3-.2-5.7 1.8-6 5z"/> <path d="M12 9c-2-1.1-2-4.3 0-6.3 2 2 2 5.2 0 6.3z"/> </g> <g fill="#FFE6A3"><ellipse cx="8.4" cy="9.4" rx="1.2" ry=".6" transform="rotate(35 8.4 9.4)"/><ellipse cx="8.4" cy="14.8" rx="1.2" ry=".6" transform="rotate(35 8.4 14.8)"/></g></symbol><symbol id="i-kcal" viewBox="0 0 24 24"><defs><linearGradient id="fl" x1="0" y1="1" x2="0" y2="0"><stop offset="0" stop-color="#FF3D2E"/><stop offset=".6" stop-color="#FF8A1F"/><stop offset="1" stop-color="#FFC23D"/></linearGradient> <linearGradient id="fi" x1="0" y1="1" x2="0" y2="0"><stop offset="0" stop-color="#FFB02E"/><stop offset="1" stop-color="#FFF1A8"/></linearGradient></defs> <path d="M12.6 2c.6 3.4-1.3 5-3 6.8C7.8 10.7 6 12.6 6 15.6A6.2 6.2 0 0 0 12 22a6.4 6.4 0 0 0 6-6.6c0-2.6-1.2-4.3-2.3-5.6-.2 1.4-.9 2.4-1.9 2.8.6-4.6-.7-8.3-1.2-10.6z" fill="url(#fl)"/> <path d="M12.2 12.2c.2 1.9-1.3 2.6-2 3.7-.4.6-.6 1.2-.6 1.9A2.6 2.6 0 0 0 12.2 20.6a2.7 2.7 0 0 0 2.6-2.8c0-1.6-1.2-2.5-1.6-3.2-.5.5-.9.6-1.2.5.3-1 .3-2 .2-2.9z" fill="url(#fi)"/></symbol><symbol id="i-scales" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="3.5" width="17" height="17" rx="5"/> <path d="M8 9.2a5.6 5.6 0 0 1 8 0"/> <path d="M12 10.6l1.4-2"/> <circle cx="12" cy="10.8" r="0.4" fill="currentColor"/></g></symbol><symbol id="i-apple" viewBox="0 0 24 24"><g fill="none" stroke="#fff" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 8V6.5a3 3 0 0 1 3-3H8"/> <path d="M16 3.5h1.5a3 3 0 0 1 3 3V8"/> <path d="M20.5 16v1.5a3 3 0 0 1-3 3H16"/> <path d="M8 20.5H6.5a3 3 0 0 1-3-3V16"/> <path d="M12 9.3c-1.2-.9-3.9-1.1-4.4 1.9-.4 2.4 1.2 5.4 2.9 5.4.6 0 1-.3 1.5-.3s.9.3 1.5.3c1.7 0 3.3-3 2.9-5.4-.5-3-3.2-2.8-4.4-1.9z"/> <path d="M12 9.3c0-1.3.6-2.2 1.7-2.6"/></g></symbol></defs></svg>
+<div class="hero">
+  <div class="top">
+    <div class="logo"><span class="mk"><svg class="ic" style="width:22px;height:22px"><use href="#i-apple"/></svg></span><div>FITTER<small>Одно фото. Полный контроль.</small></div></div>
+    <div class="nav"><button id="prev">‹</button><span class="d" id="dl">…</span><button id="next">›</button></div>
+  </div>
+  <div id="hero"><div class="load">Загрузка…</div></div>
 </div>
-<div id="root"><div class="empty">Загрузка…</div></div>
+<div class="wrap" id="root"></div>
 <script>
 (function(){
   var tg = window.Telegram && window.Telegram.WebApp;
-  if (tg) { tg.ready(); tg.expand(); }
+  if (tg) { tg.ready(); tg.expand(); try { tg.setHeaderColor("#2ee59d"); } catch(e){} }
   var initData = tg ? tg.initData : "";
   var MONTHS = ["января","февраля","марта","апреля","мая","июня","июля","августа","сентября","октября","ноября","декабря"];
   var WD = ["Пн","Вт","Ср","Чт","Пт","Сб","Вс"];
   var state = { date: null, data: null };
-  var root = document.getElementById("root");
+  var root = document.getElementById("root"), hero = document.getElementById("hero");
 
-  function esc(s){ return String(s).replace(/[&<>"]/g, function(c){ return {"&":"&amp;","<":"&lt;",">":"&gt;","\\"":"&quot;"}[c]; }); }
+  function esc(s){ return String(s).replace(/[&<>"]/g, function(c){ return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]; }); }
   function r(x){ return Math.round(x); }
   function shift(date, n){ var d = new Date(date + "T00:00:00Z"); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0,10); }
   function human(date){ var d = new Date(date + "T00:00:00Z"); return d.getUTCDate() + " " + MONTHS[d.getUTCMonth()]; }
   function L(ml){ return String(Math.round(ml / 10) / 100).replace(".", ",") + " л"; }
+  function icon(name, style){ return '<svg class="ic"' + (style ? ' style="' + style + '"' : '') + '><use href="#i-' + name + '"/></svg>'; }
+
   function haptic(style){ try { tg.HapticFeedback.impactOccurred(style || "light"); } catch(e){} }
   function notify(type){ try { tg.HapticFeedback.notificationOccurred(type); } catch(e){} }
   function tick(){ try { tg.HapticFeedback.selectionChanged(); } catch(e){} }
   var calm = window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches;
 
-  // Салют из частиц от центра элемента
   function celebrate(el, chars){
     if (calm || !el || !el.animate) return;
     var rc = el.getBoundingClientRect(), cx = rc.left + rc.width / 2, cy = rc.top + rc.height / 2;
@@ -1620,27 +1674,22 @@ const APP_HTML = `<!doctype html>
     }
     el.classList.remove("pop"); void el.offsetWidth; el.classList.add("pop");
   }
-
-  // Всплывающее «+250» над кнопкой
-  function floatText(btn, text, minus){
+  function floatText(btn, text){
     if (calm) return;
     var rc = btn.getBoundingClientRect(), f = document.createElement("span");
-    f.className = "fl" + (minus ? " minus" : ""); f.textContent = text;
-    f.style.left = (rc.left + rc.width / 2 - 18) + "px"; f.style.top = (rc.top - 6) + "px";
+    f.className = "fl"; f.textContent = text;
+    f.style.left = (rc.left + rc.width / 2 - 20) + "px"; f.style.top = (rc.top - 8) + "px";
     document.body.appendChild(f); setTimeout(function(){ f.remove(); }, 950);
   }
-
-  // Плавный счётчик числа
   function countUp(el, to){
     if (calm) { el.textContent = to; return; }
-    var t0 = performance.now(), dur = 900;
+    var t0 = performance.now(), dur = 1000;
     (function step(now){
       var k = Math.min(1, (now - t0) / dur), e = 1 - Math.pow(1 - k, 3);
       el.textContent = Math.round(to * e);
       if (k < 1) requestAnimationFrame(step);
     })(t0);
   }
-
   function once(key){ try { if (localStorage.getItem(key)) return false; localStorage.setItem(key, "1"); } catch(e){} return true; }
 
   function call(method, path, body){
@@ -1654,23 +1703,35 @@ const APP_HTML = `<!doctype html>
     }).catch(function(e){
       var msg = e && e.error === "no_profile" ? "Сначала пройди анкету в боте: нажми /start" :
                 e && e.error === "unauthorized" ? "Открой дневник через кнопку в боте FITTER" : "Не получилось загрузить дневник. Попробуй ещё раз.";
-      root.innerHTML = '<div class="err">' + msg + '</div>';
+      hero.innerHTML = ""; root.innerHTML = '<div class="err">' + msg + '</div>';
     });
   }
 
-  function bar(label, val, max, color){
-    var pct = max ? Math.min(100, val / max * 100) : 0;
-    return '<div class="m"><div class="row"><b>' + label + '</b><span>' + r(val) + ' / ' + max + ' г</span></div>' +
-           '<div class="track"><div data-pct="' + pct + '" style="background:' + color + '"></div></div></div>';
+  // Большое кольцо калорий в шапке
+  function ring(val, max){
+    var R = 84, C = 2 * Math.PI * R, pct = max ? Math.min(1, val / max) : 0;
+    var ok = val >= max * 0.9 && val <= max * 1.1, over = val > max * 1.1;
+    return '<div class="ring' + (ok ? ' ok' : '') + '"><svg width="196" height="196" viewBox="0 0 196 196">' +
+      '<circle cx="98" cy="98" r="' + R + '" fill="none" stroke="rgba(255,255,255,.22)" stroke-width="16"/>' +
+      '<circle class="arc" cx="98" cy="98" r="' + R + '" fill="none" stroke="' + (over ? '#ffd2cc' : '#fff') + '" stroke-width="16" stroke-linecap="round" stroke-dasharray="' + C + '" stroke-dashoffset="' + C + '" data-off="' + (C * (1 - pct)) + '"/></svg>' +
+      '<div class="in">' + icon("kcal") + '<b data-to="' + r(val) + '">0</b><small>из ' + max + ' ккал</small></div></div>';
   }
 
-  function ring(val, max){
-    var R = 52, C = 2 * Math.PI * R, pct = max ? Math.min(1, val / max) : 0;
-    var color = val > max * 1.1 ? "var(--danger)" : "var(--accent)";
-    var ok = val >= max * 0.9 && val <= max * 1.1;
-    return '<div class="ring' + (ok ? ' ok' : '') + '"><svg width="120" height="120"><circle cx="60" cy="60" r="' + R + '" fill="none" stroke="var(--line)" stroke-width="10"/>' +
-      '<circle class="arc" cx="60" cy="60" r="' + R + '" fill="none" stroke="' + color + '" stroke-width="10" stroke-linecap="round" stroke-dasharray="' + C + '" stroke-dashoffset="' + C + '" data-off="' + (C * (1 - pct)) + '"/></svg>' +
-      '<div class="in"><b data-to="' + r(val) + '">0</b><small>из ' + max + ' ккал</small></div></div>';
+  function macro(cls, ic, label, val, max){
+    var pct = max ? Math.min(100, val / max * 100) : 0;
+    return '<div class="mc ' + cls + ' rise"><div class="ib">' + icon(ic) + '</div><div class="lb">' + label + '</div>' +
+      '<div class="vl">' + r(val) + '<small> / ' + max + ' г</small></div><div class="bar"><div data-pct="' + pct + '"></div></div></div>';
+  }
+
+  // Стакан с волной: уровень воды поднимается
+  function glass(pct){
+    var y = 74 - 66 * Math.min(1, pct);
+    return '<div class="glass"><svg viewBox="0 0 58 78"><defs><clipPath id="gc"><path d="M5 4h48l-5 66a6 6 0 0 1-6 5H16a6 6 0 0 1-6-5z"/></clipPath></defs>' +
+      '<path d="M5 4h48l-5 66a6 6 0 0 1-6 5H16a6 6 0 0 1-6-5z" fill="rgba(255,255,255,.18)" stroke="rgba(255,255,255,.75)" stroke-width="2.4" stroke-linejoin="round"/>' +
+      '<g clip-path="url(#gc)"><g class="lvl" style="transform:translateY(' + y + 'px)">' +
+      '<path class="wave2" d="M0 4 Q10 -2 20 4 T40 4 T60 4 T80 4 T100 4 V90 H0z" fill="#d6f0ff"/>' +
+      '<path class="wave" d="M0 6 Q10 0 20 6 T40 6 T60 6 T80 6 T100 6 V90 H0z" fill="#fff"/></g></g>' +
+      '<path d="M14 14l3 44" stroke="rgba(255,255,255,.55)" stroke-width="3" stroke-linecap="round"/></svg></div>';
   }
 
   function weightBlock(ws){
@@ -1680,71 +1741,75 @@ const APP_HTML = `<!doctype html>
     if (ws.length > 1) {
       var min = Infinity, max = -Infinity;
       ws.forEach(function(w){ min = Math.min(min, w.kg); max = Math.max(max, w.kg); });
-      var span = max - min || 1, W = 120, H = 36;
-      var pts = ws.map(function(w, i){ return (i / (ws.length - 1) * W).toFixed(1) + "," + (H - 4 - (w.kg - min) / span * (H - 8)).toFixed(1); }).join(" ");
-      spark = '<svg width="' + W + '" height="' + H + '"><polyline points="' + pts + '" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/></svg>';
+      var span = max - min || 1, W = 120, H = 44;
+      var pts = ws.map(function(w, i){ return (i / (ws.length - 1) * W).toFixed(1) + "," + (H - 6 - (w.kg - min) / span * (H - 12)).toFixed(1); });
+      spark = '<svg width="' + W + '" height="' + H + '"><defs><linearGradient id="wg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#16b86a" stop-opacity=".35"/><stop offset="1" stop-color="#16b86a" stop-opacity="0"/></linearGradient></defs>' +
+        '<polygon points="0,' + H + ' ' + pts.join(" ") + ' ' + W + ',' + H + '" fill="url(#wg)"/>' +
+        '<polyline points="' + pts.join(" ") + '" fill="none" stroke="#16b86a" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/></svg>';
     }
-    return '<h3>Вес</h3><div class="card wt"><div><b>' + last.kg + ' кг</b><br><small style="color:var(--hint)">' +
+    return '<h3>Вес</h3><div class="wcard rise"><div class="ib">' + icon("scales") + '</div><div class="v"><b>' + last.kg + ' кг</b><small>' +
       (ws.length > 1 ? (diff > 0 ? "+" : "") + diff + " кг с " + human(first.date) : "записан " + human(last.date)) +
       '</small></div>' + spark + '</div>';
   }
+
+  var DOTS = ["#ff7a2f", "#22b36b", "#f5a524", "#2a7bf0", "#c86bff", "#ff5a8a"];
 
   function render(){
     var d = state.data, t = d.totals, g = d.targets;
     document.getElementById("dl").textContent = d.date === d.today ? "Сегодня" : human(d.date);
     document.getElementById("next").style.visibility = d.date >= d.today ? "hidden" : "visible";
 
-    var week = '<div class="card week">' + d.week.map(function(w, i){
-      var dot = !w.meals ? "transparent" : w.kcal > g.kcal * 1.1 ? "var(--danger)" : w.kcal >= g.kcal * 0.8 ? "var(--c)" : "var(--p)";
+    var week = '<div class="week">' + d.week.map(function(w, i){
+      var dot = !w.meals ? "transparent" : w.kcal > g.kcal * 1.1 ? "#ffd2cc" : w.kcal >= g.kcal * 0.8 ? "#fff" : "rgba(255,255,255,.55)";
+      if (w.date === d.date && w.meals) dot = w.kcal > g.kcal * 1.1 ? "var(--danger)" : "var(--g2)";
       var cls = "wd" + (w.date === d.date ? " sel" : "") + (w.date === d.today ? " today" : "");
-      var dis = w.date > d.today ? " disabled style=\\"opacity:.35\\"" : "";
+      var dis = w.date > d.today ? ' disabled style="opacity:.4"' : "";
       return '<button class="' + cls + '" data-date="' + w.date + '"' + dis + '><small>' + WD[i] + '</small><b>' + Number(w.date.slice(8)) + '</b><i style="background:' + dot + '"></i></button>';
     }).join("") + '</div>';
 
     var left = g.kcal - t.kcal;
-    var sum = '<div class="card"><div class="sum">' + ring(t.kcal, g.kcal) + '<div class="macros">' +
-      bar("Белки", t.p, g.p, "var(--p)") + bar("Жиры", t.f, g.f, "var(--f)") + bar("Углеводы", t.c, g.c, "var(--c)") +
-      '</div></div><div class="left">' + (left >= 0 ? 'Осталось <b>' + r(left) + ' ккал</b>' : 'Больше нормы на <b>' + r(-left) + ' ккал</b>') + '</div></div>';
+    hero.innerHTML = week + '<div class="main">' + ring(t.kcal, g.kcal) +
+      '<div class="chip' + (left < 0 ? ' over' : '') + '">' + (left >= 0 ? 'Осталось ' + r(left) + ' ккал' : 'Больше нормы на ' + r(-left) + ' ккал') + '</div></div>';
 
-    var meals = d.meals.length ? '<h3>Приёмы пищи</h3>' + d.meals.map(function(m){
-      return '<div class="card meal"><div class="hd"><div class="t">' + esc(m.title) + '<span class="tm">' + esc(m.time) + '</span></div><div class="k">' + r(m.totals.kcal) + ' ккал</div></div>' +
-        m.items.map(function(it, i){
-          return '<div class="it"><div class="n"><div class="nm" data-meal="' + m.id + '" data-idx="' + i + '">' + esc(it.name) + '</div><small>' + r(it.totals.kcal) + ' ккал · Б ' + r(it.totals.p) + ' · Ж ' + r(it.totals.f) + ' · У ' + r(it.totals.c) + '</small></div>' +
-            '<input type="number" inputmode="numeric" min="1" max="3000" value="' + it.grams + '" data-meal="' + m.id + '" data-idx="' + i + '"><span class="g">г</span></div>';
-        }).join("") +
-        '<button class="del" data-del="' + m.id + '">Удалить приём пищи</button></div>';
-    }).join("") : '<div class="card empty"><div>📸</div>Здесь пока пусто.<br>Отправь боту фото еды — и оно появится в дневнике.</div>';
+    var macros = '<div class="macros">' + macro("p", "protein", "Белки", t.p, g.p) + macro("f", "fat", "Жиры", t.f, g.f) + macro("c", "carbs", "Углеводы", t.c, g.c) + '</div>';
 
     var wg = d.waterGoal || 2000, wv = d.water || 0;
-    var water = '<div class="card wa' + (wv >= wg ? ' done' : '') + '"><div class="wl"><b>💧 <span class="wv">' + L(wv) + '</span></b> <small>из ' + L(wg) + '<span class="wn">' + (wv >= wg ? ' · норма ✓' : '') + '</span></small>' +
-      '<div class="track"><div data-pct="' + Math.min(100, wv / wg * 100) + '" style="background:#3b9bff"></div></div></div>' +
-      '<button data-w="-250">−</button><button class="add" data-w="250">+250 мл</button></div>';
+    var water = '<div class="water rise' + (wv >= wg ? ' done' : '') + '">' + glass(wv / wg) +
+      '<div class="wt"><div class="lb">Вода</div><b class="wv">' + L(wv) + '</b><br><small>из ' + L(wg) + '<span class="wn">' + (wv >= wg ? ' · норма ✓' : '') + '</span></small></div>' +
+      '<div class="wbtn"><button class="add" data-w="250">+250 мл</button><button data-w="-250">− 250</button></div></div>';
 
-    root.innerHTML = week + sum + water + meals + weightBlock(d.weights);
+    var total = d.meals.reduce(function(a, m){ return a + m.totals.kcal; }, 0);
+    var meals = d.meals.length ? '<h3>Приёмы пищи <small>' + d.meals.length + ' · ' + r(total) + ' ккал</small></h3>' + d.meals.map(function(m, mi){
+      return '<div class="meal rise" style="animation-delay:' + (0.05 * mi + 0.1) + 's"><div class="hd"><div class="ib">' + icon("plate") + '</div><div class="t">' + esc(m.title) + '<small>' + esc(m.time) + ' · ' + m.items.length + ' ' + (m.items.length === 1 ? 'продукт' : m.items.length < 5 ? 'продукта' : 'продуктов') + '</small></div><div class="k">' + r(m.totals.kcal) + ' ккал</div></div>' +
+        m.items.map(function(it, i){
+          return '<div class="it"><i class="dot" style="background:' + DOTS[i % DOTS.length] + '"></i><div class="n"><div class="nm" data-meal="' + m.id + '" data-idx="' + i + '">' + esc(it.name) + '</div><small>' + r(it.totals.kcal) + ' ккал · Б ' + r(it.totals.p) + ' · Ж ' + r(it.totals.f) + ' · У ' + r(it.totals.c) + '</small></div>' +
+            '<div class="gr"><input type="number" inputmode="numeric" min="1" max="3000" value="' + it.grams + '" data-meal="' + m.id + '" data-idx="' + i + '"><span class="g">г</span></div></div>';
+        }).join("") +
+        '<button class="del" data-del="' + m.id + '">Удалить приём пищи</button></div>';
+    }).join("") : '<h3>Приёмы пищи</h3><div class="empty rise"><div class="ib">' + icon("plate") + '</div><b>Здесь пока пусто</b>Отправь боту фото еды, и оно появится в дневнике 📸</div>';
+
+    root.innerHTML = macros + water + meals + weightBlock(d.weights);
     animateIn();
   }
 
-  // Запуск анимаций после отрисовки
   function animateIn(){
     var d = state.data, t = d.totals, g = d.targets;
     requestAnimationFrame(function(){ requestAnimationFrame(function(){
-      root.querySelectorAll("[data-pct]").forEach(function(el){ el.style.width = el.dataset.pct + "%"; });
-      root.querySelectorAll("[data-off]").forEach(function(el){ el.setAttribute("stroke-dashoffset", el.dataset.off); });
-      root.querySelectorAll("[data-to]").forEach(function(el){ countUp(el, Number(el.dataset.to)); });
+      document.querySelectorAll("[data-pct]").forEach(function(el){ el.style.width = el.dataset.pct + "%"; });
+      document.querySelectorAll("[data-off]").forEach(function(el){ el.setAttribute("stroke-dashoffset", el.dataset.off); });
+      document.querySelectorAll("[data-to]").forEach(function(el){ countUp(el, Number(el.dataset.to)); });
     }); });
-    // Калории в норме сегодня — один раз за день маленький салют у кольца
     if (d.date === d.today && d.meals.length && t.kcal >= g.kcal * 0.9 && t.kcal <= g.kcal * 1.1 && once("fx-kcal-" + d.date)) {
-      setTimeout(function(){ celebrate(root.querySelector(".ring"), ["✨", "🥦", "🍏"]); notify("success"); }, 1000);
+      setTimeout(function(){ celebrate(hero.querySelector(".ring"), ["✨", "🥦", "🍏"]); notify("success"); }, 1100);
     }
   }
 
-  // Обновляем только карточку воды, без перерисовки всего дневника
   function waterUI(){
-    var d = state.data, wg = d.waterGoal || 2000, wv = d.water || 0, card = root.querySelector(".wa");
+    var d = state.data, wg = d.waterGoal || 2000, wv = d.water || 0, card = root.querySelector(".water");
     if (!card) return;
     card.querySelector(".wv").textContent = L(wv);
     card.querySelector(".wn").textContent = wv >= wg ? " · норма ✓" : "";
-    card.querySelector(".track div").style.width = Math.min(100, wv / wg * 100) + "%";
+    card.querySelector(".lvl").style.transform = "translateY(" + (74 - 66 * Math.min(1, wv / wg)) + "px)";
     card.classList.toggle("done", wv >= wg);
   }
 
@@ -1753,8 +1818,8 @@ const APP_HTML = `<!doctype html>
     var before = d.water || 0, after = Math.max(0, before + delta);
     if (after === before) { haptic("rigid"); return; }
     d.water = after; waterUI();
-    floatText(btn, (delta > 0 ? "+" : "−") + Math.abs(delta), delta < 0);
-    if (before < wg && after >= wg) { notify("success"); celebrate(root.querySelector(".wa"), ["💧", "💦", "✨"]); }
+    floatText(btn, (delta > 0 ? "+" : "−") + Math.abs(delta));
+    if (before < wg && after >= wg) { notify("success"); celebrate(root.querySelector(".water"), ["💧", "💦", "✨"]); }
     else haptic(delta > 0 ? "medium" : "light");
     call("POST", "/api/water", { date: state.date, delta: delta })
       .then(function(j){ if (typeof j.water === "number") { d.water += j.water - after; waterUI(); } },
@@ -1784,7 +1849,7 @@ const APP_HTML = `<!doctype html>
     inp.addEventListener("blur", function(){ finish(true); });
   }
 
-  root.addEventListener("click", function(e){
+  function onClick(e){
     var nm = e.target.closest(".nm");
     if (nm) { rename(nm); return; }
     var b = e.target.closest("button");
@@ -1797,7 +1862,9 @@ const APP_HTML = `<!doctype html>
       var go = function(){ call("POST", "/api/meal/delete", { date: state.date, mealId: id }).then(function(){ notify("warning"); load(state.date); }); };
       if (tg && tg.showConfirm) tg.showConfirm("Удалить этот приём пищи?", function(ok){ if (ok) go(); }); else if (confirm("Удалить?")) go();
     }
-  });
+  }
+  root.addEventListener("click", onClick);
+  hero.addEventListener("click", onClick);
   root.addEventListener("change", function(e){
     var inp = e.target;
     if (!inp.dataset.meal) return;
