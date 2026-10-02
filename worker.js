@@ -84,6 +84,8 @@ const CUSTOM_EMOJI = {
 };
 
 const stripVS = (s) => s.replace(/\uFE0F/g, "");
+// Telegram может хранить эмодзи стикера как «🏃‍♂️» или с оттенком кожи — сравниваем только первый символ
+const baseEmoji = (s) => [...stripVS(String(s || ""))][0] || "";
 
 // Итоговый список = список из кода + свои иконки, которые бот сохранил в базе (/makeemoji)
 let emojiMap = { ...CUSTOM_EMOJI };
@@ -212,16 +214,21 @@ async function ensureEmojiSet(env, from, botName, cfg) {
   }
   // Иконки ищем по их эмодзи, чтобы порядок в наборе был неважен
   const map = {};
-  const has = new Set(set.result.stickers.map((s) => stripVS(s.emoji || "")));
+  const has = new Set(set.result.stickers.map((s) => baseEmoji(s.emoji)));
   for (const ic of cfg.icons) {
-    if (!has.has(stripVS(ic[1]))) {
+    if (!has.has(baseEmoji(ic[1]))) {
       await tgRaw(env, "addStickerToSet", { user_id: from.id, name, sticker: sticker(ic) });
     }
   }
   set = await tgRaw(env, "getStickerSet", { name });
-  for (const s of set.result.stickers) {
-    const ic = cfg.icons.find((x) => stripVS(x[1]) === stripVS(s.emoji || ""));
+  const stickers = set.result.stickers;
+  for (const s of stickers) {
+    const ic = cfg.icons.find((x) => baseEmoji(x[1]) === baseEmoji(s.emoji));
     if (ic && s.custom_emoji_id && !map[ic[2]]) map[ic[2]] = s.custom_emoji_id;
+  }
+  // Запасной вариант: иконки в наборе лежат в том же порядке, что и в списке
+  if (stickers.length === cfg.icons.length) {
+    cfg.icons.forEach((ic, i) => { if (!map[ic[2]] && stickers[i].custom_emoji_id) map[ic[2]] = stickers[i].custom_emoji_id; });
   }
   return { name, map };
 }
@@ -1809,4 +1816,4 @@ const APP_HTML = `<!doctype html>
 </html>`;
 
 // Для тестов
-export const _test = { calcTargets, verifyInitData, cleanItems, sumItems, parseFix, parseWater, cleanBarcode, waterGoal, APP_HTML };
+export const _test = { baseEmoji, calcTargets, verifyInitData, cleanItems, sumItems, parseFix, parseWater, cleanBarcode, waterGoal, APP_HTML };
