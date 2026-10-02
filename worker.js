@@ -52,9 +52,9 @@ export default {
     }
   },
   // Расписание (wrangler.toml → [triggers]): по воскресеньям вечером — разбор недели
-  // «*/30 * * * *» — напоминания о воде, «0 17 * * 0» — разбор недели по воскресеньям
+  // «*/30 * * * *» — напоминания о воде, «0 17 * * SUN» — разбор недели по воскресеньям
   async scheduled(event, env, ctx) {
-    const job = event.cron === "0 17 * * 0" ? weeklyRun(env) : waterTick(env);
+    const job = /^0 17 /.test(event.cron || "") ? weeklyRun(env) : waterTick(env);
     ctx.waitUntil(job.catch((e) => console.error("cron error:", event.cron, e && e.stack ? e.stack : e)));
   },
 };
