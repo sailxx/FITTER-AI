@@ -132,8 +132,8 @@ const g = geminiCalls[1].body;
 assert.equal(g.contents[0].parts[1].inline_data.mime_type, "image/jpeg");
 assert.ok(g.contents[0].parts[0].text.includes("это обед"));
 const card = s.find((x) => x.method === "editMessageText");
-assert.match(card.body.text, /Гречка — 150 г — 165 ккал/);
-assert.match(card.body.text, /Итого: 363 ккал/);
+assert.match(card.body.text, /Гречка — 150 г · <b>165<\/b> ккал/);
+assert.match(card.body.text, /🔥(<\/tg-emoji>)? <b>363 ккал<\/b>/);
 const kb = card.body.reply_markup.inline_keyboard;
 const editBtn = kb[0][0].callback_data;
 assert.ok(Buffer.byteLength(editBtn) <= 64);
@@ -173,7 +173,7 @@ console.log("✓ название исправлено, КБЖУ пересчи�
 // 5. Текст: запись еды и вопрос
 geminiReply = { intent: "food_log", answer: "Записал!", title: "Банан", items: [{ name: "Банан", grams: 120, kcal_100: 89, protein_100: 1.1, fat_100: 0.3, carbs_100: 22.8 }] };
 s = await msg("съел банан");
-assert.match(lastText(s), /Банан — 120 г — 107 ккал/);
+assert.match(lastText(s), /Банан — 120 г · <b>107<\/b> ккал/);
 geminiReply = { intent: "question", answer: "В твороге 5% около 17 г белка на 100 г 💪", title: "", items: [] };
 s = await msg("сколько белка в твороге?");
 assert.match(lastText(s), /17 г белка/);
@@ -302,7 +302,7 @@ console.log("✓ /app и /setup");
   assert.equal(_test.cleanBarcode("4607001771235"), null, "неверная контрольная цифра");
   assert.equal(_test.cleanBarcode("96385074"), "96385074", "EAN-8");
   s = await msg("4607001771234");
-  assert.match(lastText(s), /Йогурт греческий 2% Тестовый — 140 г — 92 ккал/);
+  assert.match(lastText(s), /Йогурт греческий 2% Тестовый — 140 г · <b>92<\/b> ккал/);
   assert.match(lastText(s), /Нашёл по штрихкоду/);
   assert.doesNotMatch(lastText(s), /💡 📦/);
   const calls = offCalls;
@@ -316,12 +316,12 @@ console.log("✓ /app и /setup");
   geminiReply = { is_food: true, title: "Йогурт", comment: "", is_package: true, label_found: false, barcode: "4607001771234",
     items: [{ name: "Йогурт", grams: 120, kcal_100: 90, protein_100: 3, fat_100: 3, carbs_100: 12 }] };
   s = await call({ message: { message_id: 3, from, chat, photo: [{ file_id: "p", width: 800, height: 800 }] } });
-  assert.match(lastText(s), /Йогурт греческий 2% Тестовый — 140 г — 92 ккал/);
+  assert.match(lastText(s), /Йогурт греческий 2% Тестовый — 140 г · <b>92<\/b> ккал/);
   // Фото этикетки: КБЖУ как на этикетке
   geminiReply = { is_food: true, title: "Батончик", comment: "", is_package: true, label_found: true, barcode: "",
     items: [{ name: "Протеиновый батончик", grams: 60, kcal_100: 350, protein_100: 33, fat_100: 10, carbs_100: 30 }] };
   s = await call({ message: { message_id: 4, from, chat, photo: [{ file_id: "p", width: 800, height: 800 }] } });
-  assert.match(lastText(s), /Протеиновый батончик — 60 г — 210 ккал/);
+  assert.match(lastText(s), /Протеиновый батончик — 60 г · <b>210<\/b> ккал/);
   assert.match(lastText(s), /КБЖУ взяты с этикетки/);
   console.log("✓ штрихкод, кэш, фото упаковки и этикетки");
 }
@@ -386,7 +386,7 @@ console.log("✓ /app и /setup");
   assert.equal(geminiCalls.length, calls, "разбор берётся из кэша");
   // Воскресная рассылка
   sent.length = 0;
-  await worker.scheduled({}, env, ctx);
+  await worker.scheduled({ cron: "0 17 * * 0" }, env, ctx);
   await Promise.all(pending.splice(0));
   assert.ok(sent.some((x) => x.body.chat_id === 77 && /Разбор недели/.test(x.body.text || "")), "разбор пришёл по расписанию");
   const off = sent.find((x) => x.body.chat_id === 77).body.reply_markup.inline_keyboard.flat().find((b) => b.callback_data === "an_off");
@@ -394,6 +394,45 @@ console.log("✓ /app и /setup");
   await call({ callback_query: { id: "q", from: from2, data: "an_off", message: { message_id: 5, chat: chat2 } } });
   assert.equal((await env.DB.get("u:77", "json")).weekly, false);
   console.log("✓ серия, достижения, ИИ-разбор и воскресная рассылка");
+}
+
+// Напоминания о воде
+{
+  s = await msg("/remind");
+  assert.match(lastText(s), /Напоминания о воде[\s\S]*выключены/);
+  const kb = s.find((x) => x.method === "sendMessage").body.reply_markup.inline_keyboard[0].map((b) => b.callback_data);
+  assert.deepEqual(kb, ["wr|every|30", "wr|every|60", "wr|every|90", "wr|every|120"]);
+  s = await cb("wr|every|90");
+  assert.match(lastText(s), /Каждые <b>1,5 ч<\/b>/);
+  assert.match(lastText(s), /Начало дня: <b>08:00<\/b>[\s\S]*Конец дня: <b>22:00<\/b>/);
+  s = await cb("wr|pick|from");
+  assert.match(lastText(s), /Когда начинается твой день/);
+  s = await cb("wr|from|7");
+  s = await cb("wr|to|23");
+  let w = (await env.DB.get("u:42", "json")).wr;
+  assert.deepEqual([w.every, w.from, w.to], [90, 7, 23]);
+  assert.deepEqual(JSON.parse(await env.DB.get("wr:ids")), [42]);
+  const base = w.last;
+  // Через 1,5 часа днём (13:00 по Москве) — напоминание, сразу же повторно — нет
+  const day13 = Date.UTC(2026, 9, 5, 10, 0);
+  w.last = day13 - 91 * 60000;
+  const u42 = await env.DB.get("u:42", "json"); u42.wr = w; await env.DB.put("u:42", JSON.stringify(u42));
+  sent.length = 0;
+  assert.equal(await _test.waterTick(env, day13), 1);
+  assert.match(sent.find((x) => x.method === "sendMessage").body.text, /Время попить воды/);
+  assert.equal(await _test.waterTick(env, day13 + 30 * 60000), 0, "рано");
+  assert.equal(await _test.waterTick(env, day13 + 90 * 60000), 1, "через 1,5 часа снова");
+  // Ночью (02:00 по Москве) — молчим
+  const night = Date.UTC(2026, 9, 5, 23, 0);
+  assert.equal(await _test.waterTick(env, night), 0, "ночью тихо");
+  // Норма выполнена — молчим
+  await env.DB.put("d:42:2026-10-05", JSON.stringify({ meals: [], water: 5000 }));
+  assert.equal(await _test.waterTick(env, day13 + 300 * 60000), 0, "норма выполнена");
+  s = await cb("wr|off");
+  assert.match(lastText(s), /выключены/);
+  assert.deepEqual(JSON.parse(await env.DB.get("wr:ids")), []);
+  assert.ok(base > 0);
+  console.log("✓ напоминания о воде: частота, начало и конец дня, ночь, норма");
 }
 
 // 12. Набор иконок: эмодзи с полом и оттенком кожи тоже находятся
