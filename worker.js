@@ -51,6 +51,10 @@ export default {
       return new Response("error", { status: 500 });
     }
   },
+  // Расписание (wrangler.toml → [triggers]): по воскресеньям вечером — разбор недели
+  async scheduled(event, env, ctx) {
+    ctx.waitUntil(weeklyRun(env).catch((e) => console.error("weekly error:", e && e.stack ? e.stack : e)));
+  },
 };
 
 // ───────────────────────────── Telegram ─────────────────────────────
@@ -618,6 +622,7 @@ const HELP = `🍏 <b>FITTER</b> — твой счётчик калорий 🥦
 /today — итоги дня · /week — неделя
 /water — вода · /weight — вес
 /profile — профиль · /app — дневник
+/awards — достижения · /analysis — разбор недели
 /reset — пройти анкету заново
 
 <i>FITTER считает примерно и не заменяет врача или диетолога</i>`;
@@ -717,6 +722,8 @@ async function onMessage(msg, env) {
     case "/today": return sendDay(env, u, chatId, today(u));
     case "/week": return sendWeek(env, u, chatId);
     case "/profile": return sendProfile(env, u, chatId);
+    case "/awards": return sendAwards(env, u, chatId);
+    case "/analysis": return sendAnalysis(env, u, chatId);
     case "/water": return sendWater(env, u, chatId);
     case "/help": return send(env, chatId, HELP, { reply_markup: MAIN_KEYBOARD });
     case "/app":
@@ -895,11 +902,32 @@ async function onCallback(q, env) {
   if (kind === "w" && isDate(a)) {
     const delta = Number(b);
     if (![250, 500, -250].includes(delta)) return answer();
-    const { day, reached } = await addWater(env, u, a, delta);
+    const { day, reached, fresh } = await addWater(env, u, a, delta);
     await answer(delta > 0 ? `💧 +${delta} мл` : "Убрал 250 мл");
     await edit(env, chatId, msgId, waterText(u, day, a, delta), { reply_markup: waterKeyboard(a) });
-    if (reached) return send(env, chatId, "🎉 Норма воды на сегодня выполнена! Так держать 💧", { message_effect_id: EFFECT_PARTY });
-    return;
+    if (reached && !fresh.length) await send(env, chatId, "🎉 Норма воды на сегодня выполнена! Так держать 💧", { message_effect_id: EFFECT_PARTY });
+    return announce(env, chatId, fresh);
+  }
+  if (kind === "awards") {
+    await answer();
+    return sendAwards(env, u, chatId);
+  }
+  if (kind === "profile") {
+    await answer();
+    return sendProfile(env, u, chatId);
+  }
+  if (kind === "ai_week") {
+    await answer();
+    return sendAnalysis(env, u, chatId);
+  }
+  if (kind === "an_off" || kind === "an_on") {
+    u.weekly = kind === "an_on";
+    await saveUser(env, u);
+    await answer(u.weekly ? "Буду присылать разбор по воскресеньям" : "Больше не буду присылать разбор по воскресеньям");
+    return tg(env, "editMessageReplyMarkup", {
+      chat_id: chatId, message_id: msgId,
+      reply_markup: { inline_keyboard: [[u.weekly ? { text: "🔕 Не присылать по воскресеньям", callback_data: "an_off" } : { text: "🔔 Снова присылать по воскресеньям", callback_data: "an_on" }]] },
+    });
   }
   if (kind === "x" && isDate(a)) {
     const day = await getDay(env, u.id, a);
@@ -1093,15 +1121,19 @@ async function addWater(env, u, date, delta) {
   day.water = Math.min(10000, Math.max(0, before + delta));
   await saveDay(env, u.id, date, day);
   const goal = waterGoal(u);
-  return { day, reached: before < goal && day.water >= goal };
+  const reached = before < goal && day.water >= goal;
+  const fresh = reached ? await progress(env, u, "water", date) : [];
+  return { day, reached, fresh };
 }
 
 async function sendWater(env, u, chatId, delta = 0) {
   const date = today(u);
-  const { day, reached } = delta ? await addWater(env, u, date, delta) : { day: await getDay(env, u.id, date), reached: false };
+  const { day, reached, fresh } = delta ? await addWater(env, u, date, delta) : { day: await getDay(env, u.id, date), reached: false, fresh: [] };
   const extra = { reply_markup: waterKeyboard(date) };
   if (reached) extra.message_effect_id = EFFECT_PARTY;
-  return send(env, chatId, waterText(u, day, date, delta), extra);
+  const r = await send(env, chatId, waterText(u, day, date, delta), extra);
+  await announce(env, chatId, fresh);
+  return r;
 }
 
 async function saveMealAndReply(env, u, chatId, waitId, title, items, source, comment) {
@@ -1118,8 +1150,13 @@ async function saveMealAndReply(env, u, chatId, waitId, title, items, source, co
   await saveDay(env, u.id, date, day);
   const text = mealCard(u, meal, day, date, comment);
   const extra = { reply_markup: mealKeyboard(env, date, meal) };
-  if (waitId) return edit(env, chatId, waitId, text, extra);
-  return send(env, chatId, text, extra);
+  const r = waitId ? await edit(env, chatId, waitId, text, extra) : await send(env, chatId, text, extra);
+  const fresh = await progress(env, u, "meal", date, {
+    pack: source === "package" || source === "barcode",
+    inNorm: inNorm(dayTotals(day).kcal, u.targets.kcal),
+  });
+  await announce(env, chatId, fresh);
+  return r;
 }
 
 // Разбираем исправление: «150», «150 г», «форель», «форель 200 г», «200г форели»
@@ -1271,7 +1308,8 @@ async function sendDay(env, u, chatId, date) {
     `📊 <b>${isToday ? "Сегодня" : WEEKDAYS[new Date(date + "T00:00:00Z").getUTCDay()]}, ${humanDate(date)}</b>\n\n` +
     `🔥 <b>${round(t.kcal)}</b> из ${g.kcal} ккал · ${pctOf(t.kcal, g.kcal)}%\n` +
     `${squares(t.kcal, g.kcal)}\n` +
-    (left >= 0 ? `Осталось <b>${round(left)} ккал</b>` : `Больше нормы на <b>${round(-left)} ккал</b>`) + `\n\n` +
+    (left >= 0 ? `Осталось <b>${round(left)} ккал</b>` : `Больше нормы на <b>${round(-left)} ккал</b>`) +
+    (isToday && streakNow(u) >= 2 ? `\n🔥 Серия: <b>${streakNow(u)}</b> ${plural(streakNow(u), "день", "дня", "дней")} подряд` : "") + `\n\n` +
     `<blockquote>🥩 Белки — <b>${round(t.p)}</b> / ${g.p} г · ${pctOf(t.p, g.p)}%\n` +
     `🧈 Жиры — <b>${round(t.f)}</b> / ${g.f} г · ${pctOf(t.f, g.f)}%\n` +
     `🍞 Углеводы — <b>${round(t.c)}</b> / ${g.c} г · ${pctOf(t.c, g.c)}%\n` +
@@ -1375,7 +1413,7 @@ async function sendWeek(env, u, chatId) {
     }
     text += `💡 ${tip}`;
   }
-  return send(env, chatId, text, { reply_markup: { inline_keyboard: [[{ text: "📊 Сегодня", callback_data: "today" }, appButton(env, "📱 Дневник")]] } });
+  return send(env, chatId, text, { reply_markup: { inline_keyboard: [[{ text: "🧠 Разбор недели от ИИ", callback_data: "ai_week" }], [{ text: "📊 Сегодня", callback_data: "today" }, appButton(env, "📱 Дневник")]] } });
 }
 
 async function sendProfile(env, u, chatId) {
@@ -1398,6 +1436,7 @@ async function sendProfile(env, u, chatId) {
     reply_markup: {
       inline_keyboard: [
         [{ text: "⚖️ Записать вес", callback_data: "askw" }, { text: "📅 Неделя", callback_data: "week" }],
+        [{ text: "🏆 Достижения", callback_data: "awards" }],
         [{ text: "✏️ Изменить анкету", callback_data: "reset" }],
       ],
     },
@@ -1419,7 +1458,7 @@ async function logWeight(env, u, chatId, kg) {
   const diff = r1(kg - prev);
   const first = list.length ? list[0].kg : kg;
   const total = r1(kg - first);
-  return send(
+  const r = await send(
     env, chatId,
     `⚖️ Записал: <b>${kg} кг</b>` +
       (diff ? ` (${diff > 0 ? "+" : ""}${diff} кг с прошлого раза)` : "") +
@@ -1427,6 +1466,238 @@ async function logWeight(env, u, chatId, kg) {
       `\n\nНорма пересчитана: <b>${u.targets.kcal} ккал</b> в день`,
     { reply_markup: MAIN_KEYBOARD }
   );
+  await announce(env, chatId, await progress(env, u, "weigh", date));
+  return r;
+}
+
+// ───────────────────────────── Серии и достижения ─────────────────────────────
+
+// [id, иконка, название, описание, какой счётчик смотреть, сколько нужно]
+const ACHIEVEMENTS = [
+  ["first_meal", "🍽", "Первый шаг", "Записать первый приём пищи", "meals", 1],
+  ["meals_10", "📸", "Фотограф", "10 записей еды", "meals", 10],
+  ["meals_50", "📔", "Дневник в деле", "50 записей еды", "meals", 50],
+  ["meals_100", "💯", "Сотня", "100 записей еды", "meals", 100],
+  ["streak_3", "🔥", "Разгон", "3 дня подряд с записями", "best", 3],
+  ["streak_7", "🔥", "Неделя без пропусков", "7 дней подряд с записями", "best", 7],
+  ["streak_30", "🔥", "Железная привычка", "30 дней подряд с записями", "best", 30],
+  ["norm_1", "🎯", "Точно в цель", "Первый день в норме калорий", "normDays", 1],
+  ["norm_7", "🎯", "Снайпер", "7 дней в норме калорий", "normDays", 7],
+  ["water_1", "💧", "Водный баланс", "Выполнить норму воды", "waterDays", 1],
+  ["water_7", "💧", "Как рыба в воде", "7 дней с нормой воды", "waterDays", 7],
+  ["pack_1", "📦", "Сканер", "Добавить продукт по этикетке или штрихкоду", "packs", 1],
+  ["weigh_4", "⚖️", "На контроле", "Записать вес 4 раза", "weighs", 4],
+];
+
+const inNorm = (kcal, norm) => kcal >= norm * 0.9 && kcal <= norm * 1.1;
+
+// Для тех, кто пользовался ботом до появления наград: один раз считаем историю за 60 дней
+async function ensureStats(env, u, grant) {
+  if (u.st) return;
+  const end = today(u);
+  const dates = [...Array(60)].map((_, i) => shiftDate(end, -i));
+  const days = await Promise.all(dates.map((d) => getDay(env, u.id, d)));
+  const st = { meals: 0, packs: 0, normDays: 0, waterDays: 0, weighs: 0, normLast: "", waterLast: "" };
+  const goal = waterGoal(u);
+  days.forEach((day, i) => {
+    st.meals += day.meals.length;
+    st.packs += day.meals.filter((m) => m.source === "package" || m.source === "barcode").length;
+    if (day.meals.length && inNorm(dayTotals(day).kcal, u.targets.kcal)) { st.normDays++; st.normLast = st.normLast || dates[i]; }
+    if ((day.water || 0) >= goal) { st.waterDays++; st.waterLast = st.waterLast || dates[i]; }
+  });
+  st.weighs = Math.max(0, (await getWeights(env, u.id)).length - 1);
+  // Серия: дни подряд с записями, заканчивая сегодня или вчера
+  let n = 0, best = 0, run = 0, last = "";
+  for (let i = days.length - 1; i >= 0; i--) {
+    if (days[i].meals.length) { run++; best = Math.max(best, run); last = dates[i]; } else run = 0;
+  }
+  const start = days[0].meals.length ? 0 : days[1].meals.length ? 1 : -1;
+  if (start >= 0) for (let i = start; i < days.length && days[i].meals.length; i++) n++;
+  u.streak = { n, best, last };
+  u.st = st;
+  u.ach = u.ach || {};
+  // На экране наград выдаём заработанное тихо; после события — с поздравлением
+  if (grant) for (const a of ACHIEVEMENTS) if (statValue(u, a[4]) >= a[5]) u.ach[a[0]] = end;
+}
+
+const statValue = (u, key) => (key === "best" ? (u.streak?.best || 0) : (u.st?.[key] || 0));
+
+// Обновляем счётчики после события и возвращаем новые награды
+async function progress(env, u, event, date, extra = {}) {
+  // Первый раз история уже включает это событие, поэтому счётчики не увеличиваем
+  const first = !u.st;
+  await ensureStats(env, u, false);
+  const st = u.st;
+  if (first) event = "none";
+  if (event === "meal") {
+    st.meals++;
+    if (extra.pack) st.packs++;
+    const s = u.streak || (u.streak = { n: 0, best: 0, last: "" });
+    if (s.last !== date) {
+      s.n = s.last === shiftDate(date, -1) ? s.n + 1 : 1;
+      s.last = date;
+      s.best = Math.max(s.best, s.n);
+    }
+    if (extra.inNorm && st.normLast !== date) { st.normDays++; st.normLast = date; }
+  }
+  if (event === "water" && st.waterLast !== date) { st.waterDays++; st.waterLast = date; }
+  if (event === "weigh") st.weighs++;
+  u.ach = u.ach || {};
+  const fresh = ACHIEVEMENTS.filter((a) => !u.ach[a[0]] && statValue(u, a[4]) >= a[5]);
+  for (const a of fresh) u.ach[a[0]] = date;
+  await saveUser(env, u);
+  return fresh;
+}
+
+async function announce(env, chatId, fresh) {
+  if (!fresh.length) return;
+  const list = fresh.map((a) => `${a[1]} <b>${a[2]}</b>\n<i>${a[3]}</i>`).join("\n\n");
+  return send(env, chatId, `🏆 <b>${fresh.length > 1 ? "Новые достижения!" : "Новое достижение!"}</b>\n\n${list}`, {
+    message_effect_id: EFFECT_PARTY,
+    reply_markup: { inline_keyboard: [[{ text: "🏆 Все достижения", callback_data: "awards" }]] },
+  });
+}
+
+// Текущая серия: если вчера и сегодня не было записей — серия прервалась
+function streakNow(u) {
+  const s = u.streak;
+  if (!s || !s.last) return 0;
+  const t = today(u);
+  return s.last === t || s.last === shiftDate(t, -1) ? s.n : 0;
+}
+
+async function sendAwards(env, u, chatId) {
+  await ensureStats(env, u, true);
+  await saveUser(env, u);
+  const got = ACHIEVEMENTS.filter((a) => u.ach[a[0]]);
+  const left = ACHIEVEMENTS.filter((a) => !u.ach[a[0]]);
+  const n = streakNow(u);
+  let text =
+    `🏆 <b>Достижения</b> · ${got.length} из ${ACHIEVEMENTS.length}\n` +
+    `🔥 Серия: <b>${n}</b> ${plural(n, "день", "дня", "дней")} подряд · рекорд ${u.streak?.best || 0}\n\n`;
+  if (got.length) {
+    text += `<b>Получено</b>\n<blockquote>${got.map((a) => `${a[1]} <b>${a[2]}</b> · ${a[3]}`).join("\n")}</blockquote>\n\n`;
+  }
+  if (left.length) {
+    // Ближайшие награды — те, к которым ты ближе всего
+    const near = [...left].sort((x, y) => statValue(u, y[4]) / y[5] - statValue(u, x[4]) / x[5]);
+    const show = near.slice(0, 4);
+    text += `<b>Ближайшие</b>\n<blockquote>${show.map((a) => `🔒 ${a[2]} · ${a[3]} · <i>${Math.min(statValue(u, a[4]), a[5])}/${a[5]}</i>`).join("\n")}</blockquote>` +
+      (near.length > show.length ? `\n<i>И ещё ${near.length - show.length} впереди</i>` : "");
+  } else {
+    text += "Ты собрал все награды! 🎉";
+  }
+  return send(env, chatId, text.trim(), { reply_markup: { inline_keyboard: [[{ text: "👤 Профиль", callback_data: "profile" }, appButton(env, "📱 Дневник")]] } });
+}
+
+// ───────────────────────────── ИИ-разбор недели ─────────────────────────────
+
+const ANALYSIS_SCHEMA = {
+  type: "OBJECT",
+  properties: {
+    score: { type: "INTEGER", description: "Оценка питания за неделю от 1 до 10" },
+    summary: { type: "STRING", description: "2–3 предложения: общий итог недели" },
+    good: { type: "ARRAY", items: { type: "STRING" }, description: "2–3 конкретные вещи, которые получились" },
+    improve: { type: "ARRAY", items: { type: "STRING" }, description: "1–3 конкретные вещи, которые стоит улучшить" },
+    tips: { type: "ARRAY", items: { type: "STRING" }, description: "Ровно 3 простых практических совета на следующую неделю" },
+  },
+  required: ["score", "summary", "good", "improve", "tips"],
+};
+
+const ANALYSIS_PROMPT = `Ты дружелюбный нутрициолог приложения FITTER. Разбери питание пользователя за последние 7 дней.
+Опирайся только на данные ниже: калории, белки, жиры, углеводы, воду, блюда и цель.
+Пиши по-русски, коротко, конкретно и по-доброму, без markdown. Каждый пункт — одно предложение до 120 символов.
+Хвали за реальные успехи, а улучшения предлагай мягко и выполнимо. Не ставь диагнозов и не советуй жёсткие диеты.
+Если записей мало, учитывай, что часть еды могла быть не записана.`;
+
+async function weekData(env, u) {
+  const end = today(u);
+  const dates = [...Array(7)].map((_, i) => shiftDate(end, i - 6));
+  const [days, weights] = await Promise.all([Promise.all(dates.map((d) => getDay(env, u.id, d))), getWeights(env, u.id)]);
+  return { end, dates, days, weights, recorded: days.filter((d) => d.meals.length).length };
+}
+
+async function makeAnalysis(env, u) {
+  const { end, dates, days, weights, recorded } = await weekData(env, u);
+  if (recorded < 2) return { short: true, recorded };
+  const key = `an:${u.id}:${end}`;
+  const cached = await env.DB.get(key, "json").catch(() => null);
+  if (cached) return cached;
+  if (!checkAiLimit(env, u)) return { limit: true };
+  await saveUser(env, u);
+  const g = u.targets;
+  const lines = dates.map((d, i) => {
+    const day = days[i];
+    if (!day.meals.length) return `${d}: нет записей` + (day.water ? `, вода ${day.water} мл` : "");
+    const t = dayTotals(day);
+    return `${d}: ${round(t.kcal)} ккал, Б ${round(t.p)}, Ж ${round(t.f)}, У ${round(t.c)}, вода ${day.water || 0} мл; блюда: ` +
+      day.meals.map((m) => m.title).join("; ");
+  });
+  const wk = weights.filter((w) => w.date >= dates[0]);
+  const ctx =
+    `Пользователь: ${u.sex === "m" ? "мужчина" : "женщина"}, ${u.age} лет, рост ${u.height} см, вес ${u.weight} кг, ` +
+    `активность: ${ACTIVITY[u.activity]}, цель: ${GOALS[u.goal]}.\n` +
+    `Норма в день: ${g.kcal} ккал, Б ${g.p} г, Ж ${g.f} г, У ${g.c} г, вода ${waterGoal(u)} мл.\n` +
+    (wk.length > 1 ? `Вес за неделю: ${wk[0].kg} → ${wk[wk.length - 1].kg} кг.\n` : "") +
+    `Дни:\n${lines.join("\n")}`;
+  const res = await gemini(env, [{ text: `${ANALYSIS_PROMPT}\n\n${ctx}` }], ANALYSIS_SCHEMA, 0.5);
+  const clean = (arr, n) => (Array.isArray(arr) ? arr : []).map((s) => String(s).trim()).filter(Boolean).slice(0, n);
+  const out = {
+    end, from: dates[0], recorded,
+    score: Math.min(10, Math.max(1, Math.round(Number(res.score) || 5))),
+    summary: String(res.summary || "").trim().slice(0, 500),
+    good: clean(res.good, 3), improve: clean(res.improve, 3), tips: clean(res.tips, 3),
+  };
+  await env.DB.put(key, JSON.stringify(out), { expirationTtl: 12 * 3600 }).catch(() => {});
+  return out;
+}
+
+function analysisText(a) {
+  const nums = ["1️⃣", "2️⃣", "3️⃣"];
+  return (
+    `🧠 <b>Разбор недели</b>\n<i>${humanDate(a.from)} — ${humanDate(a.end)} · ${a.recorded} ${plural(a.recorded, "день", "дня", "дней")} с записями</i>\n\n` +
+    `🎯 Оценка: <b>${a.score}</b> из 10\n${squares(a.score, 10)}\n\n` +
+    (a.summary ? `<blockquote>${esc(a.summary)}</blockquote>\n\n` : "") +
+    (a.good.length ? `✅ <b>Что получилось</b>\n${a.good.map((s) => `• ${esc(s)}`).join("\n")}\n\n` : "") +
+    (a.improve.length ? `🔍 <b>Что улучшить</b>\n${a.improve.map((s) => `• ${esc(s)}`).join("\n")}\n\n` : "") +
+    (a.tips.length ? `💡 <b>Советы на неделю</b>\n<blockquote>${a.tips.map((s, i) => `${nums[i]} ${esc(s)}`).join("\n")}</blockquote>\n\n` : "") +
+    `<i>FITTER считает примерно и не заменяет врача или диетолога</i>`
+  );
+}
+
+async function sendAnalysis(env, u, chatId, auto = false) {
+  const wait = auto ? null : await send(env, chatId, "🧠 Разбираю твою неделю…");
+  const waitId = wait?.result?.message_id;
+  const reply = (text, extra = {}) => (waitId ? edit(env, chatId, waitId, text, extra) : send(env, chatId, text, extra));
+  try {
+    const a = await makeAnalysis(env, u);
+    if (a.short) return auto ? null : reply(`🧠 Для разбора нужно хотя бы 2 дня с записями за неделю, а сейчас ${a.recorded}.\n\nЗаписывай еду каждый день, и в воскресенье я пришлю подробный разбор 📸`);
+    if (a.limit) return auto ? null : reply("На сегодня лимит запросов к нейросети закончился 😔 Попробуй завтра!");
+    const buttons = [[{ text: "📅 Неделя", callback_data: "week" }, appButton(env, "📱 Дневник")]];
+    if (auto) buttons.push([{ text: "🔕 Не присылать по воскресеньям", callback_data: "an_off" }]);
+    return reply(analysisText(a), { reply_markup: { inline_keyboard: buttons } });
+  } catch (e) {
+    console.error("analysis error:", e && e.stack ? e.stack : e);
+    return auto ? null : reply("😔 Нейросеть сейчас не отвечает. Попробуй ещё раз через минуту.");
+  }
+}
+
+// Каждое воскресенье вечером: разбор недели всем, у кого было 3+ дня с записями
+async function weeklyRun(env) {
+  let cursor, sent = 0;
+  do {
+    const page = await env.DB.list({ prefix: "u:", cursor });
+    for (const k of page.keys) {
+      if (sent >= 50) return;
+      const u = await env.DB.get(k.name, "json");
+      if (!u || !u.targets || u.weekly === false) continue;
+      const { recorded } = await weekData(env, u);
+      if (recorded < 3) continue;
+      await sendAnalysis(env, u, u.id, true);
+      sent++;
+    }
+    cursor = page.list_complete ? null : page.cursor;
+  } while (cursor);
 }
 
 // ───────────────────────────── Mini App API ─────────────────────────────
@@ -1486,6 +1757,7 @@ async function api(request, url, env) {
       meals,
       week: dates.map((d, i) => ({ date: d, kcal: round(dayTotals(days[i]).kcal), meals: days[i].meals.length })),
       weights: weights.slice(-30),
+      streak: streakNow(u),
       water: day.water || 0,
       waterGoal: waterGoal(u),
       name: u.name,
@@ -1498,7 +1770,8 @@ async function api(request, url, env) {
     if (url.pathname === "/api/water") {
       const delta = Number(body.delta);
       if (![250, -250].includes(delta)) return json({ error: "bad delta" }, 400);
-      const { day: d, reached } = await addWater(env, u, body.date, delta);
+      const { day: d, reached, fresh } = await addWater(env, u, body.date, delta);
+      await announce(env, u.id, fresh);
       return json({ ok: true, water: d.water, reached });
     }
     const day = await getDay(env, u.id, body.date);
@@ -1583,6 +1856,8 @@ async function setup(url, env) {
       { command: "water", description: "Вода за сегодня" },
       { command: "weight", description: "Записать вес" },
       { command: "profile", description: "Профиль и норма" },
+      { command: "awards", description: "Достижения и серия" },
+      { command: "analysis", description: "Разбор недели от ИИ" },
       { command: "app", description: "Открыть дневник" },
       { command: "help", description: "Как пользоваться" },
       { command: "reset", description: "Пройти анкету заново" },
@@ -1676,6 +1951,7 @@ const APP_HTML = `<!doctype html>
   .ring .in small{font-size:13px;opacity:.9}
   .chip{margin-top:10px;display:inline-flex;align-items:center;gap:6px;padding:7px 14px;border-radius:99px;background:rgba(255,255,255,.22);font-weight:600;font-size:14px;backdrop-filter:blur(6px)}
   .chip.over{background:rgba(255,90,78,.9)}
+  .chips{display:flex;gap:8px;flex-wrap:wrap;justify-content:center}
 
   .wrap{padding:0 12px}
   /* ── БЖУ ── */
@@ -1902,8 +2178,9 @@ const APP_HTML = `<!doctype html>
     }).join("") + '</div>';
 
     var left = g.kcal - t.kcal;
+    var streak = d.date === d.today && d.streak >= 2 ? '<div class="chip">🔥 ' + d.streak + ' ' + (d.streak % 10 === 1 && d.streak % 100 !== 11 ? 'день' : [2,3,4].indexOf(d.streak % 10) >= 0 && (d.streak % 100 < 12 || d.streak % 100 > 14) ? 'дня' : 'дней') + ' подряд</div>' : '';
     hero.innerHTML = week + '<div class="main">' + ring(t.kcal, g.kcal) +
-      '<div class="chip' + (left < 0 ? ' over' : '') + '">' + (left >= 0 ? 'Осталось ' + r(left) + ' ккал' : 'Больше нормы на ' + r(-left) + ' ккал') + '</div></div>';
+      '<div class="chips"><div class="chip' + (left < 0 ? ' over' : '') + '">' + (left >= 0 ? 'Осталось ' + r(left) + ' ккал' : 'Больше нормы на ' + r(-left) + ' ккал') + '</div>' + streak + '</div></div>';
 
     var macros = '<div class="macros">' + macro("p", "protein", "Белки", t.p, g.p) + macro("f", "fat", "Жиры", t.f, g.f) + macro("c", "carbs", "Углеводы", t.c, g.c) + '</div>';
 
@@ -2017,4 +2294,4 @@ const APP_HTML = `<!doctype html>
 </html>`;
 
 // Для тестов
-export const _test = { baseEmoji, calcTargets, verifyInitData, cleanItems, sumItems, parseFix, parseWater, cleanBarcode, waterGoal, APP_HTML };
+export const _test = { ACHIEVEMENTS, baseEmoji, calcTargets, verifyInitData, cleanItems, sumItems, parseFix, parseWater, cleanBarcode, waterGoal, APP_HTML };

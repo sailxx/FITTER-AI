@@ -9,6 +9,10 @@ binding = "DB"
 id = "7a5f3505aed24657afb0cc924445a9c2"
 
 # Логи в Cloudflare (вкладка Observability), помогают искать ошибки
+# Расписание: каждое воскресенье в 17:00 UTC (20:00 по Москве) — ИИ-разбор недели
+[triggers]
+crons = ["0 17 * * 0"]
+
 [observability]
 enabled = true
 
