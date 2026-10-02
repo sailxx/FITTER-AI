@@ -540,12 +540,6 @@ function toBase64(buf) {
 
 const esc = (s) => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 
-function bar(value, target, len = 10) {
-  const pct = target ? value / target : 0;
-  const filled = Math.min(len, Math.round(pct * len));
-  return "▓".repeat(filled) + "░".repeat(len - filled) + ` ${Math.round(pct * 100)}%`;
-}
-
 function mealText(meal) {
   const t = sumItems(meal.items);
   const lines = meal.items.map((it) => `• ${esc(it.name)} — ${it.grams} г — ${round(itemTotals(it).kcal)} ккал`);
@@ -583,31 +577,29 @@ function mealKeyboard(env, date, meal) {
   return { inline_keyboard: rows };
 }
 
-const HELP = `🍏 <b>FITTER</b> — одно фото, полный контроль 📸
+const HELP = `🍏 <b>FITTER</b> — твой счётчик калорий 🥦
+<i>Одно фото. Полный контроль.</i>
 
-<b>Как пользоваться</b>
-1. Сфотографируй еду и отправь сюда фото
-2. Я определю продукты, вес и посчитаю КБЖУ
-3. Если я ошибся с весом — нажми ✏️ и впиши правильный
-4. Всё сохраняется в дневник питания
+📸 <b>Как это работает</b>
+<blockquote>1️⃣ Сфотографируй еду и отправь сюда
+2️⃣ Я найду продукты, оценю вес и посчитаю КБЖУ
+3️⃣ Ошибся? Нажми ✏️ под записью и поправь
+4️⃣ Всё сохранится в дневник питания</blockquote>
 
-<b>Ещё можно</b>
-✍️ Написать текстом: «съел 2 яйца и тост»
-❓ Задать вопрос: «сколько белка в твороге?»
-📦 Сфотографировать упаковку или этикетку, или прислать цифры штрихкода
-💧 Отметить воду: кнопка «Вода» или «вода 300»
-⚖️ Записать вес: /weight 72.5
+✨ <b>Ещё умею</b>
+<blockquote>✍️ «съел 2 яйца и тост» — запишу текстом
+❓ «сколько белка в твороге?» — отвечу
+📦 Фото этикетки или цифры штрихкода — найду КБЖУ
+💧 «вода 300» — отмечу воду
+⚖️ <code>/weight 72.5</code> — запишу вес</blockquote>
 
-<b>Команды</b>
-/today — итоги дня
-/week — неделя
-/water — вода
-/weight — записать вес
-/profile — мой профиль и норма
-/app — открыть дневник
+⌨️ <b>Команды</b>
+/today — итоги дня · /week — неделя
+/water — вода · /weight — вес
+/profile — профиль · /app — дневник
 /reset — пройти анкету заново
 
-<i>FITTER считает примерно и не заменяет врача или диетолога.</i>`;
+<i>FITTER считает примерно и не заменяет врача или диетолога</i>`;
 
 // ───────────────────────────── Обработка сообщений ─────────────────────────────
 
@@ -1052,7 +1044,7 @@ function waterText(u, day, date, added) {
   return (
     (added ? `💧 ${added > 0 ? "+" : "−"}${Math.abs(added)} мл записал\n\n` : "") +
     `💧 <b>Вода ${date === today(u) ? "за сегодня" : "за " + humanDate(date)}</b>\n` +
-    `<b>${liters(ml)}</b> из ${liters(goal)}\n${bar(ml, goal)}\n\n` +
+    `<b>${liters(ml)}</b> из ${liters(goal)} · ${pctOf(ml, goal)}%\n${squares(Math.min(ml, goal), goal, "🟦")}\n\n` +
     (left > 0 ? `Осталось: <b>${left} мл</b>, это примерно ${Math.ceil(left / 250)} стак.` : "Норма воды выполнена 🎉") +
     `\n\n<i>Норма: 30 мл на 1 кг веса. Можно написать «вода 300» или «+500»</i>`
   );
@@ -1232,23 +1224,55 @@ async function onText(env, u, chatId, text) {
 
 // ── Итоги дня и недели ──
 
+// Полоска из 10 квадратиков: зелёный — в норме, красный — больше нормы
+function squares(value, target, color = "🟩", len = 10) {
+  const pct = target ? value / target : 0;
+  const sq = pct > 1.1 ? "🟥" : color;
+  const n = value > 0 ? Math.max(1, Math.min(len, Math.round(pct * len))) : 0;
+  return sq.repeat(n) + "⬜".repeat(len - n);
+}
+const pctOf = (v, t) => (t ? Math.round((v / t) * 100) : 0);
+
 async function sendDay(env, u, chatId, date) {
   const day = await getDay(env, u.id, date);
   const t = dayTotals(day);
   const g = u.targets;
+  const isToday = date === today(u);
+  const left = g.kcal - t.kcal;
+  const water = day.water || 0;
+  const wGoal = waterGoal(u);
+
   let text =
-    `📊 <b>${date === today(u) ? "Сегодня" : humanDate(date)}, ${humanDate(date)}</b>\n\n` +
-    `🔥 ${round(t.kcal)} / ${g.kcal} ккал\n${bar(t.kcal, g.kcal)}\n\n` +
-    `🥩 Белки: ${round(t.p)} / ${g.p} г\n🧈 Жиры: ${round(t.f)} / ${g.f} г\n🍞 Углеводы: ${round(t.c)} / ${g.c} г\n` +
-    `💧 Вода: ${liters(day.water || 0)} / ${liters(waterGoal(u))}\n\n`;
+    `📊 <b>${isToday ? "Сегодня" : WEEKDAYS[new Date(date + "T00:00:00Z").getUTCDay()]}, ${humanDate(date)}</b>\n\n` +
+    `🔥 <b>${round(t.kcal)}</b> из ${g.kcal} ккал · ${pctOf(t.kcal, g.kcal)}%\n` +
+    `${squares(t.kcal, g.kcal)}\n` +
+    (left >= 0 ? `Осталось <b>${round(left)} ккал</b>` : `Больше нормы на <b>${round(-left)} ккал</b>`) + `\n\n` +
+    `<blockquote>🥩 Белки — <b>${round(t.p)}</b> / ${g.p} г · ${pctOf(t.p, g.p)}%\n` +
+    `🧈 Жиры — <b>${round(t.f)}</b> / ${g.f} г · ${pctOf(t.f, g.f)}%\n` +
+    `🍞 Углеводы — <b>${round(t.c)}</b> / ${g.c} г · ${pctOf(t.c, g.c)}%\n` +
+    `💧 Вода — <b>${liters(water)}</b> / ${liters(wGoal)}${water >= wGoal ? " ✓" : ""}</blockquote>\n\n`;
+
   if (day.meals.length) {
-    text += "<b>Приёмы пищи</b>\n" + day.meals.map((m) => `${m.time} · ${esc(m.title)} — ${round(sumItems(m.items).kcal)} ккал`).join("\n");
-    const left = g.kcal - t.kcal;
-    text += `\n\n${left >= 0 ? `Осталось: <b>${round(left)} ккал</b>` : `Перебор: <b>${round(-left)} ккал</b>`}`;
+    text += `🍽 <b>Приёмы пищи</b>\n<blockquote>` +
+      day.meals.map((m) => `${m.time} · ${esc(m.title)} — <b>${round(sumItems(m.items).kcal)}</b> ккал`).join("\n") +
+      `</blockquote>`;
+    // Подсказка по белку во второй половине дня
+    if (isToday && nowTime(u) >= "15:00" && t.p < g.p * 0.5 && left > 0) {
+      text += `\n\n💡 Белка пока мало. Добавь творог, яйца, курицу или рыбу`;
+    } else if (left < 0) {
+      text += `\n\n💡 Норма на сегодня набрана. Если хочется есть, выбирай овощи и белок`;
+    }
   } else {
-    text += "Пока ничего не записано. Отправь фото еды 📸";
+    text += isToday ? "📸 Пока ничего не записано. Отправь фото еды, и я всё посчитаю" : "За этот день записей нет";
   }
-  return send(env, chatId, text, { reply_markup: { inline_keyboard: [[{ text: "💧 +250 мл воды", callback_data: `w|${date}|250` }, appButton(env)]] } });
+  return send(env, chatId, text, {
+    reply_markup: {
+      inline_keyboard: [
+        [{ text: "💧 +250 мл воды", callback_data: `w|${date}|250` }, { text: "📅 Неделя", callback_data: "week" }],
+        [appButton(env)],
+      ],
+    },
+  });
 }
 
 // Цветная полоска из 5 квадратиков: зелёный — норма, синий — мало, красный — больше нормы
