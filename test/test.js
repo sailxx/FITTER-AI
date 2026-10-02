@@ -15,6 +15,7 @@ class FakeKV {
   async get(k, type) { const v = this.m.get(k); if (v == null) return null; return type === "json" ? JSON.parse(v) : v; }
   async put(k, v) { this.m.set(k, v); }
   async delete(k) { this.m.delete(k); }
+  async list({ prefix = "" } = {}) { return { keys: [...this.m.keys()].filter((k) => k.startsWith(prefix)).map((name) => ({ name })), list_complete: true }; }
 }
 
 let msgId = 100;
@@ -84,7 +85,8 @@ const from = { id: 42, first_name: "Влад" };
 const chat = { id: 42, type: "private" };
 const msg = (text) => call({ message: { message_id: 1, from, chat, text } });
 const cb = (data) => call({ callback_query: { id: "q", from, data, message: { message_id: 7, chat } } });
-const lastText = (s) => s.filter((x) => x.method === "sendMessage" || x.method === "editMessageText").map((x) => x.body.text).pop();
+// Поздравления с наградами проверяем отдельно, здесь их пропускаем
+const lastText = (s) => s.filter((x) => (x.method === "sendMessage" || x.method === "editMessageText") && !/^🏆 <b>Нов/.test(x.body.text || "")).map((x) => x.body.text).pop();
 
 // 1. Неверный секрет webhook
 {
@@ -335,6 +337,63 @@ console.log("✓ /app и /setup");
   s = await msg("/emojierr");
   assert.match(lastText(s), /test reject/);
   console.log("✓ иконки: запасной вариант без цитат и /emojierr");
+}
+
+// Серии, достижения и ИИ-разбор недели (отдельный пользователь)
+{
+  const from2 = { id: 77, first_name: "Аня" }, chat2 = { id: 77, type: "private" };
+  const m2 = (text) => call({ message: { message_id: 1, from: from2, chat: chat2, text } });
+  const t0 = new Date(Date.now() + 180 * 60000).toISOString().slice(0, 10);
+  const sh = (n) => { const d = new Date(t0 + "T00:00:00Z"); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10); };
+  const u2 = { id: 77, name: "Аня", sex: "f", age: 20, height: 165, weight: 55, activity: "1.375", goal: "keep", tz: 180, targets: { kcal: 1900, p: 99, f: 50, c: 260 } };
+  await env.DB.put("u:77", JSON.stringify(u2));
+  const day = (k) => ({ meals: [{ id: "m" + k, time: "12:00", title: "Обед", source: "photo", items: [{ name: "Еда", grams: 100, kcal_100: k, protein_100: 10, fat_100: 5, carbs_100: 20 }] }] });
+  await env.DB.put("d:77:" + sh(-2), JSON.stringify(day(1800)));
+  await env.DB.put("d:77:" + sh(-1), JSON.stringify(day(1700)));
+  s = await m2("4607001771234");
+  const aw = s.filter((x) => /^🏆 <b>Нов/.test(x.body.text || ""));
+  assert.equal(aw.length, 1, "одно поздравление");
+  assert.match(aw[0].body.text, /Первый шаг/);
+  assert.match(aw[0].body.text, /Разгон/, "3 дня подряд");
+  assert.match(aw[0].body.text, /Сканер/);
+  assert.match(aw[0].body.text, /Точно в цель/);
+  assert.equal(aw[0].body.message_effect_id, "5046509860389126442");
+  let uu = await env.DB.get("u:77", "json");
+  assert.equal(uu.streak.n, 3);
+  assert.equal(uu.st.meals, 3);
+  s = await m2("4607001771234");
+  assert.ok(!s.some((x) => /^🏆 <b>Нов/.test(x.body.text || "")), "повторно не поздравляем");
+  uu = await env.DB.get("u:77", "json");
+  assert.equal(uu.st.meals, 4);
+  assert.equal(uu.streak.n, 3);
+  s = await m2("/awards");
+  assert.match(lastText(s), /Достижения<\/b> · 4 из 13/);
+  assert.match(lastText(s), /Серия: <b>3<\/b> дня подряд/);
+  assert.match(lastText(s), /🔒 Фотограф · 10 записей еды · <i>4\/10<\/i>|Ближайшие/);
+  s = await m2("/today");
+  assert.match(lastText(s), /Серия: <b>3<\/b> дня подряд/);
+  // ИИ-разбор
+  geminiReply = { score: 8, summary: "Хорошая неделя.", good: ["Есть завтраки"], improve: ["Мало овощей"], tips: ["Добавь салат", "Пей воду", "Ешь рыбу"] };
+  geminiCalls = [];
+  s = await m2("/analysis");
+  const an = lastText(s);
+  assert.match(an, /Разбор недели/);
+  assert.match(an, /Оценка: <b>8<\/b> из 10/);
+  assert.match(an, /1️⃣ Добавь салат/);
+  assert.ok(geminiCalls.at(-1).body.contents[0].parts[0].text.includes("Обед"));
+  const calls = geminiCalls.length;
+  await m2("/analysis");
+  assert.equal(geminiCalls.length, calls, "разбор берётся из кэша");
+  // Воскресная рассылка
+  sent.length = 0;
+  await worker.scheduled({}, env, ctx);
+  await Promise.all(pending.splice(0));
+  assert.ok(sent.some((x) => x.body.chat_id === 77 && /Разбор недели/.test(x.body.text || "")), "разбор пришёл по расписанию");
+  const off = sent.find((x) => x.body.chat_id === 77).body.reply_markup.inline_keyboard.flat().find((b) => b.callback_data === "an_off");
+  assert.ok(off);
+  await call({ callback_query: { id: "q", from: from2, data: "an_off", message: { message_id: 5, chat: chat2 } } });
+  assert.equal((await env.DB.get("u:77", "json")).weekly, false);
+  console.log("✓ серия, достижения, ИИ-разбор и воскресная рассылка");
 }
 
 // 12. Набор иконок: эмодзи с полом и оттенком кожи тоже находятся
