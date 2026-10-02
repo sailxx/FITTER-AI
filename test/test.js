@@ -8,6 +8,7 @@ const sent = [];
 let geminiReply = null;
 let geminiCalls = [];
 let offCalls = 0;
+let rejectQuote = false;
 
 class FakeKV {
   constructor() { this.m = new Map(); }
@@ -33,6 +34,9 @@ globalThis.fetch = async (url, opts = {}) => {
       // Так Telegram может хранить эмодзи: с полом, оттенком кожи и без FE0F
       const em = ["🍽", "🍗", "💧", "🌾", "🔥", "⚖", "📔", "🍏", "🛋", "🚶‍♂️", "🏃‍♂️", "💪🏻", "📉", "🥤", "📦", "📏", "🎂", "🏆"];
       return Response.json({ ok: true, result: { title: "FITTER ICONS", stickers: em.map((e, i) => ({ emoji: e, custom_emoji_id: String(9000 + i) })) } });
+    }
+    if (method === "sendMessage" && rejectQuote && /<blockquote>[\s\S]*<tg-emoji/.test(body.text || "")) {
+      return Response.json({ ok: false, description: "Bad Request: test reject" });
     }
     if (method === "sendMessage") return Response.json({ ok: true, result: { message_id: ++msgId } });
     return Response.json({ ok: true, result: true });
@@ -314,6 +318,19 @@ console.log("✓ /app и /setup");
   assert.match(lastText(s), /Протеиновый батончик — 60 г — 210 ккал/);
   assert.match(lastText(s), /КБЖУ взяты с этикетки/);
   console.log("✓ штрихкод, кэш, фото упаковки и этикетки");
+}
+
+// Иконки в цитатах не приняты — отправляем с иконками, но без цитат, и запоминаем ошибку
+{
+  rejectQuote = true;
+  s = await msg("/help");
+  const sends = s.filter((x) => x.method === "sendMessage");
+  rejectQuote = false;
+  assert.equal(sends.length, 2);
+  assert.ok(!sends[1].body.text.includes("<blockquote>") && sends[1].body.text.includes("<tg-emoji"));
+  s = await msg("/emojierr");
+  assert.match(lastText(s), /test reject/);
+  console.log("✓ иконки: запасной вариант без цитат и /emojierr");
 }
 
 // 12. Набор иконок: эмодзи с полом и оттенком кожи тоже находятся
