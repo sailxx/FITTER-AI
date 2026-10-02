@@ -625,7 +625,8 @@ const HELP = `🍏 <b>FITTER</b> — твой счётчик калорий 🥦
 /water — вода · /remind — напоминания
 /weight — вес · /profile — профиль
 /app — дневник
-/awards — достижения · /analysis — разбор недели
+/advice — что съесть · /analysis — разбор недели
+/awards — достижения
 /reset — пройти анкету заново
 
 <i>FITTER считает примерно и не заменяет врача или диетолога</i>`;
@@ -789,6 +790,7 @@ async function onMessage(msg, env) {
     case "/awards": return sendAwards(env, u, chatId);
     case "/remind": return sendReminders(env, u, chatId);
     case "/analysis": return sendAnalysis(env, u, chatId);
+    case "/advice": return sendAdvice(env, u, chatId);
     case "/water": return sendWater(env, u, chatId);
     case "/help": return send(env, chatId, HELP, { reply_markup: MAIN_KEYBOARD });
     case "/app":
@@ -983,6 +985,19 @@ async function onCallback(q, env) {
   if (kind === "awards") {
     await answer();
     return sendAwards(env, u, chatId);
+  }
+  if (kind === "advice") {
+    await answer("Подбираю варианты…");
+    return sendAdvice(env, u, chatId);
+  }
+  if (kind === "adv") {
+    const saved = await env.DB.get(`adv:${u.id}`, "json");
+    const o = saved?.date === today(u) ? saved.options[Number(a)] : null;
+    if (!o) return answer("Варианты устарели, нажми «Что съесть» ещё раз");
+    await env.DB.delete(`adv:${u.id}`);
+    await answer("Записываю ✅");
+    await tg(env, "editMessageReplyMarkup", { chat_id: chatId, message_id: msgId, reply_markup: { inline_keyboard: [] } });
+    return saveMealAndReply(env, u, chatId, null, o.title, o.items, "advice", null);
   }
   if (kind === "profile") {
     await answer();
@@ -1409,8 +1424,8 @@ async function sendDay(env, u, chatId, date) {
   return send(env, chatId, text, {
     reply_markup: {
       inline_keyboard: [
-        [{ text: "💧 +250 мл воды", callback_data: `w|${date}|250` }, { text: "📅 Неделя", callback_data: "week" }],
-        [appButton(env)],
+        [{ text: "🥗 Что съесть", callback_data: "advice" }, { text: "💧 +250 мл воды", callback_data: `w|${date}|250` }],
+        [{ text: "📅 Неделя", callback_data: "week" }, appButton(env, "📱 Дневник")],
       ],
     },
   });
@@ -1428,6 +1443,10 @@ const plural = (n, one, few, many) => {
   return m10 === 1 && m100 !== 11 ? one : m10 >= 2 && m10 <= 4 && (m100 < 12 || m100 > 14) ? few : many;
 };
 
+const MON_SHORT = ["янв", "фев", "мар", "апр", "мая", "июн", "июл", "авг", "сен", "окт", "ноя", "дек"];
+const shortDate = (d) => `${Number(d.slice(8))} ${MON_SHORT[Number(d.slice(5, 7)) - 1]}`;
+const wdOf = (d) => WEEKDAYS[new Date(d + "T00:00:00Z").getUTCDay()];
+
 async function sendWeek(env, u, chatId) {
   const end = today(u);
   const norm = u.targets.kcal;
@@ -1435,63 +1454,162 @@ async function sendWeek(env, u, chatId) {
   const [days, weights] = await Promise.all([Promise.all(dates.map((d) => getDay(env, u.id, d))), getWeights(env, u.id)]);
 
   const rows = dates.map((d, i) => {
-    const wd = WEEKDAYS[new Date(d + "T00:00:00Z").getUTCDay()];
     const has = days[i].meals.length > 0;
     const k = round(dayTotals(days[i]).kcal);
-    const label = `${wd} ${d.slice(8)}`;
-    if (!has) return { d, has, k: 0, line: `${weekBar(null)}  ${label} · <i>нет записей</i>` };
+    const label = `${wdOf(d)} ${d.slice(8)}`;
+    const isToday = d === end;
+    if (!has) return { d, has, k: 0, line: `${isToday ? "<b>" + label + "</b>" : label}  <i>${isToday ? "сегодня пока пусто" : "—"}</i>` };
     const pct = k / norm;
-    return { d, has, k, pct, line: `${weekBar(pct)}  ${d === end ? "<b>" + label + "</b>" : label} · <b>${k}</b> ккал` };
+    return { d, has, k, pct, line: `${isToday ? "<b>" + label + "</b>" : label}  ${weekBar(pct)}  <b>${k}</b>${isToday ? " · <i>сегодня</i>" : ""}` };
   });
 
   // Среднее считаем по законченным дням: сегодняшний ещё не завершён
   const done = rows.filter((r) => r.has && r.d !== end);
   const base = done.length ? done : rows.filter((r) => r.has);
   const avg = base.length ? round(base.reduce((a, r) => a + r.k, 0) / base.length) : 0;
-  const inNorm = rows.filter((r) => r.has && r.pct >= 0.8 && r.pct <= 1.1).length;
+  const inNormDays = rows.filter((r) => r.has && r.pct >= 0.8 && r.pct <= 1.1).length;
   const recorded = rows.filter((r) => r.has).length;
   const best = rows.filter((r) => r.has).sort((a, b) => Math.abs(1 - a.pct) - Math.abs(1 - b.pct))[0];
   const water = days.map((d) => d.water || 0).filter(Boolean);
   const avgWater = water.length ? water.reduce((a, b) => a + b, 0) / water.length : 0;
 
   let text =
-    `📅 <b>Неделя</b>\n<i>${humanDate(dates[0])} — ${humanDate(end)}</i>\n\n` +
-    `${rows.map((r) => r.line).join("\n")}\n\n` +
-    `<i>🟩 норма · 🟦 мало · 🟥 больше · норма ${norm} ккал</i>\n\n`;
+    `📅 <b>Неделя</b> · ${shortDate(dates[0])} — ${shortDate(end)}\n\n` +
+    `<blockquote>${rows.map((r) => r.line).join("\n")}</blockquote>\n` +
+    `<i>🟩 норма · 🟦 меньше · 🟥 больше · цель ${norm} ккал</i>\n\n`;
 
   if (!recorded) {
     text += "📸 За неделю пока нет записей. Отправь фото еды, и я начну считать";
   } else {
     const stats = [
-      `🔥 В среднем <b>${avg} ккал</b> в день${done.length ? "" : " (пока только сегодня)"}`,
-      `🎯 В норме <b>${inNorm} из ${recorded}</b> ${recorded === 1 ? "дня" : "дней"}`,
+      `🔥 В среднем <b>${avg}</b> из ${norm} ккал${done.length ? "" : " (пока только сегодня)"}`,
+      `🎯 В норме <b>${inNormDays} из ${recorded}</b> ${plural(recorded, "дня", "дней", "дней")}`,
     ];
-    if (best) stats.push(`🏆 Лучший день: <b>${WEEKDAYS[new Date(best.d + "T00:00:00Z").getUTCDay()]}, ${humanDate(best.d)}</b> — ${best.k} ккал`);
+    if (best) stats.push(`🏆 Лучший день — ${wdOf(best.d).toLowerCase()}, ${shortDate(best.d)} · <b>${best.k}</b> ккал`);
     if (avgWater) stats.push(`💧 Вода в среднем <b>${liters(avgWater)}</b> из ${liters(waterGoal(u))}`);
     const wk = weights.filter((w) => w.date >= dates[0]);
     if (wk.length > 1) {
       const diff = r1(wk[wk.length - 1].kg - wk[0].kg);
-      stats.push(`⚖️ Вес: <b>${wk[wk.length - 1].kg} кг</b> (${diff > 0 ? "+" : ""}${diff} кг за неделю)`);
+      stats.push(`⚖️ Вес <b>${wk[wk.length - 1].kg} кг</b> · ${diff > 0 ? "+" : ""}${diff} кг за неделю`);
     }
-    text += `<blockquote>${stats.join("\n")}</blockquote>\n`;
-
-    // Короткий совет по итогам недели
-    const pct = avg / norm;
-    let tip;
-    if (pct < 0.8) {
-      tip = u.goal === "gain"
-        ? `Не хватает в среднем ${norm - avg} ккал. Для набора массы добавь перекусы: творог, орехи, банан, кашу`
-        : `Ты ешь меньше нормы на ${norm - avg} ккал. Слишком большой дефицит мешает результату, держись хотя бы 80% нормы`;
-    } else if (pct > 1.1) {
-      tip = u.goal === "lose"
-        ? `В среднем больше нормы на ${avg - norm} ккал. Попробуй заменить сладкое и снеки на фрукты и белок`
-        : `В среднем больше нормы на ${avg - norm} ккал. Следи за порциями и вечерними перекусами`;
-    } else {
-      tip = "Отлично, ты держишься в норме! Так держать 💪";
-    }
-    text += `💡 ${tip}`;
+    text += `📊 <b>Итоги</b>\n<blockquote>${stats.join("\n")}</blockquote>\n\n`;
+    text += `💡 <b>Совет</b>\n${weekTip(u, avg, norm)}`;
   }
-  return send(env, chatId, text, { reply_markup: { inline_keyboard: [[{ text: "🧠 Разбор недели от ИИ", callback_data: "ai_week" }], [{ text: "📊 Сегодня", callback_data: "today" }, appButton(env, "📱 Дневник")]] } });
+  return send(env, chatId, text, {
+    reply_markup: {
+      inline_keyboard: [
+        [{ text: "🥗 Что съесть сегодня", callback_data: "advice" }, { text: "🧠 Разбор от ИИ", callback_data: "ai_week" }],
+        [{ text: "📊 Сегодня", callback_data: "today" }, appButton(env, "📱 Дневник")],
+      ],
+    },
+  });
+}
+
+// Короткий совет по итогам недели
+function weekTip(u, avg, norm) {
+  const pct = avg / norm;
+  if (pct < 0.8) {
+    return u.goal === "gain"
+      ? `Не хватает в среднем ${norm - avg} ккал в день. Для набора массы добавь 2 перекуса: творог, орехи, банан, кашу`
+      : `Ты ешь меньше нормы на ${norm - avg} ккал в день. Слишком большой дефицит мешает результату, держись хотя бы 80% нормы`;
+  }
+  if (pct > 1.1) {
+    return u.goal === "lose"
+      ? `В среднем больше нормы на ${avg - norm} ккал. Замени сладкое и снеки на фрукты и белок`
+      : `В среднем больше нормы на ${avg - norm} ккал. Следи за порциями и вечерними перекусами`;
+  }
+  return "Ты держишься в норме, так держать 💪";
+}
+
+const ADVICE_SCHEMA = {
+  type: "OBJECT",
+  properties: {
+    intro: { type: "STRING", description: "Одно короткое предложение: на что сейчас стоит сделать упор" },
+    options: {
+      type: "ARRAY",
+      description: "Ровно 3 варианта приёма пищи",
+      items: {
+        type: "OBJECT",
+        properties: {
+          title: { type: "STRING", description: "Название блюда, коротко" },
+          why: { type: "STRING", description: "Чем подходит, 3–7 слов" },
+          items: { type: "ARRAY", items: ITEM_SCHEMA },
+        },
+        required: ["title", "why", "items"],
+      },
+    },
+  },
+  required: ["intro", "options"],
+};
+
+const ADVICE_PROMPT = `Ты нутрициолог-ассистент Telegram-бота FITTER. Пиши по-русски, просто и дружелюбно.
+Предложи 3 разных варианта следующего приёма пищи, которые помогут добрать или не превысить дневную норму.
+Правила:
+• Учитывай время суток: утром завтрак, днём обед, вечером лёгкий ужин, поздно вечером лёгкий перекус.
+• Учитывай остаток калорий и особенно белка. Если белка не хватает — делай на него упор.
+• Если калорий почти не осталось или норма превышена — предлагай лёгкие варианты до 200 ккал.
+• Блюда простые, из обычных продуктов в России, готовятся за 15 минут или покупаются в магазине.
+• Не повторяй то, что человек уже ел сегодня. Ориентируйся на его привычные продукты за неделю.
+• Для каждого варианта дай продукты с весом в граммах и КБЖУ на 100 г.`;
+
+// 🥗 Что съесть: 3 варианта под остаток нормы, любой можно сразу записать
+async function sendAdvice(env, u, chatId) {
+  if (!checkAiLimit(env, u)) return send(env, chatId, "На сегодня лимит запросов к нейросети закончился 😔 Завтра снова можно!");
+  await saveUser(env, u);
+  tg(env, "sendChatAction", { chat_id: chatId, action: "typing" });
+  const date = today(u);
+  const dates = [...Array(7)].map((_, i) => shiftDate(date, i - 6));
+  const days = await Promise.all(dates.map((d) => getDay(env, u.id, d)));
+  const day = days.at(-1);
+  const t = dayTotals(day), g = u.targets;
+  const left = { kcal: round(g.kcal - t.kcal), p: round(g.p - t.p), f: round(g.f - t.f), c: round(g.c - t.c) };
+  const eaten = day.meals.map((m) => m.title).join(", ") || "пока ничего";
+  const usual = [...new Set(days.slice(0, -1).flatMap((d) => d.meals.map((m) => m.title)))].slice(-15).join(", ") || "нет данных";
+  const ctx =
+    `Сейчас ${nowTime(u)}. Цель: ${GOALS[u.goal]}. Норма: ${g.kcal} ккал, Б ${g.p}, Ж ${g.f}, У ${g.c}.\n` +
+    `Съедено сегодня: ${round(t.kcal)} ккал, Б ${round(t.p)}, Ж ${round(t.f)}, У ${round(t.c)} (${eaten}).\n` +
+    `Осталось: ${left.kcal} ккал, Б ${left.p}, Ж ${left.f}, У ${left.c}.\nЕл за неделю: ${usual}.`;
+  let res;
+  try {
+    res = await gemini(env, [{ text: `${ADVICE_PROMPT}\n\n${ctx}` }], ADVICE_SCHEMA, 0.8);
+  } catch (e) {
+    console.error("advice error:", e && e.stack ? e.stack : e);
+    return send(env, chatId, "😔 Нейросеть сейчас не отвечает. Попробуй ещё раз через минуту.");
+  }
+  const options = (Array.isArray(res.options) ? res.options : [])
+    .map((o) => ({ title: String(o.title || "").trim().slice(0, 60), why: String(o.why || "").trim().slice(0, 80), items: cleanItems(o.items) }))
+    .filter((o) => o.title && o.items.length)
+    .slice(0, 3);
+  if (!options.length) return send(env, chatId, "Не получилось подобрать варианты, попробуй ещё раз 🙏");
+  await env.DB.put(`adv:${u.id}`, JSON.stringify({ date, options }), { expirationTtl: 6 * 3600 });
+  return send(env, chatId, adviceText(u, left, res.intro, options), { reply_markup: adviceKeyboard(options) });
+}
+
+const NUMS = ["1️⃣", "2️⃣", "3️⃣"];
+
+function adviceText(u, left, intro, options) {
+  const head = left.kcal > 0
+    ? `Осталось на сегодня <b>${left.kcal} ккал</b> · 🥩 ${Math.max(0, left.p)} г · 🧈 ${Math.max(0, left.f)} г · 🍞 ${Math.max(0, left.c)} г`
+    : `Норма на сегодня уже набрана${left.kcal < 0 ? `, сверху <b>${-left.kcal} ккал</b>` : ""}. Если хочется есть — вот лёгкие варианты`;
+  const list = options.map((o, i) => {
+    const t = sumItems(o.items);
+    return `${NUMS[i]} <b>${esc(o.title)}</b> · ${round(t.kcal)} ккал\n` +
+      `${o.items.map((it) => `${esc(it.name)} ${it.grams} г`).join(", ")}\n` +
+      `<i>Б ${round(t.p)} · Ж ${round(t.f)} · У ${round(t.c)}${o.why ? " — " + esc(o.why) : ""}</i>`;
+  });
+  return `🥗 <b>Что съесть</b>\n${head}\n\n` +
+    (intro ? `💡 ${esc(String(intro).slice(0, 200))}\n\n` : "") +
+    `<blockquote>${list.join("\n\n")}</blockquote>\n\n` +
+    `Съел вариант? Нажми его номер, и я запишу в дневник`;
+}
+
+function adviceKeyboard(options) {
+  return {
+    inline_keyboard: [
+      options.map((_, i) => ({ text: `✅ ${NUMS[i]}`, callback_data: `adv|${i}` })),
+      [{ text: "🔄 Другие варианты", callback_data: "advice" }, { text: "📊 Сегодня", callback_data: "today" }],
+    ],
+  };
 }
 
 async function sendProfile(env, u, chatId) {
@@ -2098,6 +2216,7 @@ async function setup(url, env) {
       { command: "weight", description: "Записать вес" },
       { command: "profile", description: "Профиль и норма" },
       { command: "awards", description: "Достижения и серия" },
+      { command: "advice", description: "Что съесть: советы от ИИ" },
       { command: "analysis", description: "Разбор недели от ИИ" },
       { command: "app", description: "Открыть дневник" },
       { command: "help", description: "Как пользоваться" },
@@ -2575,4 +2694,4 @@ const APP_HTML = `<!doctype html>
 </html>`;
 
 // Для тестов
-export const _test = { waterTick, startSource, ACHIEVEMENTS, baseEmoji, calcTargets, verifyInitData, cleanItems, sumItems, parseFix, parseWater, cleanBarcode, waterGoal, APP_HTML };
+export const _test = { waterTick, adviceText, weekTip, startSource, ACHIEVEMENTS, baseEmoji, calcTargets, verifyInitData, cleanItems, sumItems, parseFix, parseWater, cleanBarcode, waterGoal, APP_HTML };
