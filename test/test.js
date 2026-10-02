@@ -270,7 +270,7 @@ console.log("✓ /app и /setup");
   assert.match(lastText(s), /\+500 мл записал/);
   assert.match(lastText(s), /0,75 л/);
   s = await msg("/today");
-  assert.ok(lastText(s).includes("Вода: 0,75 л / " + goalL));
+  assert.ok(lastText(s).includes("💧 Вода — <b>0,75 л</b> / " + goalL));
   d = await (await apiCall("/api/day")).json();
   assert.equal(d.water, 750);
   r = await apiCall("/api/water", "POST", { date: d.date, delta: -250 });
