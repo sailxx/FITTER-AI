@@ -186,6 +186,7 @@ const ICON_SETS = [
       ["plate", "🍽", "🍽"], ["protein", "🍗", "🥩"], ["fat", "💧", "🧈"], ["carbs", "🌾", "🍞"], ["kcal", "🔥", "🔥"],
       ["scales", "⚖️", "⚖"], ["diary", "📔", "📱"], ["fitter", "🍏", "🍏"],
       ["sofa", "🛋", "🛋"], ["walk", "🚶", "🚶"], ["run", "🏃", "🏃"], ["muscle", "💪", "💪"], ["lose", "📉", "📉"],
+      ["water", "🥤", "💧"], ["barcode", "📦", "📦"],
     ],
   },
 ];
@@ -273,8 +274,8 @@ function edit(env, chatId, messageId, text, extra = {}) {
 const MAIN_KEYBOARD = {
   keyboard: [
     [{ text: "📊 Сегодня" }, { text: "📅 Неделя" }],
-    [{ text: "⚖️ Вес" }, { text: "👤 Профиль" }],
-    [{ text: "❓ Помощь" }],
+    [{ text: "💧 Вода" }, { text: "⚖️ Вес" }],
+    [{ text: "👤 Профиль" }, { text: "❓ Помощь" }],
   ],
   resize_keyboard: true,
   is_persistent: true,
@@ -297,7 +298,7 @@ async function getDay(env, id, date) {
   return (await env.DB.get(`d:${id}:${date}`, "json")) || { meals: [] };
 }
 async function saveDay(env, id, date, day) {
-  if (!day.meals.length) return env.DB.delete(`d:${id}:${date}`);
+  if (!day.meals.length && !day.water) return env.DB.delete(`d:${id}:${date}`);
   await env.DB.put(`d:${id}:${date}`, JSON.stringify(day));
 }
 async function getWeights(env, id) {
@@ -387,8 +388,11 @@ const PHOTO_SCHEMA = {
     title: { type: "STRING", description: "Короткое название приёма пищи, например «Гречка с курицей»" },
     items: { type: "ARRAY", items: ITEM_SCHEMA },
     comment: { type: "STRING", description: "Одна короткая полезная заметка о блюде, по-русски" },
+    is_package: { type: "BOOLEAN", description: "На фото упаковка продукта из магазина" },
+    label_found: { type: "BOOLEAN", description: "На фото читается таблица пищевой ценности (КБЖУ) с упаковки" },
+    barcode: { type: "STRING", description: "Цифры штрихкода, если они видны под штрихкодом, иначе пустая строка" },
   },
-  required: ["is_food", "title", "items", "comment"],
+  required: ["is_food", "title", "items", "comment", "is_package", "label_found", "barcode"],
 };
 
 const TEXT_SCHEMA = {
@@ -407,8 +411,12 @@ const PHOTO_PROMPT = `Ты нутрициолог-ассистент прило�
 Если еда есть — перечисли каждый отдельный продукт или блюдо на фото.
 Для каждого оцени вес порции в граммах по размеру тарелки, приборов и упаковки,
 и укажи типичные калории, белки, жиры и углеводы НА 100 ГРАММ.
-Если на упаковке видна этикетка с КБЖУ — используй её.
 Не дроби блюдо слишком мелко: суп, салат, бутерброд — одна позиция.
+Если на фото упаковка продукта (йогурт, батончик, пачка, бутылка): is_package=true, одна позиция с названием продукта и брендом.
+Если видна таблица пищевой ценности — перепиши КБЖУ на 100 г точно с этикетки (label_found=true).
+Если на этикетке значения на порцию, а не на 100 г — пересчитай на 100 г.
+Вес grams — масса нетто с упаковки; если не видна — типичная масса такой упаковки.
+Если под штрихкодом видны цифры — перепиши их в barcode без пробелов, иначе barcode пустой.
 Названия пиши по-русски, коротко. Будь реалистичен, не занижай и не завышай.`;
 
 const TEXT_PROMPT = `Ты дружелюбный нутрициолог-ассистент Telegram-бота FITTER. Пиши по-русски.
@@ -547,7 +555,7 @@ function remainingText(u, day, date) {
 }
 
 function mealCard(u, meal, day, date, comment) {
-  return mealText(meal) + (comment ? `\n\n💡 ${esc(comment)}` : "") + "\n\n" + remainingText(u, day, date);
+  return mealText(meal) + (comment ? `\n\n${/^📦/.test(comment) ? "" : "💡 "}${esc(comment)}` : "") + "\n\n" + remainingText(u, day, date);
 }
 
 function mealKeyboard(env, date, meal) {
@@ -574,11 +582,14 @@ const HELP = `🍏 <b>FITTER</b> — одно фото, полный контр�
 <b>Ещё можно</b>
 ✍️ Написать текстом: «съел 2 яйца и тост»
 ❓ Задать вопрос: «сколько белка в твороге?»
+📦 Сфотографировать упаковку или этикетку, или прислать цифры штрихкода
+💧 Отметить воду: кнопка «Вода» или «вода 300»
 ⚖️ Записать вес: /weight 72.5
 
 <b>Команды</b>
 /today — итоги дня
 /week — неделя
+/water — вода
 /weight — записать вес
 /profile — мой профиль и норма
 /app — открыть дневник
@@ -658,6 +669,18 @@ async function onMessage(msg, env) {
   }
 
   if (msg.photo && msg.photo.length) return onPhoto(env, u, chatId, msg);
+
+  // Вода текстом: «вода 300», «+500»
+  const waterMl = parseWater(text);
+  if (waterMl) return sendWater(env, u, chatId, waterMl);
+
+  // Цифры штрихкода
+  const digits = text.replace(/[\s-]/g, "");
+  if (/^\d{8,14}$/.test(digits)) {
+    const code = cleanBarcode(digits);
+    if (code) return onBarcodeText(env, u, chatId, code);
+    return send(env, chatId, "📦 Похоже на штрихкод, но цифры не сходятся. Проверь и пришли ещё раз, или сфотографируй этикетку 📸");
+  }
   if (msg.document && /^image\//.test(msg.document.mime_type || "")) return onPhoto(env, u, chatId, msg);
 
   const cmd = MENU[menuLabel(text)] || text.split(/\s+/)[0].replace(/@\w+$/, "");
@@ -665,6 +688,7 @@ async function onMessage(msg, env) {
     case "/today": return sendDay(env, u, chatId, today(u));
     case "/week": return sendWeek(env, u, chatId);
     case "/profile": return sendProfile(env, u, chatId);
+    case "/water": return sendWater(env, u, chatId);
     case "/help": return send(env, chatId, HELP, { reply_markup: MAIN_KEYBOARD });
     case "/app":
       return send(env, chatId, "Твой дневник питания по дням 👇", { reply_markup: { inline_keyboard: [[appButton(env)]] } });
@@ -682,7 +706,7 @@ async function onMessage(msg, env) {
 }
 
 // Кнопки меню: с иконкой Telegram присылает текст без эмодзи, поэтому смотрим только на слово
-const MENU = { "Сегодня": "/today", "Неделя": "/week", "Вес": "/weight", "Профиль": "/profile", "Помощь": "/help" };
+const MENU = { "Сегодня": "/today", "Неделя": "/week", "Вода": "/water", "Вес": "/weight", "Профиль": "/profile", "Помощь": "/help" };
 const menuLabel = (t) => String(t).replace(/^[^A-Za-zА-Яа-яЁё]+/, "").trim();
 const isMenu = (t) => !!MENU[menuLabel(t)];
 
@@ -829,6 +853,13 @@ async function onCallback(q, env) {
       { reply_markup: { force_reply: true, input_field_placeholder: "Например: форель 200 г" } }
     );
   }
+  if (kind === "w" && isDate(a)) {
+    const delta = Number(b);
+    if (![250, 500, -250].includes(delta)) return answer();
+    const day = await addWater(env, u, a, delta);
+    await answer(delta > 0 ? `💧 +${delta} мл` : "Убрал 250 мл");
+    return edit(env, chatId, msgId, waterText(u, day, a, delta), { reply_markup: waterKeyboard(a) });
+  }
   if (kind === "x" && isDate(a)) {
     const day = await getDay(env, u.id, a);
     const before = day.meals.length;
@@ -876,11 +907,153 @@ async function onPhoto(env, u, chatId, msg) {
     if (!res.is_food || !items.length) {
       return edit(env, chatId, waitId, "🤔 Не вижу на фото еды. Попробуй сфотографировать тарелку сверху и поближе.\n\nИли напиши текстом, что ты съел.");
     }
-    return saveMealAndReply(env, u, chatId, waitId, res.title, items, "photo", res.comment);
+    // Упаковка: КБЖУ с этикетки, а если этикетки не видно — ищем по штрихкоду
+    let comment = res.comment;
+    let source = "photo";
+    if (res.is_package) {
+      source = "package";
+      const code = cleanBarcode(res.barcode);
+      if (res.label_found) {
+        comment = "📦 КБЖУ взяты с этикетки. Если съел не всю упаковку — нажми ✏️ и впиши вес";
+      } else if (code) {
+        const p = await lookupBarcode(env, code);
+        if (p) {
+          items.splice(0, 1, { ...p, grams: p.grams || items[0]?.grams || 100 });
+          comment = `📦 Нашёл по штрихкоду ${code} в базе Open Food Facts. Если съел не всю упаковку — нажми ✏️ и впиши вес`;
+          source = "barcode";
+        }
+      }
+      if (source === "package" && !res.label_found) {
+        comment = "📦 Это упаковка, но КБЖУ я оценил примерно. Для точности сфотографируй этикетку с пищевой ценностью или пришли цифры штрихкода";
+      }
+    }
+    return saveMealAndReply(env, u, chatId, waitId, res.title, items, source, comment);
   } catch (e) {
     console.error("photo error:", e && e.stack ? e.stack : e);
     return edit(env, chatId, waitId, "😔 Не получилось распознать фото. Попробуй ещё раз через минуту или напиши текстом, что ты съел.");
   }
+}
+
+// ── Штрихкод ──
+
+// Проверка контрольной цифры EAN-8, UPC-A, EAN-13, GTIN-14: отсекает ошибки чтения
+function cleanBarcode(s) {
+  const code = String(s || "").replace(/[\s-]/g, "");
+  if (!/^(\d{8}|\d{12,14})$/.test(code)) return null;
+  const d = code.split("").map(Number);
+  const check = d.pop();
+  let sum = 0;
+  d.reverse().forEach((x, i) => { sum += x * (i % 2 === 0 ? 3 : 1); });
+  return (10 - (sum % 10)) % 10 === check ? code : null;
+}
+
+// Бесплатная открытая база продуктов Open Food Facts, ответы кэшируем в KV
+async function lookupBarcode(env, code) {
+  const key = `bc:${code}`;
+  const cached = await env.DB.get(key, "json").catch(() => null);
+  if (cached) return cached.miss ? null : cached;
+  let product = null;
+  try {
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 5000);
+    const r = await fetch(
+      `https://world.openfoodfacts.org/api/v2/product/${code}.json?fields=product_name,product_name_ru,generic_name,brands,product_quantity,nutriments`,
+      { headers: { "user-agent": "FITTER-bot/1.3 (github.com/sailxx/FITTER-AI)" }, signal: ctrl.signal }
+    );
+    clearTimeout(timer);
+    if (r.ok) {
+      const j = await r.json();
+      const p = j.status === 1 ? j.product : null;
+      const n = p?.nutriments || {};
+      const num = (x) => (Number.isFinite(Number(x)) ? Number(x) : null);
+      let kcal = num(n["energy-kcal_100g"]);
+      if (kcal === null && num(n.energy_100g) !== null) kcal = num(n.energy_100g) / 4.184;
+      const name = String(p?.product_name_ru || p?.product_name || p?.generic_name || "").trim();
+      if (p && kcal !== null && name) {
+        const brand = String(p.brands || "").split(",")[0].trim();
+        const [item] = cleanItems([{
+          name: brand && !name.toLowerCase().includes(brand.toLowerCase()) ? `${name} ${brand}` : name,
+          grams: num(p.product_quantity) || 100,
+          kcal_100: kcal,
+          protein_100: num(n.proteins_100g) || 0,
+          fat_100: num(n.fat_100g) || 0,
+          carbs_100: num(n.carbohydrates_100g) || 0,
+        }]);
+        product = item;
+      }
+    } else if (r.status !== 404) {
+      return null; // сбой базы: не кэшируем
+    }
+  } catch (e) {
+    console.error("barcode lookup:", e && e.message);
+    return null;
+  }
+  await env.DB.put(key, JSON.stringify(product || { miss: true }), { expirationTtl: product ? 30 * 86400 : 86400 }).catch(() => {});
+  return product;
+}
+
+async function onBarcodeText(env, u, chatId, code) {
+  tg(env, "sendChatAction", { chat_id: chatId, action: "typing" });
+  const p = await lookupBarcode(env, code);
+  if (!p) {
+    return send(env, chatId, `📦 Не нашёл штрихкод ${code} в базе продуктов 😔\n\nСфотографируй этикетку с пищевой ценностью, и я перепишу КБЖУ с неё 📸`);
+  }
+  return saveMealAndReply(env, u, chatId, null, p.name, [p], "barcode",
+    "📦 Нашёл по штрихкоду в базе Open Food Facts. Если съел не всю упаковку — нажми ✏️ и впиши вес");
+}
+
+// ── Вода ──
+
+const waterGoal = (u) => Math.max(1500, Math.round(((u.weight || 70) * 30) / 50) * 50); // 30 мл на 1 кг веса
+const liters = (ml) => String(Math.round(ml / 10) / 100).replace(".", ",") + " л";
+
+// «вода 300», «+300», «300 мл воды», «выпил 0.5 л воды», «2 стакана воды»
+function parseWater(text) {
+  const t = String(text).toLowerCase().replace(",", ".").replace(/ё/g, "е").trim();
+  let m;
+  let ml = null;
+  if ((m = t.match(/^\+\s*(\d{2,4})\s*(мл|ml)?$/))) ml = Number(m[1]);
+  else if ((m = t.match(/^(?:вода|воды|💧)\s*\+?\s*(\d{2,4})\s*(?:мл|ml)?$/))) ml = Number(m[1]);
+  else if ((m = t.match(/^(?:выпил[а]?\s+)?(\d{2,4})\s*(?:мл|ml)\s+воды$/))) ml = Number(m[1]);
+  else if ((m = t.match(/^(?:выпил[а]?\s+)?(\d(?:\.\d+)?)\s*(?:л|литр[а-я]*)\s+воды$/))) ml = Number(m[1]) * 1000;
+  else if ((m = t.match(/^(?:выпил[а]?\s+)?(\d{1,2})?\s*стакан(?:а|ов)?\s+воды$/))) ml = Number(m[1] || 1) * 250;
+  if (ml === null) return null;
+  return ml >= 30 && ml <= 3000 ? Math.round(ml) : null;
+}
+
+function waterText(u, day, date, added) {
+  const ml = day.water || 0;
+  const goal = waterGoal(u);
+  const left = goal - ml;
+  return (
+    (added ? `💧 ${added > 0 ? "+" : "−"}${Math.abs(added)} мл записал\n\n` : "") +
+    `💧 <b>Вода ${date === today(u) ? "за сегодня" : "за " + humanDate(date)}</b>\n` +
+    `<b>${liters(ml)}</b> из ${liters(goal)}\n${bar(ml, goal)}\n\n` +
+    (left > 0 ? `Осталось: <b>${left} мл</b>, это примерно ${Math.ceil(left / 250)} стак.` : "Норма воды выполнена 🎉") +
+    `\n\n<i>Норма: 30 мл на 1 кг веса. Можно написать «вода 300» или «+500»</i>`
+  );
+}
+
+function waterKeyboard(date) {
+  return {
+    inline_keyboard: [
+      [{ text: "💧 +250 мл", callback_data: `w|${date}|250` }, { text: "💧 +500 мл", callback_data: `w|${date}|500` }],
+      [{ text: "↩️ −250 мл", callback_data: `w|${date}|-250` }],
+    ],
+  };
+}
+
+async function addWater(env, u, date, delta) {
+  const day = await getDay(env, u.id, date);
+  day.water = Math.min(10000, Math.max(0, (day.water || 0) + delta));
+  await saveDay(env, u.id, date, day);
+  return day;
+}
+
+async function sendWater(env, u, chatId, delta = 0) {
+  const date = today(u);
+  const day = delta ? await addWater(env, u, date, delta) : await getDay(env, u.id, date);
+  return send(env, chatId, waterText(u, day, date, delta), { reply_markup: waterKeyboard(date) });
 }
 
 async function saveMealAndReply(env, u, chatId, waitId, title, items, source, comment) {
@@ -1035,7 +1208,8 @@ async function sendDay(env, u, chatId, date) {
   let text =
     `📊 <b>${date === today(u) ? "Сегодня" : humanDate(date)}, ${humanDate(date)}</b>\n\n` +
     `🔥 ${round(t.kcal)} / ${g.kcal} ккал\n${bar(t.kcal, g.kcal)}\n\n` +
-    `🥩 Белки: ${round(t.p)} / ${g.p} г\n🧈 Жиры: ${round(t.f)} / ${g.f} г\n🍞 Углеводы: ${round(t.c)} / ${g.c} г\n\n`;
+    `🥩 Белки: ${round(t.p)} / ${g.p} г\n🧈 Жиры: ${round(t.f)} / ${g.f} г\n🍞 Углеводы: ${round(t.c)} / ${g.c} г\n` +
+    `💧 Вода: ${liters(day.water || 0)} / ${liters(waterGoal(u))}\n\n`;
   if (day.meals.length) {
     text += "<b>Приёмы пищи</b>\n" + day.meals.map((m) => `${m.time} · ${esc(m.title)} — ${round(sumItems(m.items).kcal)} ккал`).join("\n");
     const left = g.kcal - t.kcal;
@@ -1043,7 +1217,7 @@ async function sendDay(env, u, chatId, date) {
   } else {
     text += "Пока ничего не записано. Отправь фото еды 📸";
   }
-  return send(env, chatId, text, { reply_markup: { inline_keyboard: [[appButton(env)]] } });
+  return send(env, chatId, text, { reply_markup: { inline_keyboard: [[{ text: "💧 +250 мл воды", callback_data: `w|${date}|250` }, appButton(env)]] } });
 }
 
 async function sendWeek(env, u, chatId) {
@@ -1158,6 +1332,8 @@ async function api(request, url, env) {
       meals,
       week: dates.map((d, i) => ({ date: d, kcal: round(dayTotals(days[i]).kcal), meals: days[i].meals.length })),
       weights: weights.slice(-30),
+      water: day.water || 0,
+      waterGoal: waterGoal(u),
       name: u.name,
     });
   }
@@ -1165,6 +1341,12 @@ async function api(request, url, env) {
   if (request.method === "POST") {
     const body = await request.json().catch(() => ({}));
     if (!isDate(body.date)) return json({ error: "bad date" }, 400);
+    if (url.pathname === "/api/water") {
+      const delta = Number(body.delta);
+      if (![250, -250].includes(delta)) return json({ error: "bad delta" }, 400);
+      const d = await addWater(env, u, body.date, delta);
+      return json({ ok: true, water: d.water });
+    }
     const day = await getDay(env, u.id, body.date);
     const meal = day.meals.find((m) => m.id === body.mealId);
     if (!meal) return json({ error: "not found" }, 404);
@@ -1244,6 +1426,7 @@ async function setup(url, env) {
     commands: [
       { command: "today", description: "Итоги дня" },
       { command: "week", description: "Последние 7 дней" },
+      { command: "water", description: "Вода за сегодня" },
       { command: "weight", description: "Записать вес" },
       { command: "profile", description: "Профиль и норма" },
       { command: "app", description: "Открыть дневник" },
@@ -1347,6 +1530,11 @@ const APP_HTML = `<!doctype html>
   .wt{display:flex;justify-content:space-between;align-items:center}
   .wt b{font-size:20px}
   .err{color:var(--danger);text-align:center;padding:24px}
+  .wa{display:flex;align-items:center;gap:10px}
+  .wa .wl{flex:1}
+  .wa .wl small{color:var(--hint)}
+  .wa button{border:0;border-radius:10px;height:36px;padding:0 12px;font:inherit;font-weight:600;background:var(--bg);color:var(--text)}
+  .wa button.add{background:#3b9bff;color:#fff}
 </style>
 </head>
 <body>
@@ -1369,6 +1557,7 @@ const APP_HTML = `<!doctype html>
   function r(x){ return Math.round(x); }
   function shift(date, n){ var d = new Date(date + "T00:00:00Z"); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0,10); }
   function human(date){ var d = new Date(date + "T00:00:00Z"); return d.getUTCDate() + " " + MONTHS[d.getUTCMonth()]; }
+  function L(ml){ return String(Math.round(ml / 10) / 100).replace(".", ",") + " л"; }
   function haptic(){ try { tg.HapticFeedback.impactOccurred("light"); } catch(e){} }
 
   function call(method, path, body){
@@ -1442,7 +1631,12 @@ const APP_HTML = `<!doctype html>
         '<button class="del" data-del="' + m.id + '">Удалить приём пищи</button></div>';
     }).join("") : '<div class="card empty"><div>📸</div>Здесь пока пусто.<br>Отправь боту фото еды — и оно появится в дневнике.</div>';
 
-    root.innerHTML = week + sum + meals + weightBlock(d.weights);
+    var wg = d.waterGoal || 2000, wv = d.water || 0;
+    var water = '<div class="card wa"><div class="wl"><b>💧 ' + L(wv) + '</b> <small>из ' + L(wg) + (wv >= wg ? ' · норма ✓' : '') + '</small>' +
+      '<div class="track"><div style="width:' + Math.min(100, wv / wg * 100) + '%;background:#3b9bff"></div></div></div>' +
+      '<button data-w="-250">−</button><button class="add" data-w="250">+250 мл</button></div>';
+
+    root.innerHTML = week + sum + water + meals + weightBlock(d.weights);
   }
 
   function rename(el){
@@ -1474,6 +1668,10 @@ const APP_HTML = `<!doctype html>
     var b = e.target.closest("button");
     if (!b) return;
     if (b.dataset.date) { haptic(); load(b.dataset.date); }
+    if (b.dataset.w) {
+      b.disabled = true;
+      call("POST", "/api/water", { date: state.date, delta: Number(b.dataset.w) }).then(function(){ haptic(); load(state.date); }, function(){ load(state.date); });
+    }
     if (b.dataset.del) {
       var id = b.dataset.del;
       var go = function(){ call("POST", "/api/meal/delete", { date: state.date, mealId: id }).then(function(){ haptic(); load(state.date); }); };
@@ -1498,4 +1696,4 @@ const APP_HTML = `<!doctype html>
 </html>`;
 
 // Для тестов
-export const _test = { calcTargets, verifyInitData, cleanItems, sumItems, parseFix, APP_HTML };
+export const _test = { calcTargets, verifyInitData, cleanItems, sumItems, parseFix, parseWater, cleanBarcode, waterGoal, APP_HTML };
