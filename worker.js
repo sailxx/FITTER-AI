@@ -52,8 +52,10 @@ export default {
     }
   },
   // Расписание (wrangler.toml → [triggers]): по воскресеньям вечером — разбор недели
+  // «*/30 * * * *» — напоминания о воде, «0 17 * * 0» — разбор недели по воскресеньям
   async scheduled(event, env, ctx) {
-    ctx.waitUntil(weeklyRun(env).catch((e) => console.error("weekly error:", e && e.stack ? e.stack : e)));
+    const job = event.cron === "0 17 * * 0" ? weeklyRun(env) : waterTick(env);
+    ctx.waitUntil(job.catch((e) => console.error("cron error:", event.cron, e && e.stack ? e.stack : e)));
   },
 };
 
@@ -567,11 +569,11 @@ const esc = (s) => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replac
 
 function mealText(meal) {
   const t = sumItems(meal.items);
-  const lines = meal.items.map((it) => `• ${esc(it.name)} — ${it.grams} г — ${round(itemTotals(it).kcal)} ккал`);
+  const lines = meal.items.map((it) => `• ${esc(it.name)} — ${it.grams} г · <b>${round(itemTotals(it).kcal)}</b> ккал`);
   return (
     `🍽 <b>${esc(meal.title)}</b> · ${meal.time}\n` +
-    lines.join("\n") +
-    `\n\n<b>Итого: ${round(t.kcal)} ккал</b>\nБ ${round(t.p)} г · Ж ${round(t.f)} г · У ${round(t.c)} г`
+    `<blockquote>${lines.join("\n")}</blockquote>\n` +
+    `🔥 <b>${round(t.kcal)} ккал</b> · 🥩 ${round(t.p)} г · 🧈 ${round(t.f)} г · 🍞 ${round(t.c)} г`
   );
 }
 
@@ -580,8 +582,8 @@ function remainingText(u, day, date) {
   const left = u.targets.kcal - t.kcal;
   const label = date === today(u) ? "За сегодня" : `За ${humanDate(date)}`;
   return (
-    `📊 ${label}: <b>${round(t.kcal)}</b> из ${u.targets.kcal} ккал\n` +
-    (left >= 0 ? `Осталось: <b>${round(left)} ккал</b>` : `Перебор: <b>${round(-left)} ккал</b>`)
+    `📊 ${label}: <b>${round(t.kcal)}</b> из ${u.targets.kcal} ккал\n${squares(t.kcal, u.targets.kcal)}\n` +
+    (left >= 0 ? `Осталось <b>${round(left)} ккал</b>` : `Больше нормы на <b>${round(-left)} ккал</b>`)
   );
 }
 
@@ -620,8 +622,9 @@ const HELP = `🍏 <b>FITTER</b> — твой счётчик калорий 🥦
 
 ⌨️ <b>Команды</b>
 /today — итоги дня · /week — неделя
-/water — вода · /weight — вес
-/profile — профиль · /app — дневник
+/water — вода · /remind — напоминания
+/weight — вес · /profile — профиль
+/app — дневник
 /awards — достижения · /analysis — разбор недели
 /reset — пройти анкету заново
 
@@ -723,6 +726,7 @@ async function onMessage(msg, env) {
     case "/week": return sendWeek(env, u, chatId);
     case "/profile": return sendProfile(env, u, chatId);
     case "/awards": return sendAwards(env, u, chatId);
+    case "/remind": return sendReminders(env, u, chatId);
     case "/analysis": return sendAnalysis(env, u, chatId);
     case "/water": return sendWater(env, u, chatId);
     case "/help": return send(env, chatId, HELP, { reply_markup: MAIN_KEYBOARD });
@@ -907,6 +911,13 @@ async function onCallback(q, env) {
     await edit(env, chatId, msgId, waterText(u, day, a, delta), { reply_markup: waterKeyboard(a) });
     if (reached && !fresh.length) await send(env, chatId, "🎉 Норма воды на сегодня выполнена! Так держать 💧", { message_effect_id: EFFECT_PARTY });
     return announce(env, chatId, fresh);
+  }
+  if (kind === "wr") {
+    if (a === "menu") {
+      await answer();
+      return edit(env, chatId, msgId, remindText(u), { reply_markup: remindKeyboard(u) });
+    }
+    return onRemindButton(env, u, chatId, msgId, a, b, answer);
   }
   if (kind === "awards") {
     await answer();
@@ -1107,7 +1118,7 @@ function waterKeyboard(date) {
   return {
     inline_keyboard: [
       [{ text: "💧 +250 мл", callback_data: `w|${date}|250` }, { text: "💧 +500 мл", callback_data: `w|${date}|500` }],
-      [{ text: "↩️ −250 мл", callback_data: `w|${date}|-250` }],
+      [{ text: "↩️ −250 мл", callback_data: `w|${date}|-250` }, { text: "⏰ Напоминания", callback_data: "wr|menu" }],
     ],
   };
 }
@@ -1120,6 +1131,8 @@ async function addWater(env, u, date, delta) {
   const before = day.water || 0;
   day.water = Math.min(10000, Math.max(0, before + delta));
   await saveDay(env, u.id, date, day);
+  // Выпил воду — следующее напоминание отсчитываем заново
+  if (delta > 0 && u.wr && u.wr.every) { u.wr.last = Date.now(); await saveUser(env, u); }
   const goal = waterGoal(u);
   const reached = before < goal && day.water >= goal;
   const fresh = reached ? await progress(env, u, "water", date) : [];
@@ -1700,6 +1713,131 @@ async function weeklyRun(env) {
   } while (cursor);
 }
 
+// ───────────────────────────── Напоминания о воде ─────────────────────────────
+
+const WR_EVERY = [[30, "30 мин"], [60, "1 ч"], [90, "1,5 ч"], [120, "2 ч"]];
+const WR_FROM = [6, 7, 8, 9, 10, 11];
+const WR_TO = [20, 21, 22, 23, 24];
+const hh = (h) => `${String(h % 24).padStart(2, "0")}:00`;
+const everyLabel = (m) => (WR_EVERY.find((x) => x[0] === m) || [0, `${m} мин`])[1];
+
+// Список тех, у кого включены напоминания: чтобы не перебирать всех пользователей каждые 30 минут
+async function wrIndex(env, id, on) {
+  const ids = (await env.DB.get("wr:ids", "json")) || [];
+  const has = ids.includes(id);
+  if (on && !has) ids.push(id);
+  if (!on && has) ids.splice(ids.indexOf(id), 1);
+  if (on !== has) await env.DB.put("wr:ids", JSON.stringify(ids));
+}
+
+function remindText(u, note = "") {
+  const w = u.wr;
+  const on = w && w.every;
+  return (
+    (note ? `${note}\n\n` : "") +
+    `⏰ <b>Напоминания о воде</b>\n\n` +
+    (on
+      ? `<blockquote>🔔 Каждые <b>${everyLabel(w.every)}</b>\n🌅 Начало дня: <b>${hh(w.from)}</b>\n🌙 Конец дня: <b>${hh(w.to)}</b></blockquote>\n` +
+        `Ночью я молчу. Когда норма воды выполнена, напоминания на сегодня заканчиваются.`
+      : `Сейчас выключены. Выбери, как часто напоминать, и я буду писать в течение дня, пока не наберётся норма.`)
+  );
+}
+
+function remindKeyboard(u) {
+  const w = u.wr || {};
+  const rows = [WR_EVERY.map(([m, label]) => ({ text: (w.every === m ? "✅ " : "") + label, callback_data: `wr|every|${m}` }))];
+  if (w.every) {
+    rows.push([
+      { text: `🌅 С ${hh(w.from)}`, callback_data: "wr|pick|from" },
+      { text: `🌙 До ${hh(w.to)}`, callback_data: "wr|pick|to" },
+    ]);
+    rows.push([{ text: "🔕 Выключить", callback_data: "wr|off" }]);
+  }
+  return { inline_keyboard: rows };
+}
+
+function pickKeyboard(u, which) {
+  const list = which === "from" ? WR_FROM : WR_TO;
+  const cur = u.wr?.[which];
+  return {
+    inline_keyboard: [
+      list.map((h) => ({ text: (cur === h ? "✅ " : "") + hh(h), callback_data: `wr|${which}|${h}` })),
+      [{ text: "↩️ Назад", callback_data: "wr|menu" }],
+    ],
+  };
+}
+
+async function sendReminders(env, u, chatId) {
+  return send(env, chatId, remindText(u), { reply_markup: remindKeyboard(u) });
+}
+
+// Нажатия в меню напоминаний
+async function onRemindButton(env, u, chatId, msgId, action, value, answer) {
+  const w = u.wr || (u.wr = { every: 0, from: 8, to: 22, last: 0 });
+  let note = "";
+  if (action === "every" && WR_EVERY.some((x) => x[0] === Number(value))) {
+    const was = w.every;
+    w.every = Number(value);
+    w.last = Date.now();
+    await wrIndex(env, u.id, true);
+    note = was ? `✅ Теперь напоминаю каждые ${everyLabel(w.every)}` : `✅ Напоминания включены: каждые ${everyLabel(w.every)}`;
+  } else if (action === "from" && WR_FROM.includes(Number(value))) {
+    w.from = Number(value);
+    note = `🌅 Начало дня: ${hh(w.from)}`;
+  } else if (action === "to" && WR_TO.includes(Number(value))) {
+    w.to = Number(value);
+    note = `🌙 Конец дня: ${hh(w.to)}`;
+  } else if (action === "off") {
+    w.every = 0;
+    await wrIndex(env, u.id, false);
+    note = "🔕 Напоминания о воде выключены";
+  } else if (action === "pick" && (value === "from" || value === "to")) {
+    await answer();
+    const q = value === "from" ? "🌅 <b>Когда начинается твой день?</b>\nРаньше этого времени я не напоминаю." : "🌙 <b>Когда заканчивается твой день?</b>\nПосле этого времени я не напоминаю.";
+    return edit(env, chatId, msgId, q, { reply_markup: pickKeyboard(u, value) });
+  }
+  await saveUser(env, u);
+  await answer(note.replace(/^\S+ /, ""));
+  return edit(env, chatId, msgId, remindText(u, note), { reply_markup: remindKeyboard(u) });
+}
+
+// Каждые 30 минут: кому пора напомнить о воде
+async function waterTick(env, now = Date.now()) {
+  const ids = (await env.DB.get("wr:ids", "json")) || [];
+  let sent = 0;
+  for (const id of ids) {
+    const u = await env.DB.get(`u:${id}`, "json");
+    const w = u?.wr;
+    if (!u || !u.targets || !w || !w.every) continue;
+    const local = new Date(now + tzOf(u) * 60000);
+    const minutes = local.getUTCHours() * 60 + local.getUTCMinutes();
+    if (minutes < w.from * 60 || minutes >= w.to * 60) continue; // ночь
+    if (now - (w.last || 0) < w.every * 60000 - 10 * 60000) continue; // ещё рано (запас 10 минут на расписание)
+    const date = local.toISOString().slice(0, 10);
+    const day = await getDay(env, u.id, date);
+    const ml = day.water || 0;
+    const goal = waterGoal(u);
+    if (ml >= goal) continue; // норма уже выполнена
+    w.last = now;
+    await saveUser(env, u);
+    const left = goal - ml;
+    await send(env, u.id,
+      `💧 <b>Время попить воды!</b>\n\n<b>${liters(ml)}</b> из ${liters(goal)} · ${pctOf(ml, goal)}%\n${squares(ml, goal, "🟦")}\n` +
+      `Осталось ${left} мл, это примерно ${Math.ceil(left / 250)} стак.`,
+      {
+        disable_notification: false,
+        reply_markup: {
+          inline_keyboard: [
+            [{ text: "💧 +250 мл", callback_data: `w|${date}|250` }, { text: "💧 +500 мл", callback_data: `w|${date}|500` }],
+            [{ text: "⏰ Настроить напоминания", callback_data: "wr|menu" }],
+          ],
+        },
+      });
+    sent++;
+  }
+  return sent;
+}
+
 // ───────────────────────────── Mini App API ─────────────────────────────
 
 function json(data, status = 200) {
@@ -1854,6 +1992,7 @@ async function setup(url, env) {
       { command: "today", description: "Итоги дня" },
       { command: "week", description: "Последние 7 дней" },
       { command: "water", description: "Вода за сегодня" },
+      { command: "remind", description: "Напоминания о воде" },
       { command: "weight", description: "Записать вес" },
       { command: "profile", description: "Профиль и норма" },
       { command: "awards", description: "Достижения и серия" },
@@ -2294,4 +2433,4 @@ const APP_HTML = `<!doctype html>
 </html>`;
 
 // Для тестов
-export const _test = { ACHIEVEMENTS, baseEmoji, calcTargets, verifyInitData, cleanItems, sumItems, parseFix, parseWater, cleanBarcode, waterGoal, APP_HTML };
+export const _test = { waterTick, ACHIEVEMENTS, baseEmoji, calcTargets, verifyInitData, cleanItems, sumItems, parseFix, parseWater, cleanBarcode, waterGoal, APP_HTML };
