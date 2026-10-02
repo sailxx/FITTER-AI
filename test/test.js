@@ -282,6 +282,57 @@ console.log("✓ Mini App API, итого за день:", Math.round(d.totals.k
   console.log("✓ дневник: запись еды текстом");
 }
 
+// 8c. Таблетки: дневник, напоминания и кнопки в чате
+{
+  const u42 = await env.DB.get("u:42", "json");
+  const tz = typeof u42.tz === "number" ? u42.tz : 180;
+  const now = Date.now();
+  const local = new Date(now + tz * 60000).toISOString();
+  const date = local.slice(0, 10);
+  const slot = _test.slotOf(local.slice(11, 16));
+  let a = await apiCall("/api/pill/add", "POST", { date, name: "Витамин D", dose: "1 капсула", times: [slot, "09:15", "bad"] });
+  assert.equal(a.status, 200);
+  a = await apiCall("/api/pill/add", "POST", { date, name: "", times: [slot] });
+  assert.equal(a.status, 400);
+  let dd = await (await apiCall("/api/day?date=" + date)).json();
+  assert.equal(dd.pillList.length, 1);
+  assert.deepEqual(dd.pillList[0].times, [slot]);
+  assert.equal(dd.pills.length, 1);
+  const pid = dd.pillList[0].id;
+  assert.ok((await env.DB.get("pl:ids", "json")).includes(42));
+  // Напоминание приходит в свой слот один раз
+  sent.length = 0;
+  assert.equal(await _test.pillTick(env, now), 1);
+  assert.match(sent.at(-1).body.text, /Время принять[\s\S]*Витамин D<\/b> · 1 капсула/);
+  assert.equal(sent.at(-1).body.reply_markup.inline_keyboard[0][0].callback_data, `p|t|${date}|${pid}|${slot}`);
+  assert.equal(await _test.pillTick(env, now), 0);
+  // «Через 30 минут» — напомнит в следующий слот
+  let r = await cb(`p|z|${date}|${pid}|${slot}`);
+  assert.match(lastText(r), /Напомню в/);
+  assert.equal(await _test.pillTick(env, now + 30 * 60000), 1);
+  // «Принял» из чата видно в дневнике
+  r = await cb(`p|t|${date}|${pid}|${slot}`);
+  assert.match(lastText(r), /✅(<\/tg-emoji>)? Принято в/);
+  dd = await (await apiCall("/api/day?date=" + date)).json();
+  assert.equal(dd.pills[0].s, "taken");
+  // Снять отметку и поставить снова из дневника
+  a = await apiCall("/api/pill/mark", "POST", { date, id: pid, time: slot, s: "" });
+  assert.equal((await a.json()).s, "");
+  a = await apiCall("/api/pill/mark", "POST", { date, id: pid, time: slot, s: "taken" });
+  assert.equal((await a.json()).s, "taken");
+  a = await apiCall("/api/pill/mark", "POST", { date, id: "nope", time: slot, s: "taken" });
+  assert.equal(a.status, 404);
+  // Удаление убирает и из рассылки
+  a = await apiCall("/api/pill/delete", "POST", { date, id: pid });
+  assert.equal(a.status, 200);
+  assert.ok(!(await env.DB.get("pl:ids", "json")).includes(42));
+  r = await cb(`p|t|${date}|${pid}|${slot}`);
+  assert.equal(r.find((x) => x.method === "answerCallbackQuery").body.text, "Этого препарата уже нет в списке");
+  assert.equal(_test.nextSlot("23:30"), "00:00");
+  assert.match(_test.APP_HTML, /Таблетки/);
+  console.log("✓ таблетки: дневник, напоминания, кнопки");
+}
+
 // 9. Страницы
 r = await worker.fetch(new Request(base + "/app"), env, ctx);
 const html = await r.text();
