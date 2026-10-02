@@ -153,6 +153,10 @@ async function tg(env, method, payload) {
   } else {
     j = await tgRaw(env, method, payload);
   }
+  if (!j.ok && payload.message_effect_id) {
+    const { message_effect_id, ...rest } = payload;
+    return tg(env, method, rest);
+  }
   if (!j.ok && !(j.description || "").includes("message is not modified")) {
     console.error("telegram error", method, JSON.stringify(j));
   }
@@ -856,9 +860,11 @@ async function onCallback(q, env) {
   if (kind === "w" && isDate(a)) {
     const delta = Number(b);
     if (![250, 500, -250].includes(delta)) return answer();
-    const day = await addWater(env, u, a, delta);
+    const { day, reached } = await addWater(env, u, a, delta);
     await answer(delta > 0 ? `💧 +${delta} мл` : "Убрал 250 мл");
-    return edit(env, chatId, msgId, waterText(u, day, a, delta), { reply_markup: waterKeyboard(a) });
+    await edit(env, chatId, msgId, waterText(u, day, a, delta), { reply_markup: waterKeyboard(a) });
+    if (reached) return send(env, chatId, "🎉 Норма воды на сегодня выполнена! Так держать 💧", { message_effect_id: EFFECT_PARTY });
+    return;
   }
   if (kind === "x" && isDate(a)) {
     const day = await getDay(env, u.id, a);
@@ -1043,17 +1049,24 @@ function waterKeyboard(date) {
   };
 }
 
+// Анимация на весь экран в чате Telegram (работает в личных чатах)
+const EFFECT_PARTY = "5046509860389126442"; // 🎉
+
 async function addWater(env, u, date, delta) {
   const day = await getDay(env, u.id, date);
-  day.water = Math.min(10000, Math.max(0, (day.water || 0) + delta));
+  const before = day.water || 0;
+  day.water = Math.min(10000, Math.max(0, before + delta));
   await saveDay(env, u.id, date, day);
-  return day;
+  const goal = waterGoal(u);
+  return { day, reached: before < goal && day.water >= goal };
 }
 
 async function sendWater(env, u, chatId, delta = 0) {
   const date = today(u);
-  const day = delta ? await addWater(env, u, date, delta) : await getDay(env, u.id, date);
-  return send(env, chatId, waterText(u, day, date, delta), { reply_markup: waterKeyboard(date) });
+  const { day, reached } = delta ? await addWater(env, u, date, delta) : { day: await getDay(env, u.id, date), reached: false };
+  const extra = { reply_markup: waterKeyboard(date) };
+  if (reached) extra.message_effect_id = EFFECT_PARTY;
+  return send(env, chatId, waterText(u, day, date, delta), extra);
 }
 
 async function saveMealAndReply(env, u, chatId, waitId, title, items, source, comment) {
@@ -1344,8 +1357,8 @@ async function api(request, url, env) {
     if (url.pathname === "/api/water") {
       const delta = Number(body.delta);
       if (![250, -250].includes(delta)) return json({ error: "bad delta" }, 400);
-      const d = await addWater(env, u, body.date, delta);
-      return json({ ok: true, water: d.water });
+      const { day: d, reached } = await addWater(env, u, body.date, delta);
+      return json({ ok: true, water: d.water, reached });
     }
     const day = await getDay(env, u.id, body.date);
     const meal = day.meals.find((m) => m.id === body.mealId);
@@ -1535,6 +1548,24 @@ const APP_HTML = `<!doctype html>
   .wa .wl small{color:var(--hint)}
   .wa button{border:0;border-radius:10px;height:36px;padding:0 12px;font:inherit;font-weight:600;background:var(--bg);color:var(--text)}
   .wa button.add{background:#3b9bff;color:#fff}
+  /* Эффекты: кнопки «чувствуют» нажатие, полоски и кольцо плавно заполняются */
+  button{transition:transform .14s cubic-bezier(.3,1.6,.5,1),filter .14s;touch-action:manipulation}
+  button:active{transform:scale(.9);filter:brightness(.92)}
+  .track div{width:0;transition:width .9s cubic-bezier(.2,.8,.2,1)}
+  .ring .arc{transition:stroke-dashoffset 1.1s cubic-bezier(.2,.8,.2,1),stroke .3s}
+  .ring.ok .arc{filter:drop-shadow(0 0 5px var(--accent))}
+  .card{animation:rise .4s cubic-bezier(.2,.8,.2,1) both}
+  .card:nth-of-type(2){animation-delay:.04s}.card:nth-of-type(3){animation-delay:.08s}.card:nth-of-type(n+4){animation-delay:.12s}
+  @keyframes rise{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+  .wa{transition:box-shadow .4s}
+  .wa.done{box-shadow:0 0 0 2px rgba(59,155,255,.45),0 8px 24px rgba(59,155,255,.25)}
+  .pop{animation:pop .5s cubic-bezier(.3,1.6,.5,1)}
+  @keyframes pop{0%{transform:scale(1)}35%{transform:scale(1.06)}100%{transform:scale(1)}}
+  .fl{position:fixed;z-index:30;pointer-events:none;font-weight:700;font-size:14px;color:#3b9bff;animation:fup .9s ease-out forwards}
+  .fl.minus{color:var(--hint)}
+  @keyframes fup{to{transform:translateY(-44px);opacity:0}}
+  .fx{position:fixed;z-index:40;pointer-events:none;font-size:20px;line-height:1;will-change:transform,opacity}
+  @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 </style>
 </head>
 <body>
@@ -1558,7 +1589,52 @@ const APP_HTML = `<!doctype html>
   function shift(date, n){ var d = new Date(date + "T00:00:00Z"); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0,10); }
   function human(date){ var d = new Date(date + "T00:00:00Z"); return d.getUTCDate() + " " + MONTHS[d.getUTCMonth()]; }
   function L(ml){ return String(Math.round(ml / 10) / 100).replace(".", ",") + " л"; }
-  function haptic(){ try { tg.HapticFeedback.impactOccurred("light"); } catch(e){} }
+  function haptic(style){ try { tg.HapticFeedback.impactOccurred(style || "light"); } catch(e){} }
+  function notify(type){ try { tg.HapticFeedback.notificationOccurred(type); } catch(e){} }
+  function tick(){ try { tg.HapticFeedback.selectionChanged(); } catch(e){} }
+  var calm = window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  // Салют из частиц от центра элемента
+  function celebrate(el, chars){
+    if (calm || !el || !el.animate) return;
+    var rc = el.getBoundingClientRect(), cx = rc.left + rc.width / 2, cy = rc.top + rc.height / 2;
+    for (var i = 0; i < 32; i++) {
+      var s = document.createElement("span");
+      s.className = "fx"; s.textContent = chars[i % chars.length];
+      s.style.left = cx + "px"; s.style.top = cy + "px";
+      document.body.appendChild(s);
+      var a = Math.random() * Math.PI * 2, v = 80 + Math.random() * 120;
+      var dx = Math.cos(a) * v, dy = Math.sin(a) * v - 60, rot = (Math.random() - .5) * 360;
+      s.animate([
+        { transform: "translate(-50%,-50%) scale(.4)", opacity: 1 },
+        { transform: "translate(calc(-50% + " + dx + "px),calc(-50% + " + dy + "px)) rotate(" + rot / 2 + "deg) scale(1)", opacity: 1, offset: .55 },
+        { transform: "translate(calc(-50% + " + dx * 1.2 + "px),calc(-50% + " + (dy + 140) + "px)) rotate(" + rot + "deg) scale(.8)", opacity: 0 }
+      ], { duration: 1100 + Math.random() * 500, easing: "cubic-bezier(.2,.7,.4,1)" }).onfinish = (function(n){ return function(){ n.remove(); }; })(s);
+    }
+    el.classList.remove("pop"); void el.offsetWidth; el.classList.add("pop");
+  }
+
+  // Всплывающее «+250» над кнопкой
+  function floatText(btn, text, minus){
+    if (calm) return;
+    var rc = btn.getBoundingClientRect(), f = document.createElement("span");
+    f.className = "fl" + (minus ? " minus" : ""); f.textContent = text;
+    f.style.left = (rc.left + rc.width / 2 - 18) + "px"; f.style.top = (rc.top - 6) + "px";
+    document.body.appendChild(f); setTimeout(function(){ f.remove(); }, 950);
+  }
+
+  // Плавный счётчик числа
+  function countUp(el, to){
+    if (calm) { el.textContent = to; return; }
+    var t0 = performance.now(), dur = 900;
+    (function step(now){
+      var k = Math.min(1, (now - t0) / dur), e = 1 - Math.pow(1 - k, 3);
+      el.textContent = Math.round(to * e);
+      if (k < 1) requestAnimationFrame(step);
+    })(t0);
+  }
+
+  function once(key){ try { if (localStorage.getItem(key)) return false; localStorage.setItem(key, "1"); } catch(e){} return true; }
 
   function call(method, path, body){
     return fetch(path, { method: method, headers: { "X-Init-Data": initData, "content-type": "application/json" }, body: body ? JSON.stringify(body) : undefined })
@@ -1578,15 +1654,16 @@ const APP_HTML = `<!doctype html>
   function bar(label, val, max, color){
     var pct = max ? Math.min(100, val / max * 100) : 0;
     return '<div class="m"><div class="row"><b>' + label + '</b><span>' + r(val) + ' / ' + max + ' г</span></div>' +
-           '<div class="track"><div style="width:' + pct + '%;background:' + color + '"></div></div></div>';
+           '<div class="track"><div data-pct="' + pct + '" style="background:' + color + '"></div></div></div>';
   }
 
   function ring(val, max){
     var R = 52, C = 2 * Math.PI * R, pct = max ? Math.min(1, val / max) : 0;
     var color = val > max * 1.1 ? "var(--danger)" : "var(--accent)";
-    return '<div class="ring"><svg width="120" height="120"><circle cx="60" cy="60" r="' + R + '" fill="none" stroke="var(--line)" stroke-width="10"/>' +
-      '<circle cx="60" cy="60" r="' + R + '" fill="none" stroke="' + color + '" stroke-width="10" stroke-linecap="round" stroke-dasharray="' + C + '" stroke-dashoffset="' + (C * (1 - pct)) + '"/></svg>' +
-      '<div class="in"><b>' + r(val) + '</b><small>из ' + max + ' ккал</small></div></div>';
+    var ok = val >= max * 0.9 && val <= max * 1.1;
+    return '<div class="ring' + (ok ? ' ok' : '') + '"><svg width="120" height="120"><circle cx="60" cy="60" r="' + R + '" fill="none" stroke="var(--line)" stroke-width="10"/>' +
+      '<circle class="arc" cx="60" cy="60" r="' + R + '" fill="none" stroke="' + color + '" stroke-width="10" stroke-linecap="round" stroke-dasharray="' + C + '" stroke-dashoffset="' + C + '" data-off="' + (C * (1 - pct)) + '"/></svg>' +
+      '<div class="in"><b data-to="' + r(val) + '">0</b><small>из ' + max + ' ккал</small></div></div>';
   }
 
   function weightBlock(ws){
@@ -1632,11 +1709,49 @@ const APP_HTML = `<!doctype html>
     }).join("") : '<div class="card empty"><div>📸</div>Здесь пока пусто.<br>Отправь боту фото еды — и оно появится в дневнике.</div>';
 
     var wg = d.waterGoal || 2000, wv = d.water || 0;
-    var water = '<div class="card wa"><div class="wl"><b>💧 ' + L(wv) + '</b> <small>из ' + L(wg) + (wv >= wg ? ' · норма ✓' : '') + '</small>' +
-      '<div class="track"><div style="width:' + Math.min(100, wv / wg * 100) + '%;background:#3b9bff"></div></div></div>' +
+    var water = '<div class="card wa' + (wv >= wg ? ' done' : '') + '"><div class="wl"><b>💧 <span class="wv">' + L(wv) + '</span></b> <small>из ' + L(wg) + '<span class="wn">' + (wv >= wg ? ' · норма ✓' : '') + '</span></small>' +
+      '<div class="track"><div data-pct="' + Math.min(100, wv / wg * 100) + '" style="background:#3b9bff"></div></div></div>' +
       '<button data-w="-250">−</button><button class="add" data-w="250">+250 мл</button></div>';
 
     root.innerHTML = week + sum + water + meals + weightBlock(d.weights);
+    animateIn();
+  }
+
+  // Запуск анимаций после отрисовки
+  function animateIn(){
+    var d = state.data, t = d.totals, g = d.targets;
+    requestAnimationFrame(function(){ requestAnimationFrame(function(){
+      root.querySelectorAll("[data-pct]").forEach(function(el){ el.style.width = el.dataset.pct + "%"; });
+      root.querySelectorAll("[data-off]").forEach(function(el){ el.setAttribute("stroke-dashoffset", el.dataset.off); });
+      root.querySelectorAll("[data-to]").forEach(function(el){ countUp(el, Number(el.dataset.to)); });
+    }); });
+    // Калории в норме сегодня — один раз за день маленький салют у кольца
+    if (d.date === d.today && d.meals.length && t.kcal >= g.kcal * 0.9 && t.kcal <= g.kcal * 1.1 && once("fx-kcal-" + d.date)) {
+      setTimeout(function(){ celebrate(root.querySelector(".ring"), ["✨", "🥦", "🍏"]); notify("success"); }, 1000);
+    }
+  }
+
+  // Обновляем только карточку воды, без перерисовки всего дневника
+  function waterUI(){
+    var d = state.data, wg = d.waterGoal || 2000, wv = d.water || 0, card = root.querySelector(".wa");
+    if (!card) return;
+    card.querySelector(".wv").textContent = L(wv);
+    card.querySelector(".wn").textContent = wv >= wg ? " · норма ✓" : "";
+    card.querySelector(".track div").style.width = Math.min(100, wv / wg * 100) + "%";
+    card.classList.toggle("done", wv >= wg);
+  }
+
+  function addWater(btn){
+    var d = state.data, delta = Number(btn.dataset.w), wg = d.waterGoal || 2000;
+    var before = d.water || 0, after = Math.max(0, before + delta);
+    if (after === before) { haptic("rigid"); return; }
+    d.water = after; waterUI();
+    floatText(btn, (delta > 0 ? "+" : "−") + Math.abs(delta), delta < 0);
+    if (before < wg && after >= wg) { notify("success"); celebrate(root.querySelector(".wa"), ["💧", "💦", "✨"]); }
+    else haptic(delta > 0 ? "medium" : "light");
+    call("POST", "/api/water", { date: state.date, delta: delta })
+      .then(function(j){ if (typeof j.water === "number") { d.water += j.water - after; waterUI(); } },
+            function(){ d.water -= delta; waterUI(); notify("error"); });
   }
 
   function rename(el){
@@ -1651,7 +1766,7 @@ const APP_HTML = `<!doctype html>
       if (!save || !v || v === old) { load(state.date); return; }
       inp.disabled = true; inp.value = "Пересчитываю…";
       call("POST", "/api/item/rename", { date: state.date, mealId: mealId, idx: idx, name: v })
-        .then(function(){ haptic(); load(state.date); })
+        .then(function(){ notify("success"); load(state.date); })
         .catch(function(err){
           var msg = err && err.error === "limit" ? "На сегодня лимит запросов к нейросети закончился" : "Не получилось пересчитать, попробуй ещё раз";
           if (tg && tg.showAlert) tg.showAlert(msg); else alert(msg);
@@ -1667,14 +1782,12 @@ const APP_HTML = `<!doctype html>
     if (nm) { rename(nm); return; }
     var b = e.target.closest("button");
     if (!b) return;
-    if (b.dataset.date) { haptic(); load(b.dataset.date); }
-    if (b.dataset.w) {
-      b.disabled = true;
-      call("POST", "/api/water", { date: state.date, delta: Number(b.dataset.w) }).then(function(){ haptic(); load(state.date); }, function(){ load(state.date); });
-    }
+    if (b.dataset.date) { tick(); load(b.dataset.date); }
+    if (b.dataset.w) addWater(b);
     if (b.dataset.del) {
       var id = b.dataset.del;
-      var go = function(){ call("POST", "/api/meal/delete", { date: state.date, mealId: id }).then(function(){ haptic(); load(state.date); }); };
+      haptic("rigid");
+      var go = function(){ call("POST", "/api/meal/delete", { date: state.date, mealId: id }).then(function(){ notify("warning"); load(state.date); }); };
       if (tg && tg.showConfirm) tg.showConfirm("Удалить этот приём пищи?", function(ok){ if (ok) go(); }); else if (confirm("Удалить?")) go();
     }
   });
@@ -1684,10 +1797,10 @@ const APP_HTML = `<!doctype html>
     var g = Number(inp.value);
     if (!(g > 0 && g <= 3000)) { load(state.date); return; }
     call("POST", "/api/item/edit", { date: state.date, mealId: inp.dataset.meal, idx: Number(inp.dataset.idx), grams: g })
-      .then(function(){ haptic(); load(state.date); });
+      .then(function(){ notify("success"); load(state.date); });
   });
-  document.getElementById("prev").onclick = function(){ if (state.date) { haptic(); load(shift(state.date, -1)); } };
-  document.getElementById("next").onclick = function(){ if (state.date) { haptic(); load(shift(state.date, 1)); } };
+  document.getElementById("prev").onclick = function(){ if (state.date) { tick(); load(shift(state.date, -1)); } };
+  document.getElementById("next").onclick = function(){ if (state.date) { tick(); load(shift(state.date, 1)); } };
 
   load(null);
 })();
