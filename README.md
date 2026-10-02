@@ -19,7 +19,7 @@
 ![Cost](https://img.shields.io/badge/стоимость-0%20₽-2ea44f?style=flat-square)
 ![License](https://img.shields.io/badge/license-MIT-blue?style=flat-square)
 
-[**Открыть бота**](https://t.me/FitterFoodBot) · [**Запустить свою копию**](SETUP.md) · [**Возможности**](#-возможности) · [**Как это устроено**](#-как-это-устроено)
+[**Открыть бота**](https://t.me/FitterFoodBot) · [**Возможности**](#-возможности) · [**Как это устроено**](#-как-это-устроено)
 
 <br>
 
