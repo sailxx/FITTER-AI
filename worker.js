@@ -54,7 +54,7 @@ export default {
   // Расписание (wrangler.toml → [triggers]): по воскресеньям вечером — разбор недели
   // «*/30 * * * *» — напоминания о воде, «0 17 * * SUN» — разбор недели по воскресеньям
   async scheduled(event, env, ctx) {
-    const job = /^0 17 /.test(event.cron || "") ? weeklyRun(env) : waterTick(env);
+    const job = /^0 17 /.test(event.cron || "") ? weeklyRun(env) : Promise.all([waterTick(env), pillTick(env)]);
     ctx.waitUntil(job.catch((e) => console.error("cron error:", event.cron, e && e.stack ? e.stack : e)));
   },
 };
@@ -337,7 +337,7 @@ async function getDay(env, id, date) {
   return (await env.DB.get(`d:${id}:${date}`, "json")) || { meals: [] };
 }
 async function saveDay(env, id, date, day) {
-  if (!day.meals.length && !day.water) return env.DB.delete(`d:${id}:${date}`);
+  if (!day.meals.length && !day.water && !Object.keys(day.pills || {}).length) return env.DB.delete(`d:${id}:${date}`);
   await env.DB.put(`d:${id}:${date}`, JSON.stringify(day));
 }
 async function getWeights(env, id) {
@@ -985,6 +985,10 @@ async function onCallback(q, env) {
   if (kind === "awards") {
     await answer();
     return sendAwards(env, u, chatId);
+  }
+  if (kind === "p") {
+    const [, act, date, id, t] = data.split("|");
+    return onPillButton(env, u, chatId, msgId, act, date, id, t, answer);
   }
   if (kind === "advice") {
     await answer("Подбираю варианты…");
@@ -2021,6 +2025,100 @@ async function waterTick(env, now = Date.now()) {
   return sent;
 }
 
+// ───────────────────────────── Таблетки ─────────────────────────────
+// u.pills = [{ id, name, dose, times: ["09:00", "21:00"] }]
+// day.pills = { "<id>@09:00": { s: "taken" | "skip" | "snooze" | "sent", at: "09:04" } }
+
+const PILL_MAX = 10;
+const isSlot = (t) => typeof t === "string" && /^([01]\d|2[0-3]):(00|30)$/.test(t);
+const pillKey = (id, t) => `${id}@${t}`;
+const slotOf = (hhmm) => `${hhmm.slice(0, 2)}:${Number(hhmm.slice(3, 5)) < 30 ? "00" : "30"}`;
+const nextSlot = (t) => { const m = (Number(t.slice(0, 2)) * 60 + Number(t.slice(3, 5)) + 30) % 1440; return `${String(Math.floor(m / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`; };
+
+async function plIndex(env, id, on) {
+  const ids = (await env.DB.get("pl:ids", "json")) || [];
+  const has = ids.includes(id);
+  if (on && !has) ids.push(id);
+  if (!on && has) ids.splice(ids.indexOf(id), 1);
+  if (on !== has) await env.DB.put("pl:ids", JSON.stringify(ids));
+}
+
+// Список приёмов на день для дневника: что принять и что уже отмечено
+function pillDoses(u, day) {
+  const log = day.pills || {};
+  return (u.pills || [])
+    .flatMap((p) => p.times.map((t) => ({ id: p.id, name: p.name, dose: p.dose || "", time: t, s: log[pillKey(p.id, t)]?.s || "", at: log[pillKey(p.id, t)]?.at || "" })))
+    .sort((a, b) => a.time.localeCompare(b.time) || a.name.localeCompare(b.name));
+}
+
+function pillReminderKeyboard(date, p, t) {
+  return {
+    inline_keyboard: [
+      [{ text: "✅ Принял", callback_data: `p|t|${date}|${p.id}|${t}` }],
+      [{ text: "⏰ Через 30 мин", callback_data: `p|z|${date}|${p.id}|${t}` }, { text: "Пропустить", callback_data: `p|s|${date}|${p.id}|${t}` }],
+    ],
+  };
+}
+
+const pillLine = (p) => `<b>${esc(p.name)}</b>${p.dose ? " · " + esc(p.dose) : ""}`;
+
+// Каждые 30 минут: кому пора принять таблетку
+async function pillTick(env, now = Date.now()) {
+  const ids = (await env.DB.get("pl:ids", "json")) || [];
+  let sent = 0;
+  for (const id of ids) {
+    const u = await env.DB.get(`u:${id}`, "json");
+    if (!u || !u.pills?.length) continue;
+    const local = new Date(now + tzOf(u) * 60000);
+    const date = local.toISOString().slice(0, 10);
+    const slot = slotOf(local.toISOString().slice(11, 16));
+    const day = await getDay(env, u.id, date);
+    day.pills = day.pills || {};
+    let changed = false;
+    for (const p of u.pills) {
+      for (const t of p.times) {
+        const key = pillKey(p.id, t);
+        const rec = day.pills[key];
+        const due = (!rec && t === slot) || (rec?.s === "snooze" && rec.at === slot);
+        if (!due) continue;
+        day.pills[key] = { s: "sent", at: slot };
+        changed = true;
+        await send(env, u.id, `💊 <b>Время принять</b>\n${pillLine(p)} · ${t}`, { reply_markup: pillReminderKeyboard(date, p, t) });
+        sent++;
+      }
+    }
+    if (changed) await saveDay(env, u.id, date, day);
+  }
+  return sent;
+}
+
+// Отметка приёма: из напоминания в чате и из дневника
+async function markPill(env, u, date, id, t, s) {
+  const p = (u.pills || []).find((x) => x.id === id);
+  if (!p || !p.times.includes(t)) return null;
+  const day = await getDay(env, u.id, date);
+  day.pills = day.pills || {};
+  const key = pillKey(id, t);
+  if (s === "") delete day.pills[key];
+  else day.pills[key] = { s, at: s === "snooze" ? nextSlot(slotOf(nowTime(u))) : nowTime(u) };
+  await saveDay(env, u.id, date, day);
+  return { p, rec: day.pills[key] || null };
+}
+
+async function onPillButton(env, u, chatId, msgId, action, date, id, t, answer) {
+  const s = { t: "taken", s: "skip", z: "snooze" }[action];
+  if (!s || !isDate(date) || !isSlot(t)) return answer();
+  const r = await markPill(env, u, date, id, t, s);
+  if (!r) {
+    await answer("Этого препарата уже нет в списке");
+    return tg(env, "editMessageReplyMarkup", { chat_id: chatId, message_id: msgId, reply_markup: { inline_keyboard: [] } });
+  }
+  const head = `${pillLine(r.p)} · ${t}`;
+  const tail = s === "taken" ? `✅ Принято в ${r.rec.at}` : s === "skip" ? "⏭ Пропущено" : `⏰ Напомню в ${r.rec.at}`;
+  await answer(s === "taken" ? "Отмечено ✅" : s === "skip" ? "Пропущено" : `Напомню в ${r.rec.at}`);
+  return edit(env, chatId, msgId, `💊 ${head}\n${tail}`, s === "snooze" ? {} : { reply_markup: { inline_keyboard: [[appButton(env, "📱 Все таблетки в дневнике")]] } });
+}
+
 // ───────────────────────────── Mini App API ─────────────────────────────
 
 function json(data, status = 200) {
@@ -2081,6 +2179,8 @@ async function api(request, url, env) {
       streak: streakNow(u),
       water: day.water || 0,
       waterGoal: waterGoal(u),
+      pills: pillDoses(u, day),
+      pillList: (u.pills || []).map((p) => ({ id: p.id, name: p.name, dose: p.dose || "", times: p.times })),
       name: u.name,
     });
   }
@@ -2095,6 +2195,32 @@ async function api(request, url, env) {
       await announce(env, u.id, fresh);
       return json({ ok: true, water: d.water, reached });
     }
+    if (url.pathname === "/api/pill/add") {
+      const name = String(body.name || "").trim().slice(0, 40);
+      const dose = String(body.dose || "").trim().slice(0, 30);
+      const times = [...new Set((Array.isArray(body.times) ? body.times : []).filter(isSlot))].sort().slice(0, 6);
+      if (!name || !times.length) return json({ error: "bad pill" }, 400);
+      u.pills = u.pills || [];
+      if (u.pills.length >= PILL_MAX) return json({ error: "too many" }, 400);
+      u.pills.push({ id: crypto.randomUUID().slice(0, 6), name, dose, times });
+      await saveUser(env, u);
+      await plIndex(env, u.id, true);
+      return json({ ok: true });
+    }
+    if (url.pathname === "/api/pill/delete") {
+      u.pills = (u.pills || []).filter((p) => p.id !== body.id);
+      await saveUser(env, u);
+      await plIndex(env, u.id, u.pills.length > 0);
+      return json({ ok: true });
+    }
+    if (url.pathname === "/api/pill/mark") {
+      const s = body.s === "taken" || body.s === "skip" ? body.s : "";
+      if (!isSlot(body.time)) return json({ error: "bad time" }, 400);
+      const r = await markPill(env, u, body.date, String(body.id || ""), body.time, s);
+      if (!r) return json({ error: "not found" }, 404);
+      return json({ ok: true, s: r.rec?.s || "", at: r.rec?.at || "" });
+    }
+
     if (url.pathname === "/api/meal/add") {
       const text = String(body.text || "").trim().slice(0, 500);
       if (text.length < 2) return json({ error: "empty" }, 400);
@@ -2346,6 +2472,39 @@ const APP_HTML = `<!doctype html>
   .wbtn{display:flex;flex-direction:column;gap:6px;position:relative;z-index:1}
   .wbtn button{height:38px;border-radius:13px;padding:0 14px;font-weight:700;background:rgba(255,255,255,.22);color:#fff}
   .wbtn button.add{background:#fff;color:var(--w2);box-shadow:0 4px 12px rgba(0,0,0,.12)}
+  /* ── Таблетки ── */
+  .pills{background:var(--card);border-radius:22px;padding:12px 14px;margin-top:12px;box-shadow:var(--shadow)}
+  .pills .ph{display:flex;align-items:center;gap:10px}
+  .pills .ib{width:42px;height:42px;border-radius:14px;background:rgba(200,107,255,.14);display:flex;align-items:center;justify-content:center;flex:none;font-size:22px}
+  .pills .t{flex:1;min-width:0;font-weight:800}
+  .pills .t small{display:block;color:var(--hint);font-weight:600;font-size:12px}
+  .pbtn{flex:none;height:34px;padding:0 12px;border-radius:11px;background:var(--bg);color:var(--text);font-weight:700;font-size:13px}
+  .pbar{height:6px;border-radius:9px;background:var(--bg);margin:10px 0 4px;overflow:hidden}
+  .pbar i{display:block;height:100%;width:0;border-radius:9px;background:linear-gradient(90deg,#c86bff,#8f5bff);transition:width .8s cubic-bezier(.2,.8,.2,1)}
+  .dose{display:flex;align-items:center;gap:10px;width:100%;padding:10px 0;border-top:1px solid var(--line);background:transparent;color:var(--text);text-align:left}
+  .dose:first-of-type{border-top:0}
+  .dose .tm{flex:none;width:44px;font-weight:800;font-size:13px;color:var(--hint)}
+  .dose .nm{flex:1;min-width:0;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .dose .nm small{display:block;color:var(--hint);font-size:12px;font-weight:500}
+  .dose .ck{flex:none;width:28px;height:28px;border-radius:50%;border:2px solid var(--line);display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:800;color:#fff;transition:background .2s,border-color .2s}
+  .dose.taken .ck{background:#8f5bff;border-color:#8f5bff}
+  .dose.taken .pn{color:var(--hint);text-decoration:line-through}
+  .dose.skip .ck{border-style:dashed}
+  .dose[disabled]{opacity:.55}
+  .pform{display:flex;flex-direction:column;gap:8px;margin-top:10px}
+  .pform input,.pform select{width:100%;padding:11px 12px;border-radius:13px;border:2px solid transparent;background:var(--bg);color:var(--text);font:inherit;outline:none}
+  .pform input:focus,.pform select:focus{border-color:#8f5bff}
+  .ptimes{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+  .ptimes .chip{display:flex;align-items:center;gap:4px;height:34px;padding:0 6px 0 12px;border-radius:11px;background:rgba(143,91,255,.14);color:var(--text);font-weight:700}
+  .ptimes .chip b{width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:var(--hint);font-weight:700}
+  .ptimes select{width:auto;flex:1;min-width:110px;padding:8px 10px}
+  .psave{height:44px;border-radius:14px;background:linear-gradient(135deg,#c86bff,#8f5bff);color:#fff;font-weight:800}
+  .plist{margin-top:6px}
+  .plist .row{display:flex;align-items:center;gap:10px;padding:9px 0;border-top:1px solid var(--line)}
+  .plist .row div{flex:1;min-width:0;font-weight:600}
+  .plist .row small{display:block;color:var(--hint);font-size:12px;font-weight:500}
+  .plist .x{flex:none;height:32px;padding:0 12px;border-radius:10px;background:rgba(255,90,78,.12);color:var(--danger);font-weight:700;font-size:13px}
+  .phint{color:var(--hint);font-size:13px;margin:8px 0 2px;line-height:1.45}
 
   /* ── Приёмы пищи ── */
   h3{margin:20px 4px 10px;font-size:17px;font-weight:800;display:flex;align-items:center;justify-content:space-between}
@@ -2479,6 +2638,7 @@ const APP_HTML = `<!doctype html>
 
   function load(date){
     call("GET", "/api/day" + (date ? "?date=" + date : "")).then(function(d){
+      if (state.date !== d.date) state.pillMode = null;
       state.date = d.date; state.data = d; render();
     }).catch(function(e){
       var msg = e && e.error === "no_profile" ? "Сначала пройди анкету в боте: нажми /start" :
@@ -2513,6 +2673,97 @@ const APP_HTML = `<!doctype html>
       '<path class="wave" d="M0 6 Q10 0 20 6 T40 6 T60 6 T80 6 T100 6 V90 H0z" fill="#fff"/></g></g>' +
       '<path d="M14 14l3 44" stroke="rgba(255,255,255,.55)" stroke-width="3" stroke-linecap="round"/></svg></div>';
   }
+
+  // ── Таблетки ──
+  var SLOTS = [];
+  for (var hh = 0; hh < 24; hh++) { SLOTS.push((hh < 10 ? "0" : "") + hh + ":00"); SLOTS.push((hh < 10 ? "0" : "") + hh + ":30"); }
+  function slotSelect(cls){ return '<select class="' + cls + '"><option value="">+ время</option>' + SLOTS.map(function(t){ return '<option>' + t + '</option>'; }).join("") + '</select>'; }
+
+  function pillsBlock(d){
+    var doses = d.pills || [], list = d.pillList || [], mode = state.pillMode;
+    var taken = doses.filter(function(x){ return x.s === "taken"; }).length;
+    var future = d.date > d.today;
+    var sub = !list.length ? "Напомню вовремя" : doses.length ? taken + " из " + doses.length + " принято" : "Нет приёмов";
+    var btn = mode ? '<button class="pbtn" data-pmode="">Готово</button>' :
+      (list.length ? '<button class="pbtn" data-pmode="edit">Изменить</button>' : '<button class="pbtn" data-pmode="add">+ Добавить</button>');
+    var h = '<div class="pills rise"><div class="ph"><div class="ib">💊</div><div class="t">Таблетки<small>' + sub + '</small></div>' + btn + '</div>';
+    if (mode === "add") {
+      var tm = state.ptimes || [];
+      h += '<div class="pform"><input id="pname" maxlength="40" placeholder="Название, например: Витамин D"><input id="pdose" maxlength="30" placeholder="Доза, например: 1 таблетка (необязательно)">' +
+        '<div class="ptimes">' + tm.map(function(t, i){ return '<span class="chip">' + t + '<b data-prm="' + i + '">×</b></span>'; }).join("") + slotSelect("pslot") + '</div>' +
+        '<button class="psave" data-psave="1">Сохранить</button></div>';
+    } else if (mode === "edit") {
+      h += '<div class="plist">' + list.map(function(p){
+        return '<div class="row"><div>' + esc(p.name) + '<small>' + (p.dose ? esc(p.dose) + ' · ' : '') + p.times.join(", ") + '</small></div><button class="x" data-pdel="' + p.id + '">Удалить</button></div>';
+      }).join("") + '</div>' + (list.length < 10 ? '<button class="pbtn" style="width:100%;margin-top:8px" data-pmode="add">+ Добавить препарат</button>' : '');
+    } else if (!list.length) {
+      h += '<div class="phint">Добавь витамины или лекарства, и я напомню в чате, когда их принять.</div>';
+    } else if (!doses.length) {
+      h += '<div class="phint">На этот день приёмов нет.</div>';
+    } else {
+      h += '<div class="pbar"><i data-pct="' + Math.round(taken / doses.length * 100) + '"></i></div>' + doses.map(function(x){
+        return '<button class="dose ' + x.s + '"' + (future ? ' disabled' : '') + ' data-pmark="' + x.id + '|' + x.time + '|' + x.s + '"><span class="tm">' + x.time + '</span><span class="nm"><span class="pn">' + esc(x.name) + '</span>' +
+          '<small>' + (x.dose ? esc(x.dose) : '') + (x.s === "taken" && x.at ? (x.dose ? ' · ' : '') + 'принято в ' + x.at : x.s === "skip" ? (x.dose ? ' · ' : '') + 'пропущено' : '') + '</small></span><span class="ck">' + (x.s === "taken" ? "✓" : "") + '</span></button>';
+      }).join("");
+    }
+    return h + '</div>';
+  }
+
+  function rerenderPills(){
+    var old = root.querySelector(".pills");
+    if (!old) return;
+    var tmp = document.createElement("div"); tmp.innerHTML = pillsBlock(state.data);
+    var nw = tmp.firstChild; nw.classList.remove("rise");
+    old.replaceWith(nw);
+    requestAnimationFrame(function(){ requestAnimationFrame(function(){ nw.querySelectorAll("[data-pct]").forEach(function(el){ el.style.width = el.dataset.pct + "%"; }); }); });
+  }
+
+  function markDose(btn){
+    var parts = btn.dataset.pmark.split("|"), id = parts[0], time = parts[1], was = parts[2];
+    var s = was === "taken" ? "" : "taken";
+    var dose = (state.data.pills || []).filter(function(x){ return x.id === id && x.time === time; })[0];
+    if (!dose) return;
+    var prev = { s: dose.s, at: dose.at };
+    dose.s = s; dose.at = "";
+    var all = state.data.pills.length && state.data.pills.every(function(x){ return x.s === "taken"; });
+    rerenderPills();
+    if (s === "taken") { if (all) { notify("success"); celebrate(root.querySelector(".pills"), ["💊", "✨", "💜"]); } else haptic("medium"); } else haptic("light");
+    call("POST", "/api/pill/mark", { date: state.date, id: id, time: time, s: s })
+      .then(function(j){ dose.at = j.at || ""; rerenderPills(); },
+            function(){ dose.s = prev.s; dose.at = prev.at; rerenderPills(); notify("error"); });
+  }
+
+  function savePill(){
+    var name = (document.getElementById("pname").value || "").trim();
+    var dose = (document.getElementById("pdose").value || "").trim();
+    var times = state.ptimes || [];
+    var msg = !name ? "Напиши название препарата" : !times.length ? "Выбери хотя бы одно время приёма" : "";
+    if (msg) { haptic("rigid"); if (tg && tg.showAlert) tg.showAlert(msg); else alert(msg); return; }
+    call("POST", "/api/pill/add", { date: state.date, name: name, dose: dose, times: times })
+      .then(function(){ notify("success"); state.pillMode = null; state.ptimes = []; load(state.date); })
+      .catch(function(){ notify("error"); var m = "Не получилось сохранить, попробуй ещё раз"; if (tg && tg.showAlert) tg.showAlert(m); else alert(m); });
+  }
+
+  function pillClick(e){
+    var t = e.target;
+    var rm = t.closest("[data-prm]");
+    if (rm) { state.ptimes.splice(Number(rm.dataset.prm), 1); keepForm(); rerenderPills(); restoreForm(); return true; }
+    var b = t.closest("button");
+    if (!b) return false;
+    if (b.dataset.pmode !== undefined) { tick(); state.pillMode = b.dataset.pmode || null; if (state.pillMode === "add") state.ptimes = state.ptimes && state.ptimes.length ? state.ptimes : ["09:00"]; rerenderPills(); var n = document.getElementById("pname"); if (n) n.focus(); return true; }
+    if (b.dataset.pmark) { markDose(b); return true; }
+    if (b.dataset.psave) { savePill(); return true; }
+    if (b.dataset.pdel) {
+      var id = b.dataset.pdel; haptic("rigid");
+      var go = function(){ call("POST", "/api/pill/delete", { date: state.date, id: id }).then(function(){ notify("warning"); load(state.date); }); };
+      if (tg && tg.showConfirm) tg.showConfirm("Удалить препарат и его напоминания?", function(ok){ if (ok) go(); }); else if (confirm("Удалить?")) go();
+      return true;
+    }
+    return false;
+  }
+  var formDraft = null;
+  function keepForm(){ var n = document.getElementById("pname"), d = document.getElementById("pdose"); formDraft = n ? { n: n.value, d: d.value } : null; }
+  function restoreForm(){ if (!formDraft) return; var n = document.getElementById("pname"), d = document.getElementById("pdose"); if (n) { n.value = formDraft.n; d.value = formDraft.d; } formDraft = null; }
 
   function weightBlock(ws){
     if (!ws || !ws.length) return "";
@@ -2571,7 +2822,7 @@ const APP_HTML = `<!doctype html>
         '<button class="del" data-del="' + m.id + '">Удалить приём пищи</button></div>';
     }).join("") : '<div class="empty rise"><div class="ib">' + icon("plate") + '</div><b>Здесь пока пусто</b>' + (add ? 'Напиши выше, что ты съел, или отправь боту фото еды 📸' : 'Отправь боту фото еды, и оно появится в дневнике 📸') + '</div>');
 
-    root.innerHTML = macros + water + meals + weightBlock(d.weights);
+    root.innerHTML = macros + water + pillsBlock(d) + meals + weightBlock(d.weights);
     animateIn();
   }
 
@@ -2658,6 +2909,7 @@ const APP_HTML = `<!doctype html>
   }
 
   function onClick(e){
+    if (e.target.closest(".pills")) { pillClick(e); return; }
     var nm = e.target.closest(".nm");
     if (nm) { rename(nm); return; }
     var b = e.target.closest("button");
@@ -2678,6 +2930,10 @@ const APP_HTML = `<!doctype html>
   hero.addEventListener("click", onClick);
   root.addEventListener("change", function(e){
     var inp = e.target;
+    if (inp.classList && inp.classList.contains("pslot")) {
+      if (inp.value && state.ptimes.indexOf(inp.value) < 0 && state.ptimes.length < 6) { state.ptimes.push(inp.value); state.ptimes.sort(); }
+      keepForm(); rerenderPills(); restoreForm(); return;
+    }
     if (!inp.dataset.meal) return;
     var g = Number(inp.value);
     if (!(g > 0 && g <= 3000)) { load(state.date); return; }
@@ -2694,4 +2950,4 @@ const APP_HTML = `<!doctype html>
 </html>`;
 
 // Для тестов
-export const _test = { waterTick, adviceText, weekTip, startSource, ACHIEVEMENTS, baseEmoji, calcTargets, verifyInitData, cleanItems, sumItems, parseFix, parseWater, cleanBarcode, waterGoal, APP_HTML };
+export const _test = { waterTick, pillTick, nextSlot, slotOf, adviceText, weekTip, startSource, ACHIEVEMENTS, baseEmoji, calcTargets, verifyInitData, cleanItems, sumItems, parseFix, parseWater, cleanBarcode, waterGoal, APP_HTML };
