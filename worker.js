@@ -91,10 +91,14 @@ const baseEmoji = (s) => [...stripVS(String(s || ""))][0] || "";
 let emojiMap = { ...CUSTOM_EMOJI };
 let emojiRe = null;
 let emojiLoadedAt = 0;
+let emojiNorm = {};
 function buildEmojiRe() {
-  const keys = Object.keys(emojiMap).sort((a, b) => b.length - a.length);
+  emojiNorm = {};
+  for (const [k, v] of Object.entries(emojiMap)) emojiNorm[stripVS(k)] = v;
+  const keys = Object.keys(emojiNorm).sort((a, b) => b.length - a.length);
+  // FE0F может стоять после любого символа: 1️⃣ = «1» + FE0F + «⃣»
   emojiRe = keys.length
-    ? new RegExp(keys.map((k) => stripVS(k).replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "\\uFE0F?").join("|"), "gu")
+    ? new RegExp(keys.map((k) => [...k].map((ch) => ch.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "\\uFE0F?").join("")).join("|"), "gu")
     : null;
 }
 buildEmojiRe();
@@ -105,7 +109,7 @@ async function loadEmojiMap(env) {
   emojiMap = { ...CUSTOM_EMOJI, ...extra };
   buildEmojiRe();
 }
-const emojiId = (e) => emojiMap[e] || emojiMap[stripVS(e)] || emojiMap[stripVS(e) + "\uFE0F"];
+const emojiId = (e) => emojiNorm[stripVS(e)];
 
 function withIcons(text) {
   if (!emojiRe || !text) return text;
@@ -147,10 +151,17 @@ async function tg(env, method, payload) {
     if (p.parse_mode === "HTML") p.text = withIcons(p.text);
     if (p.reply_markup) p.reply_markup = buttonIcons(p.reply_markup);
     j = await tgRaw(env, method, p);
-    // Если Telegram не принял иконки (например, закончился Premium) — отправляем с обычными эмодзи
-    if (!j.ok && !(j.description || "").includes("message is not modified")) {
-      console.error("custom emoji rejected, fallback:", j.description);
-      j = await tgRaw(env, method, payload);
+    const failed = (r) => !r.ok && !(r.description || "").includes("message is not modified");
+    if (failed(j)) {
+      // Запоминаем причину, её можно посмотреть командой /emojierr
+      console.error("custom emoji rejected:", j.description);
+      if (env.DB) await env.DB.put("cfg:emojierr", JSON.stringify({ at: new Date().toISOString(), method, error: j.description || "" })).catch(() => {});
+      // Вторая попытка: иконки оставляем, а цитаты-блоки превращаем в обычный текст
+      if (p.text && p.text.includes("<blockquote>")) {
+        j = await tgRaw(env, method, { ...p, text: p.text.replace(/<\/?blockquote>/g, "") });
+      }
+      // Последняя попытка: обычные эмодзи (например, если закончился Premium)
+      if (failed(j)) j = await tgRaw(env, method, payload);
     }
   } else {
     j = await tgRaw(env, method, payload);
@@ -194,6 +205,7 @@ const ICON_SETS = [
       ["sofa", "🛋", "🛋"], ["walk", "🚶", "🚶"], ["run", "🏃", "🏃"], ["muscle", "💪", "💪"], ["lose", "📉", "📉"],
       ["water", "🥤", "💧"], ["barcode", "📦", "📦"],
       ["ruler", "📏", "📏"], ["cake", "🎂", "🎂"], ["trophy", "🏆", "🏆"],
+      ["num1", "1️⃣", "1️⃣"], ["num2", "2️⃣", "2️⃣"], ["num3", "3️⃣", "3️⃣"], ["num4", "4️⃣", "4️⃣"],
     ],
   },
 ];
@@ -223,6 +235,10 @@ async function ensureEmojiSet(env, from, botName, cfg) {
   }
   set = await tgRaw(env, "getStickerSet", { name });
   const stickers = set.result.stickers;
+  // Иконки добавлялись строго по порядку списка, поэтому сначала сопоставляем по позиции
+  if (stickers.length === cfg.icons.length) {
+    cfg.icons.forEach((ic, i) => { if (stickers[i].custom_emoji_id) map[ic[2]] = stickers[i].custom_emoji_id; });
+  }
   for (const s of stickers) {
     const ic = cfg.icons.find((x) => baseEmoji(x[1]) === baseEmoji(s.emoji));
     if (ic && s.custom_emoji_id && !map[ic[2]]) map[ic[2]] = s.custom_emoji_id;
@@ -628,6 +644,10 @@ async function onMessage(msg, env) {
   if (text.startsWith("/emojipack")) return sendEmojiPack(env, chatId, text.split(/\s+/)[1]);
   if (text === "/emojiid") return send(env, chatId, "Отправь мне иконки из набора, и я пришлю их номера 🔢");
   if (text === "/makeemoji") return makeEmojiPack(env, chatId, msg.from);
+  if (text === "/emojierr") {
+    const e = await env.DB.get("cfg:emojierr", "json");
+    return tgRaw(env, "sendMessage", { chat_id: chatId, text: e ? `Последняя ошибка иконок (${e.at}, ${e.method}):\n${e.error}` : "Ошибок с иконками не было ✅" });
+  }
 
   if (text === "/start" || text.startsWith("/start ")) {
     if (u.targets) {
