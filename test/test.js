@@ -32,7 +32,7 @@ globalThis.fetch = async (url, opts = {}) => {
     if (method === "getStickerSet") {
       if (body.name !== "fitter_by_fitter_test_bot") return Response.json({ ok: false, description: "STICKERSET_INVALID" });
       // Так Telegram может хранить эмодзи: с полом, оттенком кожи и без FE0F
-      const em = ["🍽", "🍗", "💧", "🌾", "🔥", "⚖", "📔", "🍏", "🛋", "🚶‍♂️", "🏃‍♂️", "💪🏻", "📉", "🥤", "📦", "📏", "🎂", "🏆"];
+      const em = ["🍽", "🍗", "💧", "🌾", "🔥", "⚖", "📔", "🍏", "🛋", "🚶‍♂️", "🏃‍♂️", "💪🏻", "📉", "🥤", "📦", "📏", "🎂", "🏆", "1️⃣", "2️⃣", "3️⃣", "4️⃣"];
       return Response.json({ ok: true, result: { title: "FITTER ICONS", stickers: em.map((e, i) => ({ emoji: e, custom_emoji_id: String(9000 + i) })) } });
     }
     if (method === "sendMessage" && rejectQuote && /<blockquote>[\s\S]*<tg-emoji/.test(body.text || "")) {
@@ -344,13 +344,16 @@ console.log("✓ /app и /setup");
   assert.equal(map["🚶"], "9009");
   assert.equal(map["💧"], "9013", "вода — стакан");
   assert.equal(map["🧈"], "9002", "жиры — капля");
-  assert.equal(Object.keys(map).length, 18);
+  assert.equal(Object.keys(map).length, 22);
+  assert.equal(map["1️⃣"], "9018");
   assert.ok(!s.some((x) => x.method === "addStickerToSet"), "ничего не добавляем заново");
   s = await msg("/profile");
   const prof = s.find((x) => x.method === "sendMessage").body.text;
   assert.match(prof, /<tg-emoji emoji-id="9010">🏃<\/tg-emoji> 3–5 тренировок/);
   assert.match(prof, /<tg-emoji emoji-id="9011">💪<\/tg-emoji> Набрать массу/);
-  console.log("✓ FITTER ICONS: бег и бицепс в профиле");
+  s = await msg("/help");
+  assert.match(s.find((x) => x.method === "sendMessage").body.text, /<tg-emoji emoji-id="9018">1️⃣<\/tg-emoji> Сфотографируй/);
+  console.log("✓ FITTER ICONS: бег, бицепс и цифры");
 }
 
 // 12. Лимит запросов к ИИ
