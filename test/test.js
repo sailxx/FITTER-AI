@@ -266,7 +266,13 @@ console.log("✓ /app и /setup");
   assert.equal((await r.json()).water, 500);
   r = await apiCall("/api/water", "POST", { date: d.date, delta: 9999 });
   assert.equal(r.status, 400);
-  console.log("✓ вода: кнопки, текст, дневник, Mini App");
+  // Достиг нормы: салют 🎉 в чате
+  const goalMl = _test.waterGoal({ weight: W });
+  s = await msg("вода " + Math.min(3000, goalMl - 500));
+  assert.equal(s.find((x) => x.method === "sendMessage").body.message_effect_id, "5046509860389126442");
+  s = await cb(wbtn);
+  assert.ok(!s.some((x) => x.body.message_effect_id), "второй раз салюта нет");
+  console.log("✓ вода: кнопки, текст, дневник, Mini App, салют на норме");
 }
 
 // 11. Штрихкод и упаковка
