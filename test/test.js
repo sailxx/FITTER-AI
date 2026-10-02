@@ -435,6 +435,32 @@ console.log("✓ /app и /setup");
   console.log("✓ напоминания о воде: частота, начало и конец дня, ночь, норма");
 }
 
+// 11b. Метки источников и /stats
+{
+  assert.equal(_test.startSource("/start habr"), "habr");
+  assert.equal(_test.startSource("/start"), "direct");
+  assert.equal(_test.startSource("/start a b"), "direct");
+  assert.equal((await env.DB.get("u:42", "json")).src, "direct");
+  const other = { id: 88, first_name: "Оля" };
+  await call({ message: { message_id: 1, from: other, chat: { id: 88, type: "private" }, text: "/start VC_ru" } });
+  assert.equal((await env.DB.get("u:88", "json")).src, "vc_ru");
+  // Повторный /start с другой меткой не перезаписывает источник
+  await call({ message: { message_id: 1, from: other, chat: { id: 88, type: "private" }, text: "/start habr" } });
+  assert.equal((await env.DB.get("u:88", "json")).src, "vc_ru");
+  let st = await msg("/stats");
+  assert.match(lastText(st), /Твой Telegram ID: <code>42<\/code>/);
+  env.ADMIN_ID = "42";
+  st = await msg("/stats");
+  const t = lastText(st);
+  const total = (await env.DB.list({ prefix: "u:" })).keys.length;
+  assert.match(t, new RegExp(`Всего: <b>${total}</b>`));
+  assert.match(t, /<b>direct<\/b> — \d+ · анкета \d+% · еда \d+%/);
+  assert.match(t, /<b>vc_ru<\/b> — 1 · анкета 0% · еда 0%/);
+  st = await call({ message: { message_id: 1, from: other, chat: { id: 88, type: "private" }, text: "/stats" } });
+  assert.match(lastText(st), /только для владельца/);
+  delete env.ADMIN_ID;
+}
+
 // 12. Набор иконок: эмодзи с полом и оттенком кожи тоже находятся
 {
   assert.equal(_test.baseEmoji("🏃‍♂️"), "🏃");
