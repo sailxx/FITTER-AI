@@ -28,6 +28,12 @@ globalThis.fetch = async (url, opts = {}) => {
     sent.push({ method, body });
     if (method === "getFile") return Response.json({ ok: true, result: { file_path: "photos/file_1.jpg" } });
     if (method === "getMe") return Response.json({ ok: true, result: { username: "fitter_test_bot" } });
+    if (method === "getStickerSet") {
+      if (body.name !== "fitter_by_fitter_test_bot") return Response.json({ ok: false, description: "STICKERSET_INVALID" });
+      // Так Telegram может хранить эмодзи: с полом, оттенком кожи и без FE0F
+      const em = ["🍽", "🍗", "💧", "🌾", "🔥", "⚖", "📔", "🍏", "🛋", "🚶‍♂️", "🏃‍♂️", "💪🏻", "📉", "🥤", "📦"];
+      return Response.json({ ok: true, result: { title: "FITTER ICONS", stickers: em.map((e, i) => ({ emoji: e, custom_emoji_id: String(9000 + i) })) } });
+    }
     if (method === "sendMessage") return Response.json({ ok: true, result: { message_id: ++msgId } });
     return Response.json({ ok: true, result: true });
   }
@@ -303,6 +309,26 @@ console.log("✓ /app и /setup");
   assert.match(lastText(s), /Протеиновый батончик — 60 г — 210 ккал/);
   assert.match(lastText(s), /КБЖУ взяты с этикетки/);
   console.log("✓ штрихкод, кэш, фото упаковки и этикетки");
+}
+
+// 12. Набор иконок: эмодзи с полом и оттенком кожи тоже находятся
+{
+  assert.equal(_test.baseEmoji("🏃‍♂️"), "🏃");
+  assert.equal(_test.baseEmoji("💪🏻"), "💪");
+  s = await msg("/makeemoji");
+  const map = JSON.parse(await env.DB.get("cfg:emoji"));
+  assert.equal(map["🏃"], "9010", "бег");
+  assert.equal(map["💪"], "9011", "бицепс");
+  assert.equal(map["🚶"], "9009");
+  assert.equal(map["💧"], "9013", "вода — стакан");
+  assert.equal(map["🧈"], "9002", "жиры — капля");
+  assert.equal(Object.keys(map).length, 15);
+  assert.ok(!s.some((x) => x.method === "addStickerToSet"), "ничего не добавляем заново");
+  s = await msg("/profile");
+  const prof = s.find((x) => x.method === "sendMessage").body.text;
+  assert.match(prof, /<tg-emoji emoji-id="9010">🏃<\/tg-emoji> 3–5 тренировок/);
+  assert.match(prof, /<tg-emoji emoji-id="9011">💪<\/tg-emoji> Набрать массу/);
+  console.log("✓ FITTER ICONS: бег и бицепс в профиле");
 }
 
 // 12. Лимит запросов к ИИ
