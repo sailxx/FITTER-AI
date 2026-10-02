@@ -1333,20 +1333,24 @@ async function applyEdit(env, u, chatId, fix) {
 
 // ── Текст: записать еду или ответить на вопрос ──
 
+// Разбор сообщения нейросетью: запись еды или вопрос
+async function askText(env, u, text, date) {
+  const t = dayTotals(await getDay(env, u.id, date));
+  const ctx =
+    `Данные пользователя: пол ${u.sex === "m" ? "мужской" : "женский"}, ${u.age} лет, рост ${u.height} см, вес ${u.weight} кг, ` +
+    `цель: ${GOALS[u.goal]}. Норма: ${u.targets.kcal} ккал, Б ${u.targets.p} г, Ж ${u.targets.f} г, У ${u.targets.c} г. ` +
+    `Уже съедено ${date === today(u) ? "сегодня" : "за " + humanDate(date)}: ${round(t.kcal)} ккал, Б ${round(t.p)}, Ж ${round(t.f)}, У ${round(t.c)}.`;
+  return gemini(env, [{ text: `${TEXT_PROMPT}\n\n${ctx}\n\nСообщение пользователя: ${String(text).slice(0, 1500)}` }], TEXT_SCHEMA, 0.4);
+}
+
 async function onText(env, u, chatId, text) {
   if (!checkAiLimit(env, u)) {
     return send(env, chatId, "На сегодня лимит запросов к нейросети закончился 😔 Завтра снова можно!");
   }
   await saveUser(env, u);
   tg(env, "sendChatAction", { chat_id: chatId, action: "typing" });
-  const date = today(u);
-  const t = dayTotals(await getDay(env, u.id, date));
-  const ctx =
-    `Данные пользователя: пол ${u.sex === "m" ? "мужской" : "женский"}, ${u.age} лет, рост ${u.height} см, вес ${u.weight} кг, ` +
-    `цель: ${GOALS[u.goal]}. Норма: ${u.targets.kcal} ккал, Б ${u.targets.p} г, Ж ${u.targets.f} г, У ${u.targets.c} г. ` +
-    `Уже съедено сегодня: ${round(t.kcal)} ккал, Б ${round(t.p)}, Ж ${round(t.f)}, У ${round(t.c)}.`;
   try {
-    const res = await gemini(env, [{ text: `${TEXT_PROMPT}\n\n${ctx}\n\nСообщение пользователя: ${text.slice(0, 1500)}` }], TEXT_SCHEMA, 0.4);
+    const res = await askText(env, u, text, today(u));
     const items = cleanItems(res.items);
     if (res.intent === "food_log" && items.length) {
       return saveMealAndReply(env, u, chatId, null, res.title, items, "text", null);
@@ -1973,6 +1977,43 @@ async function api(request, url, env) {
       await announce(env, u.id, fresh);
       return json({ ok: true, water: d.water, reached });
     }
+    if (url.pathname === "/api/meal/add") {
+      const text = String(body.text || "").trim().slice(0, 500);
+      if (text.length < 2) return json({ error: "empty" }, 400);
+      if (body.date > today(u)) return json({ error: "future" }, 400);
+      if (!checkAiLimit(env, u)) return json({ error: "limit" }, 429);
+      await saveUser(env, u);
+      let res;
+      try {
+        res = await askText(env, u, text, body.date);
+      } catch (e) {
+        console.error("app text error:", e && e.stack ? e.stack : e);
+        return json({ error: "ai" }, 502);
+      }
+      const items = cleanItems(res.items);
+      if (res.intent !== "food_log" || !items.length) return json({ error: "not_food", answer: res.answer || "" }, 422);
+      const day = await getDay(env, u.id, body.date);
+      const meal = {
+        id: crypto.randomUUID().slice(0, 8),
+        time: body.date === today(u) ? nowTime(u) : "—",
+        title: String(res.title || items.map((i) => i.name).join(", ")).slice(0, 60),
+        items,
+        source: "app",
+      };
+      day.meals.push(meal);
+      await saveDay(env, u.id, body.date, day);
+      if (body.date === today(u)) {
+        const fresh = await progress(env, u, "meal", body.date, { pack: false, inNorm: inNorm(dayTotals(day).kcal, u.targets.kcal) });
+        await announce(env, u.id, fresh);
+      } else {
+        // Запись задним числом: серию и счётчики пересчитываем по истории
+        delete u.st;
+        await ensureStats(env, u, false);
+        await saveUser(env, u);
+      }
+      return json({ ok: true, id: meal.id, title: meal.title, kcal: round(sumItems(items).kcal) });
+    }
+
     const day = await getDay(env, u.id, body.date);
     const meal = day.meals.find((m) => m.id === body.mealId);
     if (!meal) return json({ error: "not found" }, 404);
@@ -2209,6 +2250,16 @@ const APP_HTML = `<!doctype html>
   .it .g{color:var(--hint);font-size:13px}
   .it .ren{width:100%;padding:5px 8px;border-radius:9px;border:2px solid var(--g2);background:var(--bg);color:var(--text);font:inherit;outline:none}
   .del{display:block;width:100%;background:transparent;color:var(--danger);font-size:13px;font-weight:600;padding:8px 0;border-top:1px solid var(--line)}
+  .addm{display:flex;align-items:flex-end;gap:8px;background:var(--card);border-radius:22px;padding:7px 7px 7px 15px;box-shadow:var(--shadow);border:2px solid transparent;transition:border-color .2s}
+  .addm:focus-within{border-color:var(--g2)}
+  .addm textarea{flex:1;min-width:0;border:0;background:transparent;color:var(--text);font:inherit;font-size:15px;line-height:1.4;padding:10px 0;resize:none;outline:none;max-height:120px}
+  .addm textarea::placeholder{color:var(--hint)}
+  .addb{flex:none;width:44px;height:44px;border-radius:15px;background:linear-gradient(135deg,var(--g1),var(--g2));color:#fff;font-size:26px;font-weight:600;line-height:1;box-shadow:0 6px 14px rgba(22,184,106,.3)}
+  .addb:active{transform:scale(.92)}
+  .addm.busy .addb{font-size:0}
+  .addm.busy .addb:after{content:"";display:block;width:18px;height:18px;margin:auto;border:3px solid rgba(255,255,255,.45);border-top-color:#fff;border-radius:50%;animation:spin .8s linear infinite}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  .addh{margin:7px 8px 12px;color:var(--hint);font-size:12px}
   .empty{background:var(--card);border-radius:22px;padding:26px 16px;text-align:center;color:var(--hint);box-shadow:var(--shadow)}
   .empty .ib{width:64px;height:64px;border-radius:20px;margin:0 auto 10px;background:var(--c-bg);display:flex;align-items:center;justify-content:center}
   .empty .ib .ic{width:42px;height:42px}
@@ -2390,14 +2441,16 @@ const APP_HTML = `<!doctype html>
       '<div class="wbtn"><button class="add" data-w="250">+250 мл</button><button data-w="-250">− 250</button></div></div>';
 
     var total = d.meals.reduce(function(a, m){ return a + m.totals.kcal; }, 0);
-    var meals = d.meals.length ? '<h3>Приёмы пищи <small>' + d.meals.length + ' · ' + r(total) + ' ккал</small></h3>' + d.meals.map(function(m, mi){
-      return '<div class="meal rise" style="animation-delay:' + (0.05 * mi + 0.1) + 's"><div class="hd"><div class="ib">' + icon("plate") + '</div><div class="t">' + esc(m.title) + '<small>' + esc(m.time) + ' · ' + m.items.length + ' ' + (m.items.length === 1 ? 'продукт' : m.items.length < 5 ? 'продукта' : 'продуктов') + '</small></div><div class="k">' + r(m.totals.kcal) + ' ккал</div></div>' +
+    var add = d.date <= d.today ? '<div class="addm rise"><textarea id="addt" rows="1" maxlength="500" enterkeyhint="send" placeholder="Что съел? Например: 2 яйца и тост"></textarea><button class="addb" id="addb" aria-label="Добавить еду">+</button></div>' +
+      '<div class="addh">ИИ посчитает калории и БЖУ' + (d.date !== d.today ? ' · запишу на ' + human(d.date) : '') + '</div>' : '';
+    var meals = (d.meals.length ? '<h3>Приёмы пищи <small>' + d.meals.length + ' · ' + r(total) + ' ккал</small></h3>' : '<h3>Приёмы пищи</h3>') + add + (d.meals.length ? d.meals.map(function(m, mi){
+      return '<div class="meal rise" data-id="' + m.id + '" style="animation-delay:' + (0.05 * mi + 0.1) + 's"><div class="hd"><div class="ib">' + icon("plate") + '</div><div class="t">' + esc(m.title) + '<small>' + esc(m.time) + ' · ' + m.items.length + ' ' + (m.items.length === 1 ? 'продукт' : m.items.length < 5 ? 'продукта' : 'продуктов') + '</small></div><div class="k">' + r(m.totals.kcal) + ' ккал</div></div>' +
         m.items.map(function(it, i){
           return '<div class="it"><i class="dot" style="background:' + DOTS[i % DOTS.length] + '"></i><div class="n"><div class="nm" data-meal="' + m.id + '" data-idx="' + i + '">' + esc(it.name) + '</div><small>' + r(it.totals.kcal) + ' ккал · Б ' + r(it.totals.p) + ' · Ж ' + r(it.totals.f) + ' · У ' + r(it.totals.c) + '</small></div>' +
             '<div class="gr"><input type="number" inputmode="numeric" min="1" max="3000" value="' + it.grams + '" data-meal="' + m.id + '" data-idx="' + i + '"><span class="g">г</span></div></div>';
         }).join("") +
         '<button class="del" data-del="' + m.id + '">Удалить приём пищи</button></div>';
-    }).join("") : '<h3>Приёмы пищи</h3><div class="empty rise"><div class="ib">' + icon("plate") + '</div><b>Здесь пока пусто</b>Отправь боту фото еды, и оно появится в дневнике 📸</div>';
+    }).join("") : '<div class="empty rise"><div class="ib">' + icon("plate") + '</div><b>Здесь пока пусто</b>' + (add ? 'Напиши выше, что ты съел, или отправь боту фото еды 📸' : 'Отправь боту фото еды, и оно появится в дневнике 📸') + '</div>');
 
     root.innerHTML = macros + water + meals + weightBlock(d.weights);
     animateIn();
@@ -2410,6 +2463,11 @@ const APP_HTML = `<!doctype html>
       document.querySelectorAll("[data-off]").forEach(function(el){ el.setAttribute("stroke-dashoffset", el.dataset.off); });
       document.querySelectorAll("[data-to]").forEach(function(el){ countUp(el, Number(el.dataset.to)); });
     }); });
+    if (state.flash) {
+      var nm = root.querySelector('[data-id="' + state.flash + '"]');
+      if (nm) { nm.classList.add("pop"); nm.scrollIntoView({ behavior: "smooth", block: "center" }); }
+      state.flash = null;
+    }
     if (d.date === d.today && d.meals.length && t.kcal >= g.kcal * 0.9 && t.kcal <= g.kcal * 1.1 && once("fx-kcal-" + d.date)) {
       setTimeout(function(){ celebrate(hero.querySelector(".ring"), ["✨", "🥦", "🍏"]); notify("success"); }, 1100);
     }
@@ -2436,6 +2494,26 @@ const APP_HTML = `<!doctype html>
       .then(function(j){ if (typeof j.water === "number") { d.water += j.water - after; waterUI(); } },
             function(){ d.water -= delta; waterUI(); notify("error"); });
   }
+
+  // Запись еды текстом прямо в дневнике
+  function addMeal(){
+    var ta = document.getElementById("addt"), btn = document.getElementById("addb");
+    if (!ta) return;
+    var box = ta.parentNode, v = ta.value.trim();
+    if (box.classList.contains("busy")) return;
+    if (v.length < 2) { haptic("rigid"); ta.focus(); return; }
+    box.classList.add("busy"); ta.disabled = true; btn.disabled = true; ta.blur(); haptic("medium");
+    call("POST", "/api/meal/add", { date: state.date, text: v })
+      .then(function(j){ notify("success"); state.flash = j.id; load(state.date); })
+      .catch(function(err){
+        box.classList.remove("busy"); ta.disabled = false; btn.disabled = false; notify("error");
+        var msg = err && err.error === "limit" ? "На сегодня лимит запросов к нейросети закончился" :
+                  err && err.error === "not_food" ? (err.answer ? String(err.answer).slice(0, 220) : "Не похоже на еду. Напиши, что ты съел, например: гречка 150 г и котлета") :
+                  "Не получилось посчитать, попробуй ещё раз";
+        if (tg && tg.showAlert) tg.showAlert(msg); else alert(msg);
+      });
+  }
+  function grow(ta){ ta.style.height = "auto"; ta.style.height = Math.min(120, ta.scrollHeight) + "px"; }
 
   function rename(el){
     var old = el.textContent, mealId = el.dataset.meal, idx = Number(el.dataset.idx);
@@ -2465,6 +2543,7 @@ const APP_HTML = `<!doctype html>
     if (nm) { rename(nm); return; }
     var b = e.target.closest("button");
     if (!b) return;
+    if (b.id === "addb") { addMeal(); return; }
     if (b.dataset.date) { tick(); load(b.dataset.date); }
     if (b.dataset.w) addWater(b);
     if (b.dataset.del) {
@@ -2475,6 +2554,8 @@ const APP_HTML = `<!doctype html>
     }
   }
   root.addEventListener("click", onClick);
+  root.addEventListener("input", function(e){ if (e.target.id === "addt") grow(e.target); });
+  root.addEventListener("keydown", function(e){ if (e.target.id === "addt" && e.key === "Enter" && !e.shiftKey) { e.preventDefault(); addMeal(); } });
   hero.addEventListener("click", onClick);
   root.addEventListener("change", function(e){
     var inp = e.target;
