@@ -2070,24 +2070,28 @@ async function pillTick(env, now = Date.now()) {
     const u = await env.DB.get(`u:${id}`, "json");
     if (!u || !u.pills?.length) continue;
     const local = new Date(now + tzOf(u) * 60000);
-    const date = local.toISOString().slice(0, 10);
+    const today = local.toISOString().slice(0, 10);
     const slot = slotOf(local.toISOString().slice(11, 16));
-    const day = await getDay(env, u.id, date);
-    day.pills = day.pills || {};
-    let changed = false;
-    for (const p of u.pills) {
-      for (const t of p.times) {
-        const key = pillKey(p.id, t);
-        const rec = day.pills[key];
-        const due = (!rec && t === slot) || (rec?.s === "snooze" && rec.at === slot);
-        if (!due) continue;
-        day.pills[key] = { s: "sent", at: slot };
-        changed = true;
-        await send(env, u.id, `💊 <b>Время принять</b>\n${pillLine(p)} · ${t}`, { reply_markup: pillReminderKeyboard(date, p, t) });
-        sent++;
+    // Отложенное после 23:30 приходится на 00:00 — оно лежит во вчерашнем дне
+    const dates = slot === "00:00" ? [new Date(local.getTime() - 86400000).toISOString().slice(0, 10), today] : [today];
+    for (const date of dates) {
+      const day = await getDay(env, u.id, date);
+      day.pills = day.pills || {};
+      let changed = false;
+      for (const p of u.pills) {
+        for (const t of p.times) {
+          const key = pillKey(p.id, t);
+          const rec = day.pills[key];
+          const due = (!rec && t === slot && date === today) || (rec?.s === "snooze" && rec.at === slot);
+          if (!due) continue;
+          day.pills[key] = { s: "sent", at: slot };
+          changed = true;
+          await send(env, u.id, `💊 <b>Время принять</b>\n${pillLine(p)} · ${t}`, { reply_markup: pillReminderKeyboard(date, p, t) });
+          sent++;
+        }
       }
+      if (changed) await saveDay(env, u.id, date, day);
     }
-    if (changed) await saveDay(env, u.id, date, day);
   }
   return sent;
 }
