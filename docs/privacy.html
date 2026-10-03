@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Политика конфиденциальности — FITTER</title>
+  <meta name="description" content="Какие данные собирает Telegram-бот FITTER, зачем, где они хранятся и как их удалить.">
+  <meta name="robots" content="index,follow">
+  <link rel="canonical" href="https://sailxx.github.io/FITTER-AI/privacy.html">
+  <meta name="theme-color" content="#f7f8f2">
+  <link rel="icon" href="icon-32.png" sizes="32x32" type="image/png">
+  <link rel="icon" href="logo.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="icon-180.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root{--paper:#f7f8f2;--ink:#171916;--muted:#687067;--green:#c9f36b;--line:#dfe3d8;--card:#fff}
+    *{box-sizing:border-box}body{margin:0;background:var(--paper);color:var(--ink);font-family:Manrope,Arial,sans-serif;-webkit-font-smoothing:antialiased}a{color:inherit}.wrap{width:min(760px,calc(100% - 44px));margin:auto}
+    header{height:78px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--line)}.brand{display:flex;align-items:center;gap:10px;text-decoration:none;font-size:20px;font-weight:800;letter-spacing:-1px}.brand img{width:38px;height:38px}
+    .button{display:inline-flex;align-items:center;min-height:42px;padding:0 18px;border-radius:14px;background:var(--ink);color:#fff;text-decoration:none;font-weight:800;font-size:13px}
+    main{padding:56px 0 70px}.kicker{font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:#709933;font-weight:800}
+    h1{font-size:clamp(34px,5vw,52px);line-height:1.05;letter-spacing:-.06em;margin:14px 0 12px}.date{color:var(--muted);font-size:13px;margin:0 0 30px}
+    .summary{background:var(--card);border:1px solid var(--line);border-radius:20px;padding:22px 24px;margin-bottom:38px}.summary ul{margin:10px 0 0;padding-left:20px}
+    h2{font-size:22px;letter-spacing:-.04em;margin:38px 0 10px}p,li{font-size:15px;line-height:1.75}li{margin:4px 0}ul{padding-left:22px}p{margin:10px 0}
+    table{width:100%;border-collapse:collapse;font-size:14px;margin:12px 0}th,td{text-align:left;vertical-align:top;padding:10px 8px;border-bottom:1px solid var(--line);line-height:1.55}th{font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
+    code{background:#eaf4d8;border-radius:6px;padding:1px 6px;font-size:13px}
+    footer{display:flex;justify-content:space-between;gap:18px;flex-wrap:wrap;padding:24px 0 34px;border-top:1px solid var(--line);color:var(--muted);font-size:12px}
+    @media(max-width:520px){.wrap{width:min(100% - 30px,760px)}header{height:66px}main{padding-top:38px}table,thead,tbody,tr,th,td{display:block}thead{display:none}td{border:0;padding:4px 0}tr{border-bottom:1px solid var(--line);padding:10px 0}td:first-child{font-weight:800}}
+  </style>
+</head>
+<body>
+<header class="wrap"><a class="brand" href="./"><img src="logo.svg" alt="Логотип FITTER" width="38" height="38"><span>FITTER</span></a><a class="button" href="https://t.me/FitterFoodBot?start=privacy" target="_blank" rel="noopener">Открыть бота ↗</a></header>
+<main class="wrap">
+  <div class="kicker">Документ</div>
+  <h1>Политика конфиденциальности</h1>
+  <p class="date">Действует с 3 октября 2026 года</p>
+
+  <div class="summary">
+    <b>Коротко</b>
+    <ul>
+      <li>Мы храним только то, что нужно для дневника: анкету, записи еды, воды, веса и таблеток.</li>
+      <li>Фото еды не сохраняются: они уходят в нейросеть Google Gemini только для распознавания.</li>
+      <li>Мы не продаём данные, не показываем рекламу и не используем сторонние счётчики посещений.</li>
+      <li>Удалить все данные можно в любой момент — напишите автору.</li>
+    </ul>
+  </div>
+
+  <h2>1. Кто обрабатывает данные</h2>
+  <p>Сервис FITTER — Telegram-бот <a href="https://t.me/FitterFoodBot">@FitterFoodBot</a> и его дневник (Telegram Mini App). Оператор данных — автор проекта Владислав. Связь по любым вопросам о данных: <a href="https://t.me/arkhitkovv">t.me/arkhitkovv</a>.</p>
+  <p>Исходный код сервиса открыт: <a href="https://github.com/sailxx/FITTER-AI">github.com/sailxx/FITTER-AI</a>. Всё, что описано ниже, можно проверить в коде.</p>
+
+  <h2>2. Какие данные мы получаем</h2>
+  <table>
+    <thead><tr><th>Данные</th><th>Откуда</th><th>Зачем</th></tr></thead>
+    <tbody>
+      <tr><td>Telegram ID и имя из профиля Telegram</td><td>Telegram при первом сообщении</td><td>Узнавать вас и обращаться по имени</td></tr>
+      <tr><td>Пол, возраст, рост, вес, уровень активности, цель</td><td>Анкета при старте и <code>/reset</code></td><td>Рассчитать дневную норму калорий, БЖУ и воды</td></tr>
+      <tr><td>Записи еды: продукты, вес, КБЖУ, время</td><td>Ваши фото, сообщения, штрихкоды, дневник</td><td>Вести дневник и итоги дня и недели</td></tr>
+      <tr><td>Вода и история веса</td><td>Ваши записи</td><td>Показывать прогресс и графики</td></tr>
+      <tr><td>Таблетки и витамины: название, время приёма, отметки</td><td>Ваши записи в дневнике</td><td>Напоминать о приёме</td></tr>
+      <tr><td>Настройки: часовой пояс, напоминания, тихие часы</td><td>Ваш выбор в боте</td><td>Присылать напоминания в нужное время</td></tr>
+      <tr><td>Серии, достижения, счётчики использования</td><td>Рассчитываются автоматически</td><td>Награды и общая статистика сервиса</td></tr>
+      <tr><td>Метка источника из ссылки (например, <code>site</code>)</td><td>Ссылка, по которой вы пришли</td><td>Понимать, откуда приходят новые пользователи</td></tr>
+    </tbody>
+  </table>
+  <p>Вес, рост и записи о питании и таблетках относятся к данным о здоровье. Мы используем их только для работы дневника и напоминаний. Вы сообщаете их добровольно и можете не указывать лекарства, если не хотите.</p>
+  <p>Мы не запрашиваем телефон, почту, геолокацию и платёжные данные.</p>
+
+  <h2>3. Фото и сообщения</h2>
+  <p>Фото еды скачивается из Telegram, отправляется в Google Gemini для распознавания и сразу удаляется из памяти сервера — мы его не храним. В дневник попадает только результат: список продуктов и КБЖУ.</p>
+  <p>Текстовые сообщения о еде, вопросы боту и запросы «Что съесть» также передаются в Gemini. Для точного ответа вместе с ними передаются ваша анкета (пол, возраст, рост, вес, цель) и дневная норма.</p>
+  <p>Не отправляйте боту фото людей, документов и другую личную информацию — бот предназначен только для еды.</p>
+
+  <h2>4. Кому передаются данные</h2>
+  <ul>
+    <li><b>Telegram</b> — через него вы общаетесь с ботом. Действует <a href="https://telegram.org/privacy">политика Telegram</a>.</li>
+    <li><b>Google (Gemini API)</b> — распознаёт фото и текст, составляет советы и разбор недели. Google обрабатывает запросы по <a href="https://ai.google.dev/gemini-api/terms">условиям Gemini API</a>. При бесплатном тарифе Google может использовать запросы для улучшения своих сервисов, в том числе с проверкой людьми.</li>
+    <li><b>Cloudflare</b> — серверы и база данных, где работает бот и хранится дневник. Действует <a href="https://www.cloudflare.com/privacypolicy/">политика Cloudflare</a>.</li>
+    <li><b>Open Food Facts</b> — открытая база продуктов. Туда уходит только номер штрихкода, без данных о вас.</li>
+  </ul>
+  <p>Серверы этих компаний могут находиться за пределами России. Пользуясь ботом, вы соглашаетесь на такую передачу. Больше данные никому не передаются, кроме случаев, прямо предусмотренных законом.</p>
+
+  <h2>5. Сколько хранятся данные</h2>
+  <ul>
+    <li>Анкета, дневник, вес и таблетки — пока вы пользуетесь ботом или пока не попросите удалить.</li>
+    <li>Варианты «Что съесть» — 6 часов, кэш ИИ-разбора недели — 12 часов.</li>
+    <li>Технические логи ошибок — короткий срок, установленный Cloudflare. Логи нужны только для поиска сбоев.</li>
+  </ul>
+
+  <h2>6. Как защищены данные</h2>
+  <ul>
+    <li>Бот принимает запросы только от Telegram с секретным ключом.</li>
+    <li>Дневник проверяет подпись Telegram, поэтому чужой дневник открыть нельзя.</li>
+    <li>Ключи доступа хранятся в защищённых настройках Cloudflare, а не в коде.</li>
+  </ul>
+
+  <h2>7. Ваши права</h2>
+  <ul>
+    <li><b>Посмотреть</b> свои данные — в дневнике и командах бота.</li>
+    <li><b>Исправить</b> — изменить записи в дневнике, пройти анкету заново через <code>/reset</code>.</li>
+    <li><b>Удалить</b> отдельные записи — в дневнике; все данные целиком — по запросу автору в <a href="https://t.me/arkhitkovv">Telegram</a>, укажите свой Telegram ID или юзернейм. Удаляем в течение 30 дней.</li>
+    <li><b>Отключить</b> напоминания — в настройках бота. Чтобы бот совсем перестал писать, заблокируйте его в Telegram.</li>
+  </ul>
+
+  <h2>8. Сайт</h2>
+  <p>Этот сайт размещён на GitHub Pages, шрифты загружаются с Google Fonts — эти сервисы видят ваш IP-адрес по своим правилам. Мы не ставим cookies и не подключаем счётчики посещений. Дневник хранит в браузере Telegram только пометки о показанных подсказках.</p>
+
+  <h2>9. Дети</h2>
+  <p>Сервис не предназначен для детей младше 14 лет. Если вы родитель и считаете, что ребёнок передал нам данные, напишите — мы их удалим.</p>
+
+  <h2>10. Важно</h2>
+  <p>FITTER оценивает калории приблизительно. Сервис не является медицинским и не заменяет консультацию врача или диетолога.</p>
+
+  <h2>11. Изменения политики</h2>
+  <p>Мы можем обновлять эту политику. Новая версия публикуется на этой странице с датой вступления в силу. О существенных изменениях сообщим в боте.</p>
+</main>
+<footer class="wrap"><span>FITTER · Одно фото. Полный контроль.</span><span><a href="./">Главная</a> · <a href="https://github.com/sailxx/FITTER-AI">Исходный код</a> · <a href="https://t.me/FitterFoodBot?start=privacy">Telegram-бот</a></span></footer>
+</body>
+</html>
