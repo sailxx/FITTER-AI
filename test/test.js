@@ -322,6 +322,15 @@ console.log("✓ Mini App API, итого за день:", Math.round(d.totals.k
   assert.equal((await a.json()).s, "taken");
   a = await apiCall("/api/pill/mark", "POST", { date, id: "nope", time: slot, s: "taken" });
   assert.equal(a.status, 404);
+  // Отложенное в 23:30 приходит в 00:00 уже следующих суток
+  await env.DB.put("d:42:2030-01-01", JSON.stringify({ meals: [], pills: { [`${pid}@${slot}`]: { s: "snooze", at: "00:00" } } }));
+  sent.length = 0;
+  // (если приём сам стоит на 00:00, придёт ещё и сегодняшнее)
+  assert.equal(await _test.pillTick(env, Date.UTC(2030, 0, 2, 0, 5) - tz * 60000), slot === "00:00" ? 2 : 1);
+  assert.equal(sent[0].body.reply_markup.inline_keyboard[0][0].callback_data, `p|t|2030-01-01|${pid}|${slot}`);
+  assert.equal(JSON.parse(await env.DB.get("d:42:2030-01-01")).pills[`${pid}@${slot}`].s, "sent");
+  await env.DB.delete("d:42:2030-01-01");
+  await env.DB.delete("d:42:2030-01-02");
   // Удаление убирает и из рассылки
   a = await apiCall("/api/pill/delete", "POST", { date, id: pid });
   assert.equal(a.status, 200);
@@ -579,6 +588,25 @@ console.log("✓ /app и /setup");
   st = await call({ message: { message_id: 1, from: other, chat: { id: 88, type: "private" }, text: "/stats" } });
   assert.match(lastText(st), /только для владельца/);
   delete env.ADMIN_ID;
+
+  // Расчёт на известных данных: двое пришли 20 дней назад из habr, один сегодня
+  const now = Date.parse("2026-10-03T09:00:00Z");
+  const users = [
+    { id: 1, src: "habr", targets: {}, created: now - 20 * 864e5 },
+    { id: 2, src: "habr", created: now - 20 * 864e5 },
+    { id: 3, created: now },
+  ];
+  const keys = ["d:1:2026-09-13", "d:1:2026-09-14", "d:1:2026-09-21", "d:3:2026-10-03", "d:3:bad"];
+  const s = _test.statsText(users, keys, 30, now);
+  assert.match(s, /Всего: <b>3<\/b> · за сутки \+1/);
+  assert.match(s, /Активны сегодня: <b>1<\/b> · 7 дн\.: <b>1<\/b> · 30 дн\.: <b>2<\/b>/);
+  assert.match(s, /1 день: <b>50%<\/b> \(1 из 2\)/);
+  assert.match(s, /7 дней: <b>50%<\/b> \(1 из 2\)/);
+  assert.match(s, /30 дней: пока рано/);
+  assert.match(s, /<b>habr<\/b> — 2 · анкета 50% · еда 50% · неделя 50%/);
+  assert.match(s, /07\.09 +2 +50% +0% +· +·/);
+  assert.equal(_test.spark([0, 1, 2]), "▁▅█");
+  console.log("✓ /stats: метки источников, рост, удержание, когорты");
 }
 
 // 12. Набор иконок: эмодзи с полом и оттенком кожи тоже находятся
