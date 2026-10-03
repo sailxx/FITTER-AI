@@ -330,6 +330,10 @@ console.log("✓ Mini App API, итого за день:", Math.round(d.totals.k
   assert.equal(r.find((x) => x.method === "answerCallbackQuery").body.text, "Этого препарата уже нет в списке");
   assert.equal(_test.nextSlot("23:30"), "00:00");
   assert.match(_test.APP_HTML, /Таблетки/);
+  // Переключатель темы: кнопка и обе палитры
+  assert.match(_test.APP_HTML, /id="theme"/);
+  assert.match(_test.APP_HTML, /data-theme="light"]/);
+  assert.match(_test.APP_HTML, /data-theme="dark"]/);
   console.log("✓ таблетки: дневник, напоминания, кнопки");
 }
 
