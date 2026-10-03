@@ -2465,6 +2465,10 @@ const APP_HTML = `<!doctype html>
     --w1:#5ab8ff; --w2:#2a7bf0;
     --shadow:0 6px 24px rgba(16,40,28,.08);
   }
+  /* Тема, выбранная кнопкой: перекрывает цвета Telegram */
+  html[data-theme="light"]{--bg:#f3f5f2;--card:#ffffff;--text:#13201a;--hint:#8a948e;--line:rgba(127,127,127,.14);--shadow:0 6px 24px rgba(16,40,28,.08)}
+  html[data-theme="dark"]{--bg:#0e1311;--card:#1a211e;--text:#eef3f0;--hint:#87928c;--line:rgba(255,255,255,.09);--shadow:0 6px 24px rgba(0,0,0,.35)}
+  html.tt,html.tt *{transition:background-color .3s,color .3s,border-color .3s!important}
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
   html,body{margin:0;background:var(--bg);color:var(--text);font:15px/1.4 -apple-system,BlinkMacSystemFont,"SF Pro Rounded","Segoe UI",Roboto,sans-serif}
   body{padding-bottom:28px;overflow-x:hidden}
@@ -2636,7 +2640,7 @@ const APP_HTML = `<!doctype html>
 <div class="hero">
   <div class="top">
     <div class="logo"><span class="mk"><svg class="ic" style="width:22px;height:22px"><use href="#i-apple"/></svg></span><div>FITTER</div></div>
-    <div class="nav"><button id="prev">‹</button><span class="d" id="dl">…</span><button id="next">›</button></div>
+    <div class="nav"><button id="theme" aria-label="Сменить тему"></button><button id="prev">‹</button><span class="d" id="dl">…</span><button id="next">›</button></div>
   </div>
   <div id="hero"><div class="load">Загрузка…</div></div>
 </div>
@@ -2645,6 +2649,28 @@ const APP_HTML = `<!doctype html>
 (function(){
   var tg = window.Telegram && window.Telegram.WebApp;
   if (tg) { tg.ready(); tg.expand(); try { tg.setHeaderColor("#2ee59d"); } catch(e){} }
+
+  // Тема: выбор сохраняется на устройстве, по умолчанию — как в Telegram
+  var themeBtn = document.getElementById("theme");
+  var SUN = '<svg class="ic" style="width:19px;height:19px;margin:auto" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v2M12 19.5v2M2.5 12h2M19.5 12h2M5.3 5.3l1.4 1.4M17.3 17.3l1.4 1.4M5.3 18.7l1.4-1.4M17.3 6.7l1.4-1.4"/></svg>';
+  var MOON = '<svg class="ic" style="width:18px;height:18px;margin:auto" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z"/></svg>';
+  function savedTheme(){ try { return localStorage.getItem("fitter_theme"); } catch(e){ return null; } }
+  function setTheme(t, save){
+    document.documentElement.setAttribute("data-theme", t);
+    themeBtn.innerHTML = t === "dark" ? SUN : MOON;
+    try { tg.setBackgroundColor(t === "dark" ? "#0e1311" : "#f3f5f2"); } catch(e){}
+    if (save) try { localStorage.setItem("fitter_theme", t); } catch(e){}
+  }
+  var sysTheme = (tg && tg.colorScheme) || (window.matchMedia && matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+  setTheme(savedTheme() || sysTheme, false);
+  themeBtn.onclick = function(){
+    var el = document.documentElement;
+    el.classList.add("tt");
+    setTheme(el.getAttribute("data-theme") === "dark" ? "light" : "dark", true);
+    tick();
+    setTimeout(function(){ el.classList.remove("tt"); }, 350);
+  };
+
   var initData = tg ? tg.initData : "";
   var MONTHS = ["января","февраля","марта","апреля","мая","июня","июля","августа","сентября","октября","ноября","декабря"];
   var WD = ["Пн","Вт","Ср","Чт","Пт","Сб","Вс"];
