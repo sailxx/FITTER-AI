@@ -322,6 +322,15 @@ console.log("✓ Mini App API, итого за день:", Math.round(d.totals.k
   assert.equal((await a.json()).s, "taken");
   a = await apiCall("/api/pill/mark", "POST", { date, id: "nope", time: slot, s: "taken" });
   assert.equal(a.status, 404);
+  // Отложенное в 23:30 приходит в 00:00 уже следующих суток
+  await env.DB.put("d:42:2030-01-01", JSON.stringify({ meals: [], pills: { [`${pid}@${slot}`]: { s: "snooze", at: "00:00" } } }));
+  sent.length = 0;
+  // (если приём сам стоит на 00:00, придёт ещё и сегодняшнее)
+  assert.equal(await _test.pillTick(env, Date.UTC(2030, 0, 2, 0, 5) - tz * 60000), slot === "00:00" ? 2 : 1);
+  assert.equal(sent[0].body.reply_markup.inline_keyboard[0][0].callback_data, `p|t|2030-01-01|${pid}|${slot}`);
+  assert.equal(JSON.parse(await env.DB.get("d:42:2030-01-01")).pills[`${pid}@${slot}`].s, "sent");
+  await env.DB.delete("d:42:2030-01-01");
+  await env.DB.delete("d:42:2030-01-02");
   // Удаление убирает и из рассылки
   a = await apiCall("/api/pill/delete", "POST", { date, id: pid });
   assert.equal(a.status, 200);
