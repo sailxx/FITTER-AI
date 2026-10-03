@@ -575,6 +575,25 @@ console.log("✓ /app и /setup");
   st = await call({ message: { message_id: 1, from: other, chat: { id: 88, type: "private" }, text: "/stats" } });
   assert.match(lastText(st), /только для владельца/);
   delete env.ADMIN_ID;
+
+  // Расчёт на известных данных: двое пришли 20 дней назад из habr, один сегодня
+  const now = Date.parse("2026-10-03T09:00:00Z");
+  const users = [
+    { id: 1, src: "habr", targets: {}, created: now - 20 * 864e5 },
+    { id: 2, src: "habr", created: now - 20 * 864e5 },
+    { id: 3, created: now },
+  ];
+  const keys = ["d:1:2026-09-13", "d:1:2026-09-14", "d:1:2026-09-21", "d:3:2026-10-03", "d:3:bad"];
+  const s = _test.statsText(users, keys, 30, now);
+  assert.match(s, /Всего: <b>3<\/b> · за сутки \+1/);
+  assert.match(s, /Активны сегодня: <b>1<\/b> · 7 дн\.: <b>1<\/b> · 30 дн\.: <b>2<\/b>/);
+  assert.match(s, /1 день: <b>50%<\/b> \(1 из 2\)/);
+  assert.match(s, /7 дней: <b>50%<\/b> \(1 из 2\)/);
+  assert.match(s, /30 дней: пока рано/);
+  assert.match(s, /<b>habr<\/b> — 2 · анкета 50% · еда 50% · неделя 50%/);
+  assert.match(s, /07\.09 +2 +50% +0% +· +·/);
+  assert.equal(_test.spark([0, 1, 2]), "▁▅█");
+  console.log("✓ /stats: метки источников, рост, удержание, когорты");
 }
 
 // 12. Набор иконок: эмодзи с полом и оттенком кожи тоже находятся

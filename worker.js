@@ -650,7 +650,25 @@ function startSource(text) {
 
 const pct = (a, b) => (b ? Math.round((a / b) * 100) : 0);
 
-// /stats [дней] — статистика для владельца: новые люди, анкета, еда, удержание по источникам
+// Все ключи с префиксом (KV отдаёт по 1000 за раз)
+async function listAll(env, prefix) {
+  const names = [];
+  let cursor;
+  do {
+    const page = await env.DB.list({ prefix, cursor });
+    names.push(...page.keys.map((k) => k.name));
+    cursor = page.list_complete ? null : page.cursor;
+  } while (cursor);
+  return names;
+}
+
+// Мини-график из столбиков: ▁ — ноль, █ — максимум
+function spark(nums) {
+  const bars = "▂▃▄▅▆▇█", max = Math.max(...nums);
+  return nums.map((n) => (n && max ? bars[Math.min(6, Math.floor((n / max) * 6.999))] : "▁")).join("");
+}
+
+// /stats [дней] — статистика для владельца: рост, активность, удержание, источники
 async function sendStats(env, chatId, from, text) {
   if (!env.ADMIN_ID) {
     return send(env, chatId,
@@ -659,43 +677,89 @@ async function sendStats(env, chatId, from, text) {
   }
   if (String(from.id) !== String(env.ADMIN_ID)) return send(env, chatId, "Эта команда только для владельца бота");
   const days = Math.min(365, Math.max(1, parseInt(text.split(/\s+/)[1], 10) || 30));
-  const now = Date.now(), since = now - days * 864e5;
-  const users = [];
-  let cursor;
-  do {
-    const page = await env.DB.list({ prefix: "u:", cursor });
-    const batch = await Promise.all(page.keys.map((k) => env.DB.get(k.name, "json")));
-    users.push(...batch.filter(Boolean));
-    cursor = page.list_complete ? null : page.cursor;
-  } while (cursor);
+  const users = (await Promise.all((await listAll(env, "u:")).map((k) => env.DB.get(k, "json")))).filter(Boolean);
+  // Активный день = есть ключ дня d:{id}:{дата} (еда, вода или таблетки). Значения не читаем — хватает имён ключей
+  const dayKeys = await listAll(env, "d:");
+  return send(env, chatId, statsText(users, dayKeys, days, Date.now()));
+}
 
-  const ate = (u) => (u.st?.meals || 0) > 0 || !!u.streak?.last;
-  const lastMeal = (u) => (u.streak?.last ? Date.parse(u.streak.last + "T12:00:00Z") : 0);
-  const returned = (u) => lastMeal(u) - (u.created || now) >= 7 * 864e5;
-  const fresh = users.filter((u) => (u.created || 0) >= since);
-  const day1 = users.filter((u) => (u.created || 0) >= now - 864e5).length;
-  const active7 = users.filter((u) => lastMeal(u) >= now - 8 * 864e5).length;
+function statsText(users, dayKeys, days, now) {
+  const t = new Date(now + DEFAULT_TZ * 60000).toISOString().slice(0, 10);
+  const back = (n) => shiftDate(t, -n);
+  const active = new Map(); // id → множество дат с записями
+  for (const k of dayKeys) {
+    const [, id, date] = k.split(":");
+    if (!isDate(date)) continue;
+    (active.get(id) || active.set(id, new Set()).get(id)).add(date);
+  }
+  const dates = (u) => active.get(String(u.id)) || new Set();
+  const born = (u) => new Date((u.created || now) + tzOf(u) * 60000).toISOString().slice(0, 10);
+  const activeSince = (u, from) => [...dates(u)].some((d) => d >= from);
+  const countOn = (d) => users.filter((u) => dates(u).has(d)).length;
+  const ate = (u) => (u.st?.meals || 0) > 0 || !!u.streak?.last || dates(u).size > 0;
 
+  // Рост и активность
+  const dau = countOn(t), wau = users.filter((u) => activeSince(u, back(6))).length;
+  const mau = users.filter((u) => activeSince(u, back(29))).length;
+  const span = [...Array(14)].map((_, i) => back(13 - i));
+  const newBy = span.map((d) => users.filter((u) => born(u) === d).length);
+  const actBy = span.map(countOn);
+
+  // Воронка новых за период
+  const fresh = users.filter((u) => born(u) > back(days));
+  const form = fresh.filter((u) => u.targets).length, food = fresh.filter(ate).length;
+  // Удержание: вернулся через N+ дней. Считаем по тем, кто пришёл в окно из `days` дней, закончившееся N дней назад
+  const ret = (n) => {
+    const base = users.filter((u) => born(u) <= back(n) && born(u) > back(n + days));
+    const ok = base.filter((u) => activeSince(u, shiftDate(born(u), n))).length;
+    return base.length ? `<b>${pct(ok, base.length)}%</b> (${ok} из ${base.length})` : "пока рано";
+  };
+
+  // Когорты по неделям регистрации: доля активных на 1–4-й неделе после прихода
+  const weekStart = (d) => shiftDate(d, -((new Date(d + "T00:00:00Z").getUTCDay() + 6) % 7));
+  const cohorts = [];
+  for (let w = 5; w >= 0; w--) {
+    const start = shiftDate(weekStart(t), -7 * w), end = shiftDate(start, 6);
+    const group = users.filter((u) => born(u) >= start && born(u) <= end);
+    if (!group.length) continue;
+    const cells = [1, 2, 3, 4].map((k) => {
+      if (shiftDate(end, 7 * k) > t) return "   ·";
+      const ok = group.filter((u) => [...dates(u)].some((d) => d >= shiftDate(born(u), 7 * k) && d <= shiftDate(born(u), 7 * k + 6))).length;
+      return String(pct(ok, group.length) + "%").padStart(4);
+    });
+    cohorts.push(`${start.slice(8)}.${start.slice(5, 7)}  ${String(group.length).padStart(4)}  ${cells.join(" ")}`);
+  }
+
+  // Источники
   const bySrc = {};
   for (const u of fresh) {
-    const r = (bySrc[u.src || "direct"] ||= { n: 0, form: 0, ate: 0 });
+    const r = (bySrc[u.src || "direct"] ||= { n: 0, form: 0, ate: 0, old: 0, back: 0 });
     r.n++;
     if (u.targets) r.form++;
     if (ate(u)) r.ate++;
+    if (born(u) <= back(7)) { r.old++; if (activeSince(u, shiftDate(born(u), 7))) r.back++; }
   }
-  const rows = Object.entries(bySrc).sort((a, b) => b[1].n - a[1].n)
-    .map(([k, r]) => `• <b>${esc(k)}</b> — ${r.n} · анкета ${pct(r.form, r.n)}% · еда ${pct(r.ate, r.n)}%`);
-  const form = fresh.filter((u) => u.targets).length, food = fresh.filter(ate).length;
-  const old = fresh.filter((u) => (u.created || now) <= now - 7 * 864e5);
+  const rows = Object.entries(bySrc).sort((a, b) => b[1].n - a[1].n).slice(0, 10)
+    .map(([k, r]) => `• <b>${esc(k)}</b> — ${r.n} · анкета ${pct(r.form, r.n)}% · еда ${pct(r.ate, r.n)}%` +
+      (r.old ? ` · неделя ${pct(r.back, r.old)}%` : ""));
 
-  return send(env, chatId,
-    `📊 <b>Статистика FITTER</b>\n\n` +
-    `<blockquote>👥 Всего: <b>${users.length}</b>\n🆕 За сутки: <b>${day1}</b>\n🔥 Записывали еду за 7 дней: <b>${active7}</b></blockquote>\n` +
+  return `📊 <b>Статистика FITTER</b>\n\n` +
+    `<b>Рост и активность</b>\n` +
+    `<blockquote>👥 Всего: <b>${users.length}</b> · за сутки +${users.filter((u) => (u.created || 0) >= now - 864e5).length}\n` +
+    `🔥 Активны сегодня: <b>${dau}</b> · 7 дн.: <b>${wau}</b> · 30 дн.: <b>${mau}</b>\n` +
+    `📌 Возвращаемость (сегодня / 30 дн.): <b>${pct(dau, mau)}%</b></blockquote>\n` +
+    `<b>14 дней</b> · ${humanDate(span[0])} — ${humanDate(t)}\n` +
+    `<code>Новые    ${spark(newBy)}</code>  ${newBy.at(-1)} сегодня, всего ${newBy.reduce((a, b) => a + b, 0)}\n` +
+    `<code>Активные ${spark(actBy)}</code>  ${dau} сегодня, макс. ${Math.max(...actBy)}\n\n` +
     `<b>Новые за ${days} дн.: ${fresh.length}</b>\n` +
-    `<blockquote>📝 Прошли анкету: <b>${form}</b> (${pct(form, fresh.length)}%)\n🍽 Записали еду: <b>${food}</b> (${pct(food, fresh.length)}%)\n` +
-    `🔁 Вернулись через неделю: <b>${old.filter(returned).length}</b> из ${old.length}</blockquote>\n` +
-    `<b>По источникам</b>\n${rows.join("\n") || "Пока никого"}\n\n` +
-    `<i>Ссылка с меткой: t.me/FitterFoodBot?start=habr · период: /stats 7</i>`);
+    `<blockquote>📝 Прошли анкету: <b>${form}</b> (${pct(form, fresh.length)}%)\n🍽 Записали еду: <b>${food}</b> (${pct(food, fresh.length)}%)</blockquote>\n` +
+    `<b>Удержание</b> · вернулись через…\n` +
+    `<blockquote>1 день: ${ret(1)}\n7 дней: ${ret(7)}\n30 дней: ${ret(30)}</blockquote>\n` +
+    (cohorts.length
+      ? `<b>По неделям прихода</b> · активны на 1–4-й неделе\n<pre>Неделя  Люди  Нед1 Нед2 Нед3 Нед4\n${cohorts.join("\n")}</pre>\n`
+      : "") +
+    `<b>По источникам</b> · за ${days} дн.\n${rows.join("\n") || "Пока никого"}\n\n` +
+    `<i>Активный день — любая запись: еда, вода или таблетки. Период: /stats 7 · метка: t.me/FitterFoodBot?start=habr</i>`;
 }
 
 function parseNum(text) {
@@ -2950,4 +3014,4 @@ const APP_HTML = `<!doctype html>
 </html>`;
 
 // Для тестов
-export const _test = { waterTick, pillTick, nextSlot, slotOf, adviceText, weekTip, startSource, ACHIEVEMENTS, baseEmoji, calcTargets, verifyInitData, cleanItems, sumItems, parseFix, parseWater, cleanBarcode, waterGoal, APP_HTML };
+export const _test = { waterTick, pillTick, nextSlot, slotOf, adviceText, weekTip, startSource, statsText, spark, ACHIEVEMENTS, baseEmoji, calcTargets, verifyInitData, cleanItems, sumItems, parseFix, parseWater, cleanBarcode, waterGoal, APP_HTML };
