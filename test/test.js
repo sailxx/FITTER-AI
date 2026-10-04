@@ -32,12 +32,12 @@ globalThis.fetch = async (url, opts = {}) => {
     if (method === "getMe") return Response.json({ ok: true, result: { username: "fitter_test_bot" } });
     if (method === "getStickerSet") {
       if (body.name === "fitter_ui_by_fitter_test_bot") {
-        const ui = ["📊", "📅", "👤", "❓", "✏️", "🗑", "💡", "✅", "📸", "🔍", "✍️", "👋", "🤔", "😔", "🔄", "🎉", "📱", "↩️", "✨", "⌨️"];
+        const ui = ["📊", "👤", "❓", "✏️", "🗑", "💡", "✅", "📸", "🔍", "✍️", "👋", "🤔", "😔", "🔄", "🎉", "📱", "↩️", "✨", "⌨️"];
         return Response.json({ ok: true, result: { title: "FITTER UI", stickers: ui.map((e, i) => ({ emoji: e, custom_emoji_id: String(8000 + i) })) } });
       }
       if (body.name !== "fitter_by_fitter_test_bot") return Response.json({ ok: false, description: "STICKERSET_INVALID" });
       // Так Telegram может хранить эмодзи: с полом, оттенком кожи и без FE0F
-      const em = ["🍽", "🍗", "💧", "🌾", "🔥", "⚖", "📔", "🍏", "🛋", "🚶‍♂️", "🏃‍♂️", "💪🏻", "📉", "🥤", "📦", "📏", "🎂", "🏆", "1️⃣", "2️⃣", "3️⃣", "4️⃣", "💊", "⏰", "🧠", "🎯", "📝", "💬", "🟩", "🟦", "🟥", "⬜"];
+      const em = ["🍽", "🍗", "💧", "🌾", "🔥", "⚖", "📔", "🍏", "🛋", "🚶‍♂️", "🏃‍♂️", "💪🏻", "📉", "🥤", "📦", "📏", "🎂", "🏆", "1️⃣", "2️⃣", "3️⃣", "4️⃣", "💊", "⏰", "🧠", "🎯", "📝", "💬", "🟩", "🟦", "🟥", "⬜", "📅", "🔒", "📷", "📓", "💯"];
       return Response.json({ ok: true, result: { title: "FITTER ICONS", stickers: em.map((e, i) => ({ emoji: e, file_id: "f" + i, custom_emoji_id: String(9000 + i) })) } });
     }
     if (method === "sendMessage" && rejectQuote && /<blockquote>[\s\S]*<tg-emoji/.test(body.text || "")) {
@@ -625,8 +625,10 @@ console.log("✓ /app и /setup");
   assert.equal(map["🎯"], "9025", "цветная мишень");
   assert.equal(map["💊"], "9022");
   assert.equal(map["🟩"], "9028");
-  assert.equal(map["↩"], "8017");
-  assert.equal(Object.keys(map).length, 32 + 19);
+  assert.equal(map["↩"], "8016");
+  assert.equal(map["📅"], "9032", "цветной календарь");
+  assert.equal(map["🔒"], "9033", "замок в достижениях");
+  assert.equal(Object.keys(map).length, 37 + 18);
   assert.equal(map["1️⃣"], "9018");
   assert.ok(!s.some((x) => x.method === "addStickerToSet"), "ничего не добавляем заново");
   const rp = s.filter((x) => x.method === "replaceStickerInSet");
