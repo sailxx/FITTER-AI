@@ -395,6 +395,8 @@ console.log("✓ Mini App API, итого за день:", Math.round(d.totals.k
   const dd = await (await apiCall("/api/day?date=" + date)).json();
   assert.equal(dd.weights.at(-1).kg, 70.4);
   assert.match(_test.APP_HTML, /data-wedit/);
+  // Дневник сам подтягивает отметки из чата
+  assert.match(_test.APP_HTML, /setInterval\(sync, 20000\)/);
   console.log("✓ таблетки в чате, вес в дневнике");
 }
 
