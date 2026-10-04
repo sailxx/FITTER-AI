@@ -2890,9 +2890,13 @@ const APP_HTML = `<!doctype html>
   }
   function once(key){ try { if (localStorage.getItem(key)) return false; localStorage.setItem(key, "1"); } catch(e){} return true; }
 
+  var inflight = 0;
   function call(method, path, body){
+    inflight++;
+    var done = function(){ inflight--; };
     return fetch(path, { method: method, headers: { "X-Init-Data": initData, "content-type": "application/json" }, body: body ? JSON.stringify(body) : undefined })
-      .then(function(res){ return res.json().then(function(j){ if (!res.ok) throw j; return j; }); });
+      .then(function(res){ return res.json().then(function(j){ if (!res.ok) throw j; return j; }); })
+      .then(function(j){ done(); return j; }, function(e){ done(); throw e; });
   }
 
   function load(date){
@@ -3225,6 +3229,27 @@ const APP_HTML = `<!doctype html>
   });
   document.getElementById("prev").onclick = function(){ if (state.date) { tick(); load(shift(state.date, -1)); } };
   document.getElementById("next").onclick = function(){ if (state.date) { tick(); load(shift(state.date, 1)); } };
+
+  // Синхронизация с чатом: отметки таблеток, вода и записи из бота появляются без перезапуска дневника
+  function sync(){
+    var a = document.activeElement;
+    if (!state.data || inflight || state.pillMode || document.hidden) return;
+    if (a && (a.tagName === "INPUT" || a.tagName === "TEXTAREA" || a.tagName === "SELECT")) return;
+    var date = state.date, was = state.data;
+    call("GET", "/api/day?date=" + date).then(function(d){
+      if (inflight || state.pillMode || state.date !== date || state.data !== was) return;
+      var pk = function(x){ return JSON.stringify([x.pills, x.pillList]); };
+      var rest = function(x){ return JSON.stringify([x.meals, x.totals, x.targets, x.weights, x.today]); };
+      if (rest(d) !== rest(was)) { state.data = d; render(); return; }
+      state.data = d;
+      if (d.water !== was.water) waterUI();
+      if (pk(d) !== pk(was)) rerenderPills();
+    }, function(){});
+  }
+  setInterval(sync, 5000);
+  document.addEventListener("visibilitychange", function(){ if (!document.hidden) sync(); });
+  window.addEventListener("focus", sync);
+  if (tg && tg.onEvent) { try { tg.onEvent("activated", sync); } catch(e){} }
 
   load(null);
 })();
