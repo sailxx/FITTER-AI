@@ -346,6 +346,52 @@ console.log("✓ Mini App API, итого за день:", Math.round(d.totals.k
   console.log("✓ таблетки: дневник, напоминания, кнопки");
 }
 
+// 8d. Таблетки в чате и вес в дневнике
+{
+  assert.deepEqual(_test.parsePill("Витамин D, 1 капсула, 9:00 21:00"), { name: "Витамин D", dose: "1 капсула", times: ["09:00", "21:00"] });
+  assert.deepEqual(_test.parsePill("Магний 2 таб в 14:40"), { name: "Магний", dose: "2 таб", times: ["14:30"] });
+  assert.equal(_test.parsePill("Омега-3"), null);
+  assert.equal(_test.parsePill("9:00"), null);
+  // Кнопка меню вместо «Вес»
+  let r = await msg("/start");
+  const kb = r.find((x) => x.body.reply_markup?.keyboard).body.reply_markup.keyboard.flat().map((b) => b.text);
+  assert.ok(kb.some((t) => /Таблетки/.test(t)) && !kb.some((t) => /Вес$/.test(t)));
+  r = await msg("💊 Таблетки");
+  assert.match(lastText(r), /Добавь витамины/);
+  r = await cb("pl|add");
+  assert.match(lastText(r), /название, дозу и время/);
+  r = await msg("Омега-3");
+  assert.match(lastText(r), /Напиши название и время/);
+  r = await msg("Омега-3, 2 капсулы, 9:00 21:00");
+  assert.ok(r.some((x) => /Добавил[\s\S]*Омега-3/.test(x.body.text || "")));
+  assert.match(lastText(r), /Таблетки на сегодня<\/b> · 0 из 2/);
+  const u42 = await env.DB.get("u:42", "json");
+  const pid = u42.pills[0].id;
+  const date = r.at(-1).body.reply_markup.inline_keyboard[0][0].callback_data.split("|")[2];
+  assert.ok((await env.DB.get("pl:ids", "json")).includes(42));
+  // Отметка и снятие отметки из списка
+  r = await cb(`pl|m|${date}|${pid}|09:00`);
+  assert.match(lastText(r), /1 из 2/);
+  r = await cb(`pl|m|${date}|${pid}|09:00`);
+  assert.match(lastText(r), /0 из 2/);
+  // Удаление
+  r = await cb("pl|edit");
+  assert.match(lastText(r), /Мои препараты/);
+  r = await cb(`pl|x|${pid}`);
+  assert.match(lastText(r), /Добавь витамины/);
+  assert.ok(!(await env.DB.get("pl:ids", "json")).includes(42));
+  // Вес из дневника: карандаш и /api/weight
+  let a = await apiCall("/api/weight", "POST", { date, kg: 500 });
+  assert.equal(a.status, 400);
+  a = await apiCall("/api/weight", "POST", { date, kg: 70.44 });
+  assert.equal(a.status, 200);
+  assert.equal((await a.json()).kg, 70.4);
+  const dd = await (await apiCall("/api/day?date=" + date)).json();
+  assert.equal(dd.weights.at(-1).kg, 70.4);
+  assert.match(_test.APP_HTML, /data-wedit/);
+  console.log("✓ таблетки в чате, вес в дневнике");
+}
+
 // 9. Страницы
 r = await worker.fetch(new Request(base + "/app"), env, ctx);
 const html = await r.text();

@@ -334,7 +334,7 @@ function edit(env, chatId, messageId, text, extra = {}) {
 const MAIN_KEYBOARD = {
   keyboard: [
     [{ text: "📊 Сегодня" }, { text: "📅 Неделя" }],
-    [{ text: "💧 Вода" }, { text: "⚖️ Вес" }],
+    [{ text: "💧 Вода" }, { text: "💊 Таблетки" }],
     [{ text: "👤 Профиль" }, { text: "❓ Помощь" }],
   ],
   resize_keyboard: true,
@@ -644,7 +644,8 @@ const HELP = `🍏 <b>FITTER</b> — твой счётчик калорий 🥦
 ⌨️ <b>Команды</b>
 /today — итоги дня · /week — неделя
 /water — вода · /remind — напоминания
-/weight — вес · /profile — профиль
+/pills — таблетки · /weight — вес
+/profile — профиль
 /app — дневник
 /advice — что съесть · /analysis — разбор недели
 /awards — достижения
@@ -840,6 +841,18 @@ async function onMessage(msg, env) {
     await saveUser(env, u);
   }
 
+  // Ждём новый препарат: «Витамин D, 1 капсула, 9:00 21:00»
+  if (u.state && u.state.type === "pilladd") {
+    if (text && !text.startsWith("/") && !isMenu(text)) {
+      const p = parsePill(text);
+      if (!p) return send(env, chatId, "Напиши название и время приёма, например: <b>Витамин D, 1 капсула, 9:00</b>");
+      u.state = null;
+      return addPill(env, u, chatId, p);
+    }
+    u.state = null;
+    await saveUser(env, u);
+  }
+
   // Ждём вес тела
   if (u.state && u.state.type === "weight") {
     const kg = parseNum(text);
@@ -877,6 +890,7 @@ async function onMessage(msg, env) {
     case "/analysis": return sendAnalysis(env, u, chatId);
     case "/advice": return sendAdvice(env, u, chatId);
     case "/water": return sendWater(env, u, chatId);
+    case "/pills": return sendPills(env, u, chatId);
     case "/help": return send(env, chatId, HELP, { reply_markup: MAIN_KEYBOARD });
     case "/app":
       return send(env, chatId, "Твой дневник питания по дням 👇", { reply_markup: { inline_keyboard: [[appButton(env)]] } });
@@ -894,7 +908,8 @@ async function onMessage(msg, env) {
 }
 
 // Кнопки меню: с иконкой Telegram присылает текст без эмодзи, поэтому смотрим только на слово
-const MENU = { "Сегодня": "/today", "Неделя": "/week", "Вода": "/water", "Вес": "/weight", "Профиль": "/profile", "Помощь": "/help" };
+// «Вес» остаётся для тех, у кого ещё старая клавиатура
+const MENU = { "Сегодня": "/today", "Неделя": "/week", "Вода": "/water", "Таблетки": "/pills", "Вес": "/weight", "Профиль": "/profile", "Помощь": "/help" };
 const menuLabel = (t) => String(t).replace(/^[^A-Za-zА-Яа-яЁё]+/, "").trim();
 const isMenu = (t) => !!MENU[menuLabel(t)];
 
@@ -1071,6 +1086,7 @@ async function onCallback(q, env) {
     await answer();
     return sendAwards(env, u, chatId);
   }
+  if (kind === "pl") return onPillsButton(env, u, chatId, msgId, data.split("|"), answer);
   if (kind === "p") {
     const [, act, date, id, t] = data.split("|");
     return onPillButton(env, u, chatId, msgId, act, date, id, t, answer);
@@ -1728,7 +1744,8 @@ async function sendProfile(env, u, chatId) {
   });
 }
 
-async function logWeight(env, u, chatId, kg) {
+// Записываем вес за сегодня и пересчитываем норму
+async function saveWeight(env, u, kg) {
   kg = r1(kg);
   const list = await getWeights(env, u.id);
   const date = today(u);
@@ -1740,6 +1757,12 @@ async function logWeight(env, u, chatId, kg) {
   u.state = null;
   u.targets = calcTargets(u);
   await saveUser(env, u);
+  return { list, date, prev, fresh: await progress(env, u, "weigh", date) };
+}
+
+async function logWeight(env, u, chatId, kg) {
+  const { list, prev, fresh } = await saveWeight(env, u, kg);
+  kg = u.weight;
   const diff = r1(kg - prev);
   const first = list.length ? list[0].kg : kg;
   const total = r1(kg - first);
@@ -1751,7 +1774,7 @@ async function logWeight(env, u, chatId, kg) {
       `\n\nНорма пересчитана: <b>${u.targets.kcal} ккал</b> в день`,
     { reply_markup: MAIN_KEYBOARD }
   );
-  await announce(env, chatId, await progress(env, u, "weigh", date));
+  await announce(env, chatId, fresh);
   return r;
 }
 
@@ -2208,6 +2231,117 @@ async function onPillButton(env, u, chatId, msgId, action, date, id, t, answer) 
   return edit(env, chatId, msgId, `💊 ${head}\n${tail}`, s === "snooze" ? {} : { reply_markup: { inline_keyboard: [[appButton(env, "📱 Все таблетки в дневнике")]] } });
 }
 
+// ── Таблетки в чате: список на сегодня, отметки, добавление и удаление ──
+
+// «Витамин D, 1 капсула, 9:00 21:00» → { name, dose, times }; время округляем до 30 минут
+function parsePill(text) {
+  const times = [];
+  let rest = String(text).replace(/(^|[^\d])([01]?\d|2[0-3])[:.]([0-5]\d)(?!\d)/g, (m, pre, h, mm) => {
+    times.push(slotOf(`${h.padStart(2, "0")}:${mm}`));
+    return pre;
+  });
+  rest = rest.replace(/(^|\s)(в|и|утром|вечером)(?=\s|,|$)/gi, " ").replace(/\s+/g, " ").replace(/[\s,;]+$/g, "").trim();
+  const uniq = [...new Set(times)].sort().slice(0, 6);
+  if (!uniq.length) return null;
+  let [name, ...more] = rest.split(",").map((x) => x.trim()).filter(Boolean);
+  let dose = more.join(", ");
+  if (name && !dose) {
+    const m = name.match(/^(.+?)\s+(\d+[.,]?\d*\s*[а-яёa-z.]*)$/i);
+    if (m) [, name, dose] = m;
+  }
+  if (!name) return null;
+  return { name: name.slice(0, 40), dose: (dose || "").slice(0, 30), times: uniq };
+}
+
+const PILL_ICON = { taken: "✅", skip: "⏭", snooze: "⏰", sent: "🔔" };
+
+function pillsView(env, u, day, date, mode) {
+  const list = u.pills || [];
+  if (!list.length) {
+    return {
+      text: "💊 <b>Таблетки</b>\n\nДобавь витамины или лекарства, и я напомню в чате, когда их принять ⏰",
+      kb: [[{ text: "➕ Добавить препарат", callback_data: "pl|add" }], [appButton(env)]],
+    };
+  }
+  if (mode === "edit") {
+    return {
+      text: "💊 <b>Мои препараты</b>\n\n<blockquote>" + list.map((p) => `${pillLine(p)}\n⏰ ${p.times.join(", ")}`).join("\n\n") + "</blockquote>\n\nНажми 🗑, чтобы удалить препарат и его напоминания",
+      kb: [
+        ...list.map((p) => [{ text: `🗑 ${p.name}`.slice(0, 60), callback_data: `pl|x|${p.id}` }]),
+        list.length < PILL_MAX ? [{ text: "➕ Добавить", callback_data: "pl|add" }, { text: "↩️ Назад", callback_data: "pl|back" }] : [{ text: "↩️ Назад", callback_data: "pl|back" }],
+      ],
+    };
+  }
+  const doses = pillDoses(u, day);
+  const taken = doses.filter((x) => x.s === "taken").length;
+  const lines = doses.map((x) => {
+    const tail = x.s === "taken" && x.at ? ` — в ${x.at}` : x.s === "skip" ? " — пропущено" : x.s === "snooze" ? ` — напомню в ${x.at}` : "";
+    return `${PILL_ICON[x.s] || "⬜"} ${x.time} <b>${esc(x.name)}</b>${x.dose ? " · " + esc(x.dose) : ""}${tail}`;
+  });
+  return {
+    text: `💊 <b>Таблетки на сегодня</b> · ${taken} из ${doses.length} принято\n\n<blockquote>${lines.join("\n")}</blockquote>\n\n<i>Нажми на приём, чтобы отметить. Напомню в чате в нужное время</i>`,
+    kb: [
+      ...doses.map((x) => [{ text: `${x.s === "taken" ? "✅" : "⬜"} ${x.time} ${x.name}`.slice(0, 60), callback_data: `pl|m|${date}|${x.id}|${x.time}` }]),
+      [{ text: "➕ Добавить", callback_data: "pl|add" }, { text: "✏️ Изменить", callback_data: "pl|edit" }],
+      [appButton(env)],
+    ],
+  };
+}
+
+async function sendPills(env, u, chatId, msgId = null, mode = "") {
+  const date = today(u);
+  const v = pillsView(env, u, await getDay(env, u.id, date), date, mode);
+  const extra = { reply_markup: { inline_keyboard: v.kb } };
+  return msgId ? edit(env, chatId, msgId, v.text, extra) : send(env, chatId, v.text, extra);
+}
+
+async function addPill(env, u, chatId, p) {
+  u.pills = u.pills || [];
+  if (u.pills.length >= PILL_MAX) {
+    await saveUser(env, u);
+    return send(env, chatId, `Можно добавить не больше ${PILL_MAX} препаратов. Удали лишний через «✏️ Изменить»`);
+  }
+  u.pills.push({ id: crypto.randomUUID().slice(0, 6), ...p });
+  await saveUser(env, u);
+  await plIndex(env, u.id, true);
+  await send(env, chatId, `✅ Добавил: ${pillLine(p)}\n⏰ Напомню в ${p.times.join(", ")}`, { reply_markup: MAIN_KEYBOARD });
+  return sendPills(env, u, chatId);
+}
+
+async function onPillsButton(env, u, chatId, msgId, [, act, a, b, c], answer) {
+  if (act === "add") {
+    if ((u.pills || []).length >= PILL_MAX) return answer(`Не больше ${PILL_MAX} препаратов`);
+    u.state = { type: "pilladd" };
+    await saveUser(env, u);
+    await answer();
+    return send(
+      env, chatId,
+      "💊 Напиши название, дозу и время приёма через запятую:\n\n" +
+        "<blockquote>Витамин D, 1 капсула, 9:00\nОмега-3, 2 капсулы, 9:00 21:00\nМагний 14:30</blockquote>\n" +
+        "<i>Время — с шагом 30 минут, можно несколько через пробел</i>",
+      { reply_markup: { force_reply: true, input_field_placeholder: "Витамин D, 1 капсула, 9:00" } }
+    );
+  }
+  if (act === "m" && isDate(a) && isSlot(c)) {
+    const day = await getDay(env, u.id, a);
+    const was = day.pills?.[pillKey(b, c)]?.s;
+    const r = await markPill(env, u, a, b, c, was === "taken" ? "" : "taken");
+    if (!r) return answer("Этого препарата уже нет в списке");
+    await answer(was === "taken" ? "Отметка снята" : "Отмечено ✅");
+    return sendPills(env, u, chatId, msgId);
+  }
+  if (act === "x") {
+    const p = (u.pills || []).find((x) => x.id === a);
+    u.pills = (u.pills || []).filter((x) => x.id !== a);
+    await saveUser(env, u);
+    await plIndex(env, u.id, u.pills.length > 0);
+    await answer(p ? `Удалил «${p.name}»` : "Уже удалено");
+    return sendPills(env, u, chatId, msgId, u.pills.length ? "edit" : "");
+  }
+  await answer();
+  return sendPills(env, u, chatId, msgId, act === "edit" ? "edit" : "");
+}
+
 // ───────────────────────────── Mini App API ─────────────────────────────
 
 function json(data, status = 200) {
@@ -2283,6 +2417,13 @@ async function api(request, url, env) {
       const { day: d, reached, fresh } = await addWater(env, u, body.date, delta);
       await announce(env, u.id, fresh);
       return json({ ok: true, water: d.water, reached });
+    }
+    if (url.pathname === "/api/weight") {
+      const kg = Number(body.kg);
+      if (!(kg >= 30 && kg <= 300)) return json({ error: "bad weight" }, 400);
+      const { fresh } = await saveWeight(env, u, kg);
+      await announce(env, u.id, fresh);
+      return json({ ok: true, kg: u.weight, targets: u.targets });
     }
     if (url.pathname === "/api/pill/add") {
       const name = String(body.name || "").trim().slice(0, 40);
@@ -2428,6 +2569,7 @@ async function setup(url, env) {
       { command: "week", description: "Последние 7 дней" },
       { command: "water", description: "Вода за сегодня" },
       { command: "remind", description: "Напоминания о воде" },
+      { command: "pills", description: "Таблетки и напоминания" },
       { command: "weight", description: "Записать вес" },
       { command: "profile", description: "Профиль и норма" },
       { command: "awards", description: "Достижения и серия" },
@@ -2642,6 +2784,8 @@ const APP_HTML = `<!doctype html>
   .wcard .v{flex:1}
   .wcard .v b{font-size:22px;font-weight:800}
   .wcard .v small{display:block;color:var(--hint);font-size:12px}
+  .wcard .wed{flex:none;width:36px;height:36px;border-radius:12px;background:var(--bg);color:var(--text);font-size:16px;display:flex;align-items:center;justify-content:center}
+  .wcard .win{width:84px;padding:4px 8px;border:2px solid var(--g1);border-radius:10px;background:var(--bg);color:var(--text);font:inherit;font-size:20px;font-weight:800;outline:none}
   .err{color:var(--danger);text-align:center;padding:40px 24px}
   .load{padding:60px 0;text-align:center;opacity:.8}
 
@@ -2895,7 +3039,30 @@ const APP_HTML = `<!doctype html>
     }
     return '<h3>Вес</h3><div class="wcard rise"><div class="ib">' + icon("scales") + '</div><div class="v"><b>' + last.kg + ' кг</b><small>' +
       (ws.length > 1 ? (diff > 0 ? "+" : "") + diff + " кг с " + human(first.date) : "записан " + human(last.date)) +
-      '</small></div>' + spark + '</div>';
+      '</small></div>' + spark + '<button class="wed" data-wedit="1" aria-label="Изменить вес">✏️</button></div>';
+  }
+
+  // Карандаш у веса: меняем вес за сегодня прямо в дневнике
+  function editWeight(btn){
+    var card = btn.closest(".wcard"), b = card.querySelector(".v b");
+    if (!b || card.querySelector(".win")) return;
+    var ws = state.data.weights || [], old = ws.length ? ws[ws.length - 1].kg : "";
+    var inp = document.createElement("input");
+    inp.className = "win"; inp.type = "number"; inp.inputMode = "decimal"; inp.step = "0.1"; inp.min = "30"; inp.max = "300"; inp.value = old;
+    b.replaceWith(inp); inp.focus(); inp.select(); tick();
+    var done = false;
+    function finish(save){
+      if (done) return; done = true;
+      var kg = Number(String(inp.value).replace(",", "."));
+      if (!save || !kg || kg === old) { render(); return; }
+      if (!(kg >= 30 && kg <= 300)) { haptic("rigid"); var m = "Вес — от 30 до 300 кг"; if (tg && tg.showAlert) tg.showAlert(m); else alert(m); render(); return; }
+      inp.disabled = true;
+      call("POST", "/api/weight", { date: state.date, kg: kg })
+        .then(function(){ notify("success"); load(state.date); })
+        .catch(function(){ notify("error"); var m2 = "Не получилось сохранить вес, попробуй ещё раз"; if (tg && tg.showAlert) tg.showAlert(m2); else alert(m2); render(); });
+    }
+    inp.addEventListener("keydown", function(e){ if (e.key === "Enter") finish(true); if (e.key === "Escape") finish(false); });
+    inp.addEventListener("blur", function(){ finish(true); });
   }
 
   var DOTS = ["#ff7a2f", "#22b36b", "#f5a524", "#2a7bf0", "#c86bff", "#ff5a8a"];
@@ -3030,6 +3197,7 @@ const APP_HTML = `<!doctype html>
     var b = e.target.closest("button");
     if (!b) return;
     if (b.id === "addb") { addMeal(); return; }
+    if (b.dataset.wedit) { editWeight(b); return; }
     if (b.dataset.date) { tick(); load(b.dataset.date); }
     if (b.dataset.w) addWater(b);
     if (b.dataset.del) {
@@ -3065,4 +3233,4 @@ const APP_HTML = `<!doctype html>
 </html>`;
 
 // Для тестов
-export const _test = { waterTick, pillTick, nextSlot, slotOf, adviceText, weekTip, startSource, statsText, spark, ACHIEVEMENTS, baseEmoji, calcTargets, verifyInitData, cleanItems, sumItems, parseFix, parseWater, cleanBarcode, waterGoal, APP_HTML };
+export const _test = { waterTick, pillTick, parsePill, nextSlot, slotOf, adviceText, weekTip, startSource, statsText, spark, ACHIEVEMENTS, baseEmoji, calcTargets, verifyInitData, cleanItems, sumItems, parseFix, parseWater, cleanBarcode, waterGoal, APP_HTML };
