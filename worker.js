@@ -198,26 +198,28 @@ async function sendEmojiIds(env, chatId, msg) {
 }
 
 // Свои иконки FITTER: бот создаёт один набор «FITTER ICONS» в аккаунте того, кто отправил /makeemoji
-// Еда — цветная, весы и дневник — серые, логотип — чёрно-белая плашка
+// Еда, весы, таблетки и квадратики шкал — цветные, дневник — серый, логотип — чёрно-белая плашка
 // Картинки 100×100 лежат в репозитории в папке icons/pack/
 const ICON_BASE = "https://raw.githubusercontent.com/sailxx/fitter-ai/main/icons/";
 const ICON_SETS = [
   {
     suffix: "", title: "FITTER ICONS", repaint: false, folder: "pack/",
-    // файл, эмодзи для набора, какой эмодзи в боте заменить
+    // файл, эмодзи для набора, какой эмодзи в боте заменить, версия картинки (если её перерисовали)
     icons: [
       ["plate", "🍽", "🍽"], ["protein", "🍗", "🥩"], ["fat", "💧", "🧈"], ["carbs", "🌾", "🍞"], ["kcal", "🔥", "🔥"],
-      ["scales", "⚖️", "⚖"], ["diary", "📔", "📱"], ["fitter", "🍏", "🍏"],
+      ["scales", "⚖️", "⚖", 2], ["diary", "📔", "📱"], ["fitter", "🍏", "🍏"],
       ["sofa", "🛋", "🛋"], ["walk", "🚶", "🚶"], ["run", "🏃", "🏃"], ["muscle", "💪", "💪"], ["lose", "📉", "📉"],
       ["water", "🥤", "💧"], ["barcode", "📦", "📦"],
       ["ruler", "📏", "📏"], ["cake", "🎂", "🎂"], ["trophy", "🏆", "🏆"],
       ["num1", "1️⃣", "1️⃣"], ["num2", "2️⃣", "2️⃣"], ["num3", "3️⃣", "3️⃣"], ["num4", "4️⃣", "4️⃣"],
+      ["pill", "💊", "💊"], ["alarm", "⏰", "⏰"], ["brain", "🧠", "🧠"], ["goal", "🎯", "🎯"], ["note", "📝", "📝"], ["ask", "💬", "💬"],
+      ["sq_green", "🟩", "🟩"], ["sq_blue", "🟦", "🟦"], ["sq_red", "🟥", "🟥"], ["sq_empty", "⬜", "⬜"],
     ],
   },
   {
     // Монохромные иконки интерфейса: Telegram перекрашивает их под цвет текста (белые в тёмной теме, чёрные в светлой)
     suffix: "ui", title: "FITTER UI", repaint: true, folder: "ui/",
-    icons: [["today", "📊", "📊"], ["week", "📅", "📅"], ["weight", "⚖️", "⚖"], ["profile", "👤", "👤"], ["help", "❓", "❓"], ["edit", "✏️", "✏"], ["trash", "🗑", "🗑"], ["tip", "💡", "💡"], ["target", "🎯", "🎯"], ["check", "✅", "✅"], ["camera", "📸", "📸"], ["search", "🔍", "🔍"], ["write", "✍️", "✍"], ["hello", "👋", "👋"], ["think", "🤔", "🤔"], ["sad", "😔", "😔"], ["refresh", "🔄", "🔄"], ["party", "🎉", "🎉"], ["diary", "📱", "📱"], ["undo", "↩️", "↩"], ["sparkles", "✨", "✨"], ["keyboard", "⌨️", "⌨"]],
+    icons: [["today", "📊", "📊"], ["week", "📅", "📅"], ["profile", "👤", "👤"], ["help", "❓", "❓"], ["edit", "✏️", "✏"], ["trash", "🗑", "🗑"], ["tip", "💡", "💡"], ["check", "✅", "✅"], ["camera", "📸", "📸"], ["search", "🔍", "🔍"], ["write", "✍️", "✍"], ["hello", "👋", "👋"], ["think", "🤔", "🤔"], ["sad", "😔", "😔"], ["refresh", "🔄", "🔄"], ["party", "🎉", "🎉"], ["diary", "📱", "📱"], ["undo", "↩️", "↩"], ["sparkles", "✨", "✨"], ["keyboard", "⌨️", "⌨"]],
   },
 ];
 // Старые наборы из прошлых версий — удаляются, чтобы остался один
@@ -225,9 +227,12 @@ const OLD_SETS = ["icons", "food"];
 
 async function ensureEmojiSet(env, from, botName, cfg) {
   const name = `fitter${cfg.suffix ? "_" + cfg.suffix : ""}_by_${botName}`;
-  const sticker = ([file, emoji]) => ({ sticker: ICON_BASE + cfg.folder + file + ".png", format: "static", emoji_list: [emoji] });
+  // ?v= — чтобы Telegram скачал перерисованную картинку, а не взял старую из кэша
+  const sticker = ([file, emoji, , ver]) => ({ sticker: ICON_BASE + cfg.folder + file + ".png" + (ver ? "?v=" + ver : ""), format: "static", emoji_list: [emoji] });
+  const vers = (await env.DB.get("cfg:emojiver", "json").catch(() => null)) || {};
   let set = await tgRaw(env, "getStickerSet", { name });
-  if (!set.ok) {
+  const fresh = !set.ok;
+  if (fresh) {
     const res = await tgRaw(env, "createNewStickerSet", {
       user_id: from.id, name, title: cfg.title, sticker_type: "custom_emoji",
       needs_repainting: cfg.repaint, stickers: cfg.icons.map(sticker),
@@ -245,6 +250,21 @@ async function ensureEmojiSet(env, from, botName, cfg) {
     }
   }
   set = await tgRaw(env, "getStickerSet", { name });
+  // Перерисованные иконки заменяем на месте: номер иконки меняется, поэтому набор читаем заново
+  let replaced = false;
+  for (const ic of cfg.icons) {
+    const key = name + "/" + ic[0];
+    if (!ic[3] || (vers[key] || 1) >= ic[3]) continue;
+    const old = set.result.stickers.find((s) => baseEmoji(s.emoji) === baseEmoji(ic[1]));
+    if (!fresh && old?.file_id) {
+      const r = await tgRaw(env, "replaceStickerInSet", { user_id: from.id, name, old_sticker: old.file_id, sticker: sticker(ic) });
+      if (!r.ok) throw new Error(`${cfg.title}: ${r.description || "не получилось заменить " + ic[0]}`);
+      replaced = true;
+    }
+    vers[key] = ic[3];
+  }
+  await env.DB.put("cfg:emojiver", JSON.stringify(vers));
+  if (replaced) set = await tgRaw(env, "getStickerSet", { name });
   const stickers = set.result.stickers;
   // Иконки добавлялись строго по порядку списка, поэтому сначала сопоставляем по позиции
   if (stickers.length === cfg.icons.length) {
@@ -614,8 +634,8 @@ const HELP = `🍏 <b>FITTER</b> — твой счётчик калорий 🥦
 4️⃣ Всё сохранится в дневник питания</blockquote>
 
 ✨ <b>Ещё умею</b>
-<blockquote>✍️ «съел 2 яйца и тост» — запишу текстом
-❓ «сколько белка в твороге?» — отвечу
+<blockquote>📝 «съел 2 яйца и тост» — запишу текстом
+💬 «сколько белка в твороге?» — отвечу
 📦 Фото этикетки или цифры штрихкода — найду КБЖУ
 💧 «вода 300» — отмечу воду
 ⚖️ <code>/weight 72.5</code> — запишу вес</blockquote>
