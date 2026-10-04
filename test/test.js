@@ -407,6 +407,15 @@ assert.match(html, /telegram-web-app\.js/);
 // Проверяем, что JS внутри Mini App без синтаксических ошибок
 const script = html.split("<script>")[1].split("</script>")[0];
 new Function(script);
+// CSP: встроенный скрипт разрешён по хэшу, запросы только к себе
+{
+  const csp = r.headers.get("content-security-policy");
+  const hash = Buffer.from(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(script))).toString("base64");
+  assert.ok(csp.includes("'sha256-" + hash + "'"), "хэш скрипта дневника");
+  assert.match(csp, /connect-src 'self'/);
+  assert.doesNotMatch(csp, /script-src[^;]*unsafe-inline/);
+  assert.equal(r.headers.get("x-content-type-options"), "nosniff");
+}
 r = await worker.fetch(new Request(base + "/setup?secret=s3cret"), env, ctx);
 assert.doesNotMatch(await r.text(), /Всё готово/, "секрет в адресе не принимается");
 const setupPost = (secret) => worker.fetch(new Request(base + "/setup", { method: "POST", body: new URLSearchParams({ secret }) }), env, ctx);
@@ -760,6 +769,16 @@ console.log("✓ /app и /setup");
   s = await call({ message: { message_id: 1, from: { id: 56 }, chat: { id: 56, type: "private" }, text: "/delete" } });
   assert.match(lastText(s), /нет твоих данных/);
   console.log("✓ /delete: удаление всех данных");
+}
+
+// 15. Лимит ИИ: параллельные запросы со старым счётчиком из базы не обходят лимит
+{
+  const lim = { DAILY_AI_LIMIT: "1" };
+  const a = { id: 991, tz: 180 }, b = { id: 991, tz: 180 };
+  assert.equal(_test.checkAiLimit(lim, a), true);
+  assert.equal(_test.checkAiLimit(lim, b), false, "второй запрос с устаревшими данными");
+  assert.equal(_test.checkAiLimit(lim, { id: 992, tz: 180 }), true, "другой пользователь не задет");
+  console.log("✓ лимит ИИ при параллельных запросах");
 }
 
 // 12. Лимит запросов к ИИ
