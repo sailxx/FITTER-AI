@@ -3307,7 +3307,8 @@ const APP_HTML = `<!doctype html>
       if (pk(d) !== pk(was)) rerenderPills();
     }, function(){});
   }
-  setInterval(sync, 5000);
+  // Раз в 20 секунд: каждый опрос — около 9 чтений из KV, чаще выходит дорого
+  setInterval(sync, 20000);
   document.addEventListener("visibilitychange", function(){ if (!document.hidden) sync(); });
   window.addEventListener("focus", sync);
   if (tg && tg.onEvent) { try { tg.onEvent("activated", sync); } catch(e){} }
