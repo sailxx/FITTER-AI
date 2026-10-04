@@ -209,8 +209,8 @@ assert.match(lastText(s), /Записал: <b>66 кг/);
 console.log("✓ сегодня, неделя, профиль, вес");
 
 // 8. Mini App API с настоящей подписью Telegram
-async function signInit(user, token) {
-  const p = new URLSearchParams({ auth_date: String(Math.floor(Date.now() / 1000)), query_id: "AA", user: JSON.stringify(user) });
+async function signInit(user, token, authDate = Math.floor(Date.now() / 1000)) {
+  const p = new URLSearchParams({ auth_date: String(authDate), query_id: "AA", user: JSON.stringify(user) });
   const dcs = [...p.entries()].sort(([a], [b]) => (a < b ? -1 : 1)).map(([k, v]) => `${k}=${v}`).join("\n");
   const enc = new TextEncoder();
   const k1 = await crypto.subtle.importKey("raw", enc.encode("WebAppData"), { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
@@ -226,12 +226,18 @@ const apiCall = (path, method = "GET", body, initData = init) =>
 
 let r = await apiCall("/api/day", "GET", null, init.replace(/hash=[0-9a-f]{4}/, "hash=0000"));
 assert.equal(r.status, 401, "поддельная подпись");
+r = await apiCall("/api/day", "GET", null, await signInit({ id: 42, first_name: "Влад" }, TOKEN, Math.floor(Date.now() / 1000) - 2 * 86400));
+assert.equal(r.status, 401, "подпись старше суток");
 r = await apiCall("/api/day");
 assert.equal(r.status, 200);
 let d = await r.json();
 assert.equal(d.meals.length, 2);
 assert.equal(d.week.length, 7);
 assert.ok(d.week.some((w) => w.date === d.date && w.meals === 2));
+for (const idx of [undefined, -1, 99, "x"]) {
+  r = await apiCall("/api/item/delete", "POST", { date: d.date, mealId: d.meals[0].id, idx });
+  assert.equal(r.status, 400, "неверный номер продукта: " + idx);
+}
 r = await apiCall("/api/item/edit", "POST", { date: d.date, mealId: d.meals[0].id, idx: 1, grams: 100 });
 assert.equal(r.status, 200);
 geminiReply = { name: "Индейка", kcal_100: 140, protein_100: 29, fat_100: 2, carbs_100: 0, meal_title: "Форель и индейка" };
@@ -402,6 +408,12 @@ assert.match(html, /telegram-web-app\.js/);
 const script = html.split("<script>")[1].split("</script>")[0];
 new Function(script);
 r = await worker.fetch(new Request(base + "/setup?secret=s3cret"), env, ctx);
+assert.doesNotMatch(await r.text(), /Всё готово/, "секрет в адресе не принимается");
+const setupPost = (secret) => worker.fetch(new Request(base + "/setup", { method: "POST", body: new URLSearchParams({ secret }) }), env, ctx);
+r = await setupPost("wrong");
+assert.equal(r.status, 403);
+assert.ok(!sent.some((x) => x.method === "setWebhook"));
+r = await setupPost("s3cret");
 const setupHtml = await r.text();
 assert.match(setupHtml, /Всё готово/);
 assert.equal(sent.find((x) => x.method === "setWebhook").body.url, base + "/webhook");
@@ -486,6 +498,10 @@ console.log("✓ /app и /setup");
   assert.equal(sends.length, 2);
   assert.ok(!sends[1].body.text.includes("<blockquote>") && sends[1].body.text.includes("<tg-emoji"));
   s = await msg("/emojierr");
+  assert.match(lastText(s), /только для владельца/, "без ADMIN_ID закрыто");
+  env.ADMIN_ID = "42";
+  s = await msg("/emojierr");
+  delete env.ADMIN_ID;
   assert.match(lastText(s), /test reject/);
   console.log("✓ иконки: запасной вариант без цитат и /emojierr");
 }
@@ -662,6 +678,10 @@ console.log("✓ /app и /setup");
   assert.equal(_test.baseEmoji("🏃‍♂️"), "🏃");
   assert.equal(_test.baseEmoji("💪🏻"), "💪");
   s = await msg("/makeemoji");
+  assert.match(lastText(s), /только для владельца/);
+  assert.ok(!s.some((x) => x.method === "deleteStickerSet"), "чужой не трогает наборы");
+  env.ADMIN_ID = "42";
+  s = await msg("/makeemoji");
   const map = JSON.parse(await env.DB.get("cfg:emoji"));
   assert.equal(map["🏃"], "9010", "бег");
   assert.equal(map["💪"], "9011", "бицепс");
@@ -686,6 +706,16 @@ console.log("✓ /app и /setup");
   assert.match(rp[0].body.sticker.sticker, /pack\/scales\.png\?v=2$/);
   s = await msg("/makeemoji");
   assert.ok(!s.some((x) => x.method === "replaceStickerInSet"), "второй раз не заменяем");
+  // Кастомные эмодзи от обычного пользователя не перехватываются служебной командой
+  const ent = [{ type: "custom_emoji", offset: 0, length: 2, custom_emoji_id: "1" }];
+  s = await call({ message: { message_id: 1, from, chat, text: "🍏", entities: ent } });
+  assert.match(lastText(s), /Номера иконок/);
+  const other2 = { id: 77, first_name: "Гость" };
+  s = await call({ message: { message_id: 1, from: other2, chat: { id: 77, type: "private" }, text: "🍏", entities: ent } });
+  assert.doesNotMatch(lastText(s) || "", /Номера иконок/);
+  s = await call({ message: { message_id: 1, from: other2, chat: { id: 77, type: "private" }, text: "/makeemoji" } });
+  assert.match(lastText(s), /только для владельца/);
+  delete env.ADMIN_ID;
   s = await msg("/profile");
   const prof = s.find((x) => x.method === "sendMessage").body.text;
   assert.match(prof, /<tg-emoji emoji-id="9010">🏃<\/tg-emoji> 3–5 тренировок/);
@@ -693,6 +723,43 @@ console.log("✓ /app и /setup");
   s = await msg("/help");
   assert.match(s.find((x) => x.method === "sendMessage").body.text, /<tg-emoji emoji-id="9018">1️⃣<\/tg-emoji> Сфотографируй/);
   console.log("✓ FITTER ICONS: бег, бицепс и цифры");
+}
+
+// 13. Картинка файлом больше 5 МБ не уходит в нейросеть
+{
+  const before = sent.length;
+  s = await call({ message: { message_id: 5, from, chat, document: { file_id: "big", mime_type: "image/jpeg", file_size: 6 * 1024 * 1024 } } });
+  assert.match(lastText(s), /слишком большой/);
+  assert.ok(!s.some((x) => x.method === "getFile"));
+  console.log("✓ лимит размера картинки");
+}
+
+// 14. /delete: все данные пользователя стираются
+{
+  const del = { id: 55, first_name: "Удалю" };
+  const dchat = { id: 55, type: "private" };
+  await env.DB.put("u:55", JSON.stringify({ id: 55, targets: { kcal: 2000 }, pills: [{ id: "a", name: "Д", times: ["09:00"] }] }));
+  await env.DB.put("d:55:2026-10-01", JSON.stringify({ meals: [] }));
+  await env.DB.put("w:55", "[]");
+  await env.DB.put("an:55:2026-10-01", "{}");
+  await env.DB.put("d:555:2026-10-01", JSON.stringify({ meals: [] }));
+  await env.DB.put("wr:ids", JSON.stringify([55, 42]));
+  await env.DB.put("pl:ids", JSON.stringify([55]));
+  s = await call({ message: { message_id: 1, from: del, chat: dchat, text: "/delete" } });
+  assert.match(lastText(s), /Удалить все твои данные/);
+  assert.ok(await env.DB.get("u:55"), "без подтверждения ничего не удаляем");
+  s = await call({ callback_query: { id: "q", from: del, data: "delno", message: { message_id: 7, chat: dchat } } });
+  assert.ok(await env.DB.get("u:55"));
+  s = await call({ callback_query: { id: "q", from: del, data: "delall", message: { message_id: 7, chat: dchat } } });
+  assert.match(lastText(s), /данные удалены/);
+  const left = (await env.DB.list({ prefix: "" })).keys.map((k) => k.name).filter((k) => /^(u|w|adv):55$|^(d|an):55:/.test(k));
+  assert.deepEqual(left, []);
+  assert.ok(await env.DB.get("d:555:2026-10-01"), "чужие данные на месте");
+  assert.deepEqual(JSON.parse(await env.DB.get("wr:ids")), [42]);
+  assert.deepEqual(JSON.parse(await env.DB.get("pl:ids")), []);
+  s = await call({ message: { message_id: 1, from: { id: 56 }, chat: { id: 56, type: "private" }, text: "/delete" } });
+  assert.match(lastText(s), /нет твоих данных/);
+  console.log("✓ /delete: удаление всех данных");
 }
 
 // 12. Лимит запросов к ИИ

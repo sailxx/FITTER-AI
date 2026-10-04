@@ -31,7 +31,7 @@ export default {
     const E = Object.assign({}, env, { ORIGIN: url.origin });
     try {
       if (request.method === "POST" && url.pathname === "/webhook") {
-        if (!env.WEBHOOK_SECRET || request.headers.get("X-Telegram-Bot-Api-Secret-Token") !== env.WEBHOOK_SECRET) {
+        if (!env.WEBHOOK_SECRET || !safeEqual(request.headers.get("X-Telegram-Bot-Api-Secret-Token"), env.WEBHOOK_SECRET)) {
           return new Response("forbidden", { status: 403 });
         }
         const update = await request.json();
@@ -39,7 +39,7 @@ export default {
         ctx.waitUntil(handleUpdate(update, E).catch((e) => console.error("update error:", e && e.stack ? e.stack : e)));
         return new Response("ok");
       }
-      if (url.pathname === "/setup") return await setup(url, E);
+      if (url.pathname === "/setup") return await setup(request, E);
       if (url.pathname === "/app") {
         return new Response(APP_HTML, { headers: { "content-type": "text/html; charset=utf-8" } });
       }
@@ -283,7 +283,7 @@ async function ensureEmojiSet(env, from, botName, cfg) {
 }
 
 async function makeEmojiPack(env, chatId, from) {
-  if (env.ADMIN_ID && String(from.id) !== String(env.ADMIN_ID)) return send(env, chatId, "Эта команда только для владельца бота");
+  if (!isAdmin(env, from)) return send(env, chatId, "Эта команда только для владельца бота");
   const me = await tgRaw(env, "getMe", {});
   await send(env, chatId, "🔄 Создаю набор FITTER ICONS…");
   for (const o of OLD_SETS) await tgRaw(env, "deleteStickerSet", { name: `fitter_${o}_by_${me.result.username}` });
@@ -321,6 +321,11 @@ async function sendEmojiPack(env, chatId, name) {
   for (let i = 0; i < lines.length; i += 40) {
     await tgRaw(env, "sendMessage", { chat_id: chatId, parse_mode: "HTML", text: lines.slice(i, i + 40).join("\n") });
   }
+}
+
+// Владелец бота: ADMIN_ID обязателен, без него служебные команды закрыты для всех
+function isAdmin(env, from) {
+  return !!env.ADMIN_ID && !!from && String(from.id) === String(env.ADMIN_ID);
 }
 
 function send(env, chatId, text, extra = {}) {
@@ -363,6 +368,18 @@ async function saveDay(env, id, date, day) {
 }
 async function getWeights(env, id) {
   return (await env.DB.get(`w:${id}`, "json")) || [];
+}
+
+// Полное удаление данных пользователя по команде /delete
+async function deleteUserData(env, id) {
+  const keys = [
+    `u:${id}`, `w:${id}`, `adv:${id}`,
+    ...(await listAll(env, `d:${id}:`)),
+    ...(await listAll(env, `an:${id}:`)),
+  ];
+  await Promise.all(keys.map((k) => env.DB.delete(k)));
+  await wrIndex(env, id, false);
+  await plIndex(env, id, false);
 }
 
 // ───────────────────────────── Даты ─────────────────────────────
@@ -650,6 +667,7 @@ const HELP = `🍏 <b>FITTER</b> — твой счётчик калорий 🥦
 /advice — что съесть · /analysis — разбор недели
 /awards — достижения
 /reset — пройти анкету заново
+/delete — удалить все мои данные
 
 <i>FITTER считает примерно и не заменяет врача или диетолога</i>`;
 
@@ -697,7 +715,7 @@ async function sendStats(env, chatId, from, text) {
       `Статистика доступна только владельцу.\n\nТвой Telegram ID: <code>${from.id}</code>\n` +
       `Добавь переменную <b>ADMIN_ID</b> с этим числом в настройках воркера в Cloudflare, и команда заработает.`);
   }
-  if (String(from.id) !== String(env.ADMIN_ID)) return send(env, chatId, "Эта команда только для владельца бота");
+  if (!isAdmin(env, from)) return send(env, chatId, "Эта команда только для владельца бота");
   const days = Math.min(365, Math.max(1, parseInt(text.split(/\s+/)[1], 10) || 30));
   const users = (await Promise.all((await listAll(env, "u:")).map((k) => env.DB.get(k, "json")))).filter(Boolean);
   // Активный день = есть ключ дня d:{id}:{дата} (еда, вода или таблетки). Значения не читаем — хватает имён ключей
@@ -800,8 +818,10 @@ async function onMessage(msg, env) {
 
   if (text === "/stats" || text.startsWith("/stats ")) return sendStats(env, chatId, msg.from, text);
 
-  // Служебные команды для своих иконок
-  if ((msg.entities || msg.caption_entities || []).some((e) => e.type === "custom_emoji")) return sendEmojiIds(env, chatId, msg);
+  // Служебные команды для своих иконок — только владельцу бота (ADMIN_ID)
+  const admin = isAdmin(env, msg.from);
+  if (/^\/(emojipack|emojiid|makeemoji|emojierr)\b/.test(text) && !admin) return send(env, chatId, "Эта команда только для владельца бота");
+  if (admin && (msg.entities || msg.caption_entities || []).some((e) => e.type === "custom_emoji")) return sendEmojiIds(env, chatId, msg);
   if (text.startsWith("/emojipack")) return sendEmojiPack(env, chatId, text.split(/\s+/)[1]);
   if (text === "/emojiid") return send(env, chatId, "Отправь мне иконки из набора, и я пришлю их номера 🔢");
   if (text === "/makeemoji") return makeEmojiPack(env, chatId, msg.from);
@@ -819,6 +839,12 @@ async function onMessage(msg, env) {
     return startOnboarding(env, u, chatId);
   }
   if (text === "/reset") return startOnboarding(env, u, chatId);
+  if (text === "/delete") {
+    if (!known) return send(env, chatId, "У меня нет твоих данных 🤷");
+    return send(env, chatId,
+      "🗑 <b>Удалить все твои данные?</b>\n\nАнкета, дневник питания, вода, вес, таблетки и напоминания будут стёрты навсегда. Восстановить их не получится.",
+      { reply_markup: { inline_keyboard: [[{ text: "Да, удалить всё", callback_data: "delall" }, { text: "Отмена", callback_data: "delno" }]] } });
+  }
 
   // Анкета
   if (u.state && u.state.step) {
@@ -878,7 +904,10 @@ async function onMessage(msg, env) {
     if (code) return onBarcodeText(env, u, chatId, code);
     return send(env, chatId, "📦 Похоже на штрихкод, но цифры не сходятся. Проверь и пришли ещё раз, или сфотографируй этикетку 📸");
   }
-  if (msg.document && /^image\//.test(msg.document.mime_type || "")) return onPhoto(env, u, chatId, msg);
+  if (msg.document && /^image\//.test(msg.document.mime_type || "")) {
+    if ((msg.document.file_size || 0) > MAX_IMAGE_BYTES) return send(env, chatId, "📷 Файл слишком большой. Пришли картинку до 5 МБ или просто фото");
+    return onPhoto(env, u, chatId, msg);
+  }
 
   const cmd = MENU[menuLabel(text)] || text.split(/\s+/)[0].replace(/@\w+$/, "");
   switch (cmd) {
@@ -1029,6 +1058,15 @@ async function onCallback(q, env) {
     await edit(env, chatId, msgId, `<b>6/6.</b> Цель: ${GOALS[a]}`);
     return finishOnboarding(env, u, chatId);
   }
+  if (kind === "delall") {
+    await deleteUserData(env, u.id);
+    await answer("Данные удалены");
+    return edit(env, chatId, msgId, "🗑 Все твои данные удалены. Чтобы начать заново, напиши /start");
+  }
+  if (kind === "delno") {
+    await answer();
+    return edit(env, chatId, msgId, "Ничего не удалял 👌");
+  }
   if (kind === "reset") {
     await answer();
     return startOnboarding(env, u, chatId);
@@ -1134,6 +1172,9 @@ async function onCallback(q, env) {
 }
 
 // ── Фото еды ──
+
+// Картинки файлом больше 5 МБ не берём: нейросети хватает и обычного фото
+const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 
 function pickPhoto(msg) {
   if (msg.document) return msg.document.file_id;
@@ -2350,6 +2391,19 @@ function json(data, status = 200) {
 
 const hex = (buf) => [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, "0")).join("");
 
+// Сравнение строк за одинаковое время: по скорости ответа нельзя подобрать секрет
+function safeEqual(a, b) {
+  a = String(a ?? "");
+  b = String(b ?? "");
+  if (!a || a.length !== b.length) return false;
+  let diff = 0;
+  for (let i = 0; i < a.length; i++) diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  return diff === 0;
+}
+
+// Подпись дневника действует сутки: утёкшие данные нельзя использовать долго
+const INIT_DATA_TTL = 86400;
+
 // Проверяем, что запрос действительно пришёл из Telegram (подпись initData)
 async function verifyInitData(initData, token) {
   if (!initData || !token) return null;
@@ -2366,12 +2420,9 @@ async function verifyInitData(initData, token) {
   const secret = await crypto.subtle.sign("HMAC", k1, enc.encode(token));
   const k2 = await crypto.subtle.importKey("raw", secret, { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
   const sig = hex(await crypto.subtle.sign("HMAC", k2, enc.encode(dataCheck)));
-  if (sig.length !== hash.length) return null;
-  let diff = 0;
-  for (let i = 0; i < sig.length; i++) diff |= sig.charCodeAt(i) ^ hash.charCodeAt(i);
-  if (diff !== 0) return null;
+  if (!safeEqual(sig, hash)) return null;
   const authDate = Number(params.get("auth_date") || 0);
-  if (Date.now() / 1000 - authDate > 7 * 86400) return null;
+  if (Date.now() / 1000 - authDate > INIT_DATA_TTL) return null;
   try { return JSON.parse(params.get("user")); } catch { return null; }
 }
 
@@ -2521,7 +2572,9 @@ async function api(request, url, env) {
       return json({ ok: true });
     }
     if (url.pathname === "/api/item/delete") {
-      meal.items.splice(Number(body.idx), 1);
+      const idx = Number(body.idx);
+      if (!Number.isInteger(idx) || !meal.items[idx]) return json({ error: "bad idx" }, 400);
+      meal.items.splice(idx, 1);
       if (!meal.items.length) day.meals = day.meals.filter((m) => m !== meal);
       await saveDay(env, u.id, body.date, day);
       return json({ ok: true });
@@ -2532,17 +2585,24 @@ async function api(request, url, env) {
 
 // ───────────────────────────── Первичная настройка ─────────────────────────────
 
-async function setup(url, env) {
-  const page = (rows) =>
+// Секрет вводится в форме и уходит POST-запросом: в адресе, истории браузера и логах его нет.
+// Можно задать отдельный секрет SETUP_SECRET, иначе подходит WEBHOOK_SECRET
+async function setup(request, env) {
+  const page = (rows, form = "", status = 200) =>
     new Response(
       `<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">` +
         `<title>FITTER — настройка</title><body style="font:16px/1.5 system-ui;max-width:640px;margin:32px auto;padding:0 16px">` +
-        `<h2>FITTER — настройка</h2>${rows.map(([ok, t]) => `<p>${ok ? "✅" : "❌"} ${t}</p>`).join("")}</body>`,
-      { headers: { "content-type": "text/html; charset=utf-8" } }
+        `<h2>FITTER — настройка</h2>${rows.map(([ok, t]) => `<p>${ok ? "✅" : "❌"} ${t}</p>`).join("")}${form}</body>`,
+      { status, headers: { "content-type": "text/html; charset=utf-8", "cache-control": "no-store", "referrer-policy": "no-referrer", "x-frame-options": "DENY" } }
     );
   if (!env.WEBHOOK_SECRET) return page([[false, "Не задана переменная WEBHOOK_SECRET"]]);
-  if (url.searchParams.get("secret") !== env.WEBHOOK_SECRET) {
-    return page([[false, "Открой эту страницу так: <code>/setup?secret=ТВОЙ_WEBHOOK_SECRET</code>"]]);
+  const form =
+    `<form method="post" action="/setup"><p><input type="password" name="secret" placeholder="Секрет" autocomplete="off" required ` +
+    `style="font:inherit;padding:8px;width:100%;box-sizing:border-box"></p><p><button style="font:inherit;padding:8px 16px">Настроить бота</button></p></form>`;
+  if (request.method !== "POST") return page([], `<p>Введи ${env.SETUP_SECRET ? "SETUP_SECRET" : "WEBHOOK_SECRET"}:</p>` + form);
+  const fd = await request.formData().catch(() => null);
+  if (!safeEqual(fd && fd.get("secret"), env.SETUP_SECRET || env.WEBHOOK_SECRET)) {
+    return page([[false, "Неверный секрет"]], form, 403);
   }
   const rows = [];
   rows.push([!!env.BOT_TOKEN, "BOT_TOKEN задан"]);
@@ -2578,6 +2638,7 @@ async function setup(url, env) {
       { command: "app", description: "Открыть дневник" },
       { command: "help", description: "Как пользоваться" },
       { command: "reset", description: "Пройти анкету заново" },
+      { command: "delete", description: "Удалить мои данные" },
     ],
   });
   rows.push([cmds.ok, "Меню команд установлено"]);
