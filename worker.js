@@ -41,7 +41,7 @@ export default {
       }
       if (url.pathname === "/setup") return await setup(request, E);
       if (url.pathname === "/app") {
-        return new Response(APP_HTML, { headers: { "content-type": "text/html; charset=utf-8" } });
+        return new Response(APP_HTML, { headers: { "content-type": "text/html; charset=utf-8", ...(await appHeaders()) } });
       }
       if (url.pathname.startsWith("/api/")) return await api(request, url, E);
       if (url.pathname === "/") return new Response("FITTER работает ✅", { headers: { "content-type": "text/plain; charset=utf-8" } });
@@ -584,12 +584,20 @@ function cleanItems(items) {
     .slice(0, 12);
 }
 
+// Счётчик запросов в памяти воркера: если человек шлёт много фото разом, параллельные запросы
+// читают из базы старый счётчик. Здесь они видят свежий и не обходят дневной лимит
+const aiSeen = new Map(); // "id:дата" → сколько запросов уже было
+
 function checkAiLimit(env, u) {
   const limit = Number(env.DAILY_AI_LIMIT || 40);
   const d = today(u);
   if (!u.ai || u.ai.date !== d) u.ai = { date: d, n: 0 };
-  if (u.ai.n >= limit) return false;
-  u.ai.n++;
+  const key = u.id + ":" + d;
+  const n = Math.max(u.ai.n, aiSeen.get(key) || 0);
+  if (n >= limit) return false;
+  u.ai.n = n + 1;
+  if (aiSeen.size > 10000) aiSeen.clear();
+  aiSeen.set(key, n + 1);
   return true;
 }
 
@@ -2386,7 +2394,32 @@ async function onPillsButton(env, u, chatId, msgId, [, act, a, b, c], answer) {
 // ───────────────────────────── Mini App API ─────────────────────────────
 
 function json(data, status = 200) {
-  return new Response(JSON.stringify(data), { status, headers: { "content-type": "application/json; charset=utf-8" } });
+  return new Response(JSON.stringify(data), {
+    status,
+    headers: { "content-type": "application/json; charset=utf-8", "cache-control": "no-store", "x-content-type-options": "nosniff" },
+  });
+}
+
+// Заголовки безопасности дневника. CSP разрешает только наш встроенный скрипт (по хэшу) и скрипт Telegram,
+// запросы — только к своему серверу, встраивать страницу — только в веб-версию Telegram.
+// Если в дневнике когда-нибудь найдётся ошибка с выводом HTML, чужой скрипт всё равно не запустится и данные не уйдут наружу
+let appCsp = null;
+async function appHeaders() {
+  if (!appCsp) {
+    const js = APP_HTML.split("<script>")[1].split("</script>")[0];
+    const hash = btoa(String.fromCharCode(...new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(js)))));
+    appCsp = [
+      "default-src 'none'",
+      `script-src 'sha256-${hash}' https://telegram.org`,
+      "style-src 'unsafe-inline'",
+      "img-src 'self' data:",
+      "connect-src 'self'",
+      "base-uri 'none'",
+      "form-action 'none'",
+      "frame-ancestors https://web.telegram.org https://*.web.telegram.org",
+    ].join("; ");
+  }
+  return { "content-security-policy": appCsp, "x-content-type-options": "nosniff", "referrer-policy": "no-referrer" };
 }
 
 const hex = (buf) => [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, "0")).join("");
@@ -3320,4 +3353,4 @@ const APP_HTML = `<!doctype html>
 </html>`;
 
 // Для тестов
-export const _test = { waterTick, pillTick, parsePill, nextSlot, slotOf, adviceText, weekTip, startSource, statsText, spark, ACHIEVEMENTS, baseEmoji, calcTargets, verifyInitData, cleanItems, sumItems, parseFix, parseWater, cleanBarcode, waterGoal, APP_HTML };
+export const _test = { checkAiLimit, appHeaders, waterTick, pillTick, parsePill, nextSlot, slotOf, adviceText, weekTip, startSource, statsText, spark, ACHIEVEMENTS, baseEmoji, calcTargets, verifyInitData, cleanItems, sumItems, parseFix, parseWater, cleanBarcode, waterGoal, APP_HTML };
