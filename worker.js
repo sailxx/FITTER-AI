@@ -215,6 +215,8 @@ const ICON_SETS = [
       ["pill", "💊", "💊"], ["alarm", "⏰", "⏰"], ["brain", "🧠", "🧠"], ["goal", "🎯", "🎯"], ["note", "📝", "📝"], ["ask", "💬", "💬"],
       ["sq_green", "🟩", "🟩"], ["sq_blue", "🟦", "🟦"], ["sq_red", "🟥", "🟥"], ["sq_empty", "⬜", "⬜"],
       ["calendar", "📅", "📅"], ["lock", "🔒", "🔒"], ["photo", "📷", "📷"], ["book", "📓", "📓"], ["hundred", "💯", "💯"], ["chart", "📊", "📊"],
+      // Таблетки: напоминание, принято, пропущено, ещё не время; вода: полная и пустая капля
+      ["bell", "🔔", "🔔"], ["done", "🟢", "🟢"], ["skip", "⏭️", "⏭"], ["wait", "🕑", "🕑"], ["drop", "🔵", "🔵"], ["drop_empty", "🫧", "🫧"],
     ],
   },
   {
@@ -1335,12 +1337,15 @@ function waterText(u, day, date, added) {
   const ml = day.water || 0;
   const goal = waterGoal(u);
   const left = goal - ml;
+  const rem = u.wr?.every ? `\n⏰ Напоминаю каждые ${everyLabel(u.wr.every)}, с ${hh(u.wr.from)} до ${hh(u.wr.to)}` : "";
   return (
     (added ? `💧 ${added > 0 ? "+" : "−"}${Math.abs(added)} мл записал\n\n` : "") +
-    `💧 <b>Вода ${date === today(u) ? "за сегодня" : "за " + humanDate(date)}</b>\n` +
-    `<b>${liters(ml)}</b> из ${liters(goal)} · ${pctOf(ml, goal)}%\n${squares(Math.min(ml, goal), goal, "🟦")}\n\n` +
-    (left > 0 ? `Осталось: <b>${left} мл</b>, это примерно ${Math.ceil(left / 250)} стак.` : "Норма воды выполнена 🎉") +
-    `\n\n<i>Норма: 30 мл на 1 кг веса. Можно написать «вода 300» или «+500»</i>`
+    `💧 <b>Вода ${date === today(u) ? "за сегодня" : "за " + humanDate(date)}</b>\n\n` +
+    `<b>${liters(ml)}</b> из ${liters(goal)} · ${pctOf(ml, goal)}%\n${drops(Math.min(ml, goal), goal)}\n\n` +
+    (left > 0
+      ? `<blockquote>🎯 Осталось <b>${left} мл</b> — это ${cupsText(left)}${rem}</blockquote>`
+      : `<blockquote>🎉 <b>Норма выполнена!</b> Так держать${rem}</blockquote>`) +
+    `\n\n<i>Норма — 30 мл на 1 кг веса. Можно написать «вода 300» или «+500»</i>`
   );
 }
 
@@ -1541,6 +1546,13 @@ function squares(value, target, color = "🟩", len = 10) {
   return sq.repeat(n) + "⬜".repeat(len - n);
 }
 const pctOf = (v, t) => (t ? Math.round((v / t) * 100) : 0);
+
+// Шкала воды из капель: 🔵 — выпито, 🫧 — осталось
+function drops(value, target, len = 10) {
+  const n = value > 0 ? Math.max(1, Math.min(len, Math.round((target ? value / target : 0) * len))) : 0;
+  return "🔵".repeat(n) + "🫧".repeat(len - n);
+}
+const cupsText = (ml) => { const n = Math.ceil(ml / 250); return n + " " + plural(n, "стакан", "стакана", "стаканов"); };
 
 async function sendDay(env, u, chatId, date) {
   const day = await getDay(env, u.id, date);
@@ -2166,8 +2178,8 @@ async function waterTick(env, now = Date.now()) {
     await saveUser(env, u);
     const left = goal - ml;
     await send(env, u.id,
-      `💧 <b>Время попить воды!</b>\n\n<b>${liters(ml)}</b> из ${liters(goal)} · ${pctOf(ml, goal)}%\n${squares(ml, goal, "🟦")}\n` +
-      `Осталось ${left} мл, это примерно ${Math.ceil(left / 250)} стак.`,
+      `💧 <b>Время попить воды!</b>\n\n<b>${liters(ml)}</b> из ${liters(goal)} · ${pctOf(ml, goal)}%\n${drops(ml, goal)}\n\n` +
+      `🎯 Осталось <b>${left} мл</b> — это ${cupsText(left)}`,
       {
         disable_notification: false,
         reply_markup: {
@@ -2302,7 +2314,8 @@ function parsePill(text) {
   return { name: name.slice(0, 40), dose: (dose || "").slice(0, 30), times: uniq };
 }
 
-const PILL_ICON = { taken: "✅", skip: "⏭", snooze: "⏰", sent: "🔔" };
+// Состояние приёма: принято, пропущено, отложено, напоминание пришло; без отметки — 🕑 (ещё не время)
+const PILL_ICON = { taken: "🟢", skip: "⏭", snooze: "⏰", sent: "🔔" };
 
 function pillsView(env, u, day, date, mode) {
   const list = u.pills || [];
@@ -2323,14 +2336,25 @@ function pillsView(env, u, day, date, mode) {
   }
   const doses = pillDoses(u, day);
   const taken = doses.filter((x) => x.s === "taken").length;
-  const lines = doses.map((x) => {
-    const tail = x.s === "taken" && x.at ? ` — в ${x.at}` : x.s === "skip" ? " — пропущено" : x.s === "snooze" ? ` — напомню в ${x.at}` : "";
-    return `${PILL_ICON[x.s] || "⬜"} ${x.time} <b>${esc(x.name)}</b>${x.dose ? " · " + esc(x.dose) : ""}${tail}`;
-  });
+  // Приёмы группируем по времени: одно время — одна цитата
+  const groups = [];
+  for (const x of doses) {
+    if (groups.at(-1)?.time !== x.time) groups.push({ time: x.time, items: [] });
+    groups.at(-1).items.push(x);
+  }
+  const blocks = groups.map((g) => `<blockquote><b>${g.time}</b>\n` + g.items.map((x) => {
+    const tail = x.s === "taken" && x.at ? ` · в ${x.at}` : x.s === "skip" ? " · пропущено" : x.s === "snooze" ? ` · напомню в ${x.at}` : "";
+    return `${PILL_ICON[x.s] || "🕑"} <b>${esc(x.name)}</b>${x.dose ? " · " + esc(x.dose) : ""}${tail}`;
+  }).join("\n") + "</blockquote>");
+  const due = doses.filter((x) => x.s === "sent").length;
+  const next = doses.find((x) => !x.s);
+  const status = taken === doses.length ? "🎉 Всё принято, отличный день!"
+    : due ? `🔔 Пора принять: <b>${due} ${plural(due, "приём", "приёма", "приёмов")}</b>`
+    : next ? `⏰ Следующий приём в <b>${next.time}</b>` : "";
   return {
-    text: `💊 <b>Таблетки на сегодня</b> · ${taken} из ${doses.length} принято\n\n<blockquote>${lines.join("\n")}</blockquote>\n\n<i>Нажми на приём, чтобы отметить. Напомню в чате в нужное время</i>`,
+    text: `💊 <b>Таблетки на сегодня</b> · ${taken} из ${doses.length} принято\n${status}\n\n${blocks.join("\n")}\n\n<i>🟢 принято · 🔔 пора · 🕑 позже. Нажми на приём ниже, чтобы отметить</i>`,
     kb: [
-      ...doses.map((x) => [{ text: `${x.s === "taken" ? "✅" : "⬜"} ${x.time} ${x.name}`.slice(0, 60), callback_data: `pl|m|${date}|${x.id}|${x.time}` }]),
+      ...doses.map((x) => [{ text: `${x.s === "taken" ? "🟢" : "⬜"} ${x.time} ${x.name}`.slice(0, 60), callback_data: `pl|m|${date}|${x.id}|${x.time}` }]),
       [{ text: "➕ Добавить", callback_data: "pl|add" }, { text: "✏️ Изменить", callback_data: "pl|edit" }],
       [appButton(env)],
     ],

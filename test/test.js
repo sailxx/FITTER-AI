@@ -37,7 +37,7 @@ globalThis.fetch = async (url, opts = {}) => {
       }
       if (body.name !== "fitter_by_fitter_test_bot") return Response.json({ ok: false, description: "STICKERSET_INVALID" });
       // Так Telegram может хранить эмодзи: с полом, оттенком кожи и без FE0F
-      const em = ["🍽", "🍗", "💧", "🌾", "🔥", "⚖", "📔", "🍏", "🛋", "🚶‍♂️", "🏃‍♂️", "💪🏻", "📉", "🥤", "📦", "📏", "🎂", "🏆", "1️⃣", "2️⃣", "3️⃣", "4️⃣", "💊", "⏰", "🧠", "🎯", "📝", "💬", "🟩", "🟦", "🟥", "⬜", "📅", "🔒", "📷", "📓", "💯", "📊"];
+      const em = ["🍽", "🍗", "💧", "🌾", "🔥", "⚖", "📔", "🍏", "🛋", "🚶‍♂️", "🏃‍♂️", "💪🏻", "📉", "🥤", "📦", "📏", "🎂", "🏆", "1️⃣", "2️⃣", "3️⃣", "4️⃣", "💊", "⏰", "🧠", "🎯", "📝", "💬", "🟩", "🟦", "🟥", "⬜", "📅", "🔒", "📷", "📓", "💯", "📊", "🔔", "🟢", "⏭", "🕑", "🔵", "🫧"];
       return Response.json({ ok: true, result: { title: "FITTER ICONS", stickers: em.map((e, i) => ({ emoji: e, file_id: "f" + i, custom_emoji_id: String(9000 + i) })) } });
     }
     if (method === "sendMessage" && rejectQuote && /<blockquote>[\s\S]*<tg-emoji/.test(body.text || "")) {
@@ -591,6 +591,8 @@ console.log("✓ /app и /setup");
   const base = w.last;
   // Через 1,5 часа днём (13:00 по Москве) — напоминание, сразу же повторно — нет
   const day13 = Date.UTC(2026, 9, 5, 10, 0);
+  // День теста может совпасть с настоящим «сегодня», где другие тесты уже записали воду
+  await env.DB.put("d:42:2026-10-05", JSON.stringify({ meals: [], water: 0 }));
   w.last = day13 - 91 * 60000;
   const u42 = await env.DB.get("u:42", "json"); u42.wr = w; await env.DB.put("u:42", JSON.stringify(u42));
   sent.length = 0;
@@ -706,7 +708,10 @@ console.log("✓ /app и /setup");
   assert.equal(map["↩"], "8015");
   assert.equal(map["📅"], "9032", "цветной календарь");
   assert.equal(map["🔒"], "9033", "замок в достижениях");
-  assert.equal(Object.keys(map).length, 38 + 17);
+  assert.equal(Object.keys(map).length, 44 + 17);
+  assert.equal(map["🔔"], "9038", "колокольчик у таблеток");
+  assert.equal(map["⏭"], "9040", "пропуск без FE0F");
+  assert.equal(map["🔵"], "9042", "капля воды");
   assert.equal(map["1️⃣"], "9018");
   assert.ok(!s.some((x) => x.method === "addStickerToSet"), "ничего не добавляем заново");
   const rp = s.filter((x) => x.method === "replaceStickerInSet");
