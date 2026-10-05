@@ -1,34 +1,15 @@
 <div align="center">
-  <img src="docs/logo.svg" width="160" height="160" alt="Логотип FITTER">
 
-  <h1>FITTER</h1>
+**Русский** · [English](README.en.md) · [Español](README.es.md) · [Português](README.pt.md) · [Deutsch](README.de.md) · [Français](README.fr.md)
 
-  <p align="center">
-    <strong>Считай калории одним фото.</strong>
-    <br />
-    <em>Telegram-бот и дневник питания с ИИ: быстро, бесплатно и без скачивания приложений.</em>
-  </p>
+<br>
 
-  <p align="center">
-    <a href="https://t.me/FitterFoodBot?start=github"><b>Открыть бота</b></a> •
-    <a href="#-возможности"><b>Возможности</b></a> •
-    <a href="#-как-это-работает"><b>Как работает</b></a> •
-    <a href="#-запусти-свою-копию"><b>Запуск</b></a> •
-    <a href="#-скриншоты"><b>Скриншоты</b></a> •
-    <a href="https://t.me/arkhitkovv"><b>Связь</b></a>
-  </p>
+<img src="assets/readme/hero-ru.svg" width="100%" alt="FITTER — Сфоткай еду. ИИ посчитает калории. Счётчик калорий и БЖУ прямо в Telegram.">
 
-  <div align="center">
-    <img src="https://img.shields.io/github/package-json/v/sailxx/FITTER-AI?style=for-the-badge&color=c9f36b&labelColor=171916&logo=github&label=version" alt="Версия" />
-    <img src="https://img.shields.io/github/stars/sailxx/FITTER-AI?style=for-the-badge&color=c9f36b&labelColor=171916&logo=github" alt="Звёзды" />
-    <img src="https://img.shields.io/github/license/sailxx/FITTER-AI?style=for-the-badge&color=c9f36b&labelColor=171916" alt="Лицензия" />
-    <img src="https://img.shields.io/badge/Стоимость-0%20₽-c9f36b?style=for-the-badge&labelColor=171916" alt="Бесплатно" />
-    <img src="https://img.shields.io/badge/Runtime-Cloudflare_Workers-c9f36b?style=for-the-badge&labelColor=171916&logo=cloudflare&logoColor=F38020" alt="Cloudflare Workers" />
-    <img src="https://img.shields.io/badge/AI-Google_Gemini-c9f36b?style=for-the-badge&labelColor=171916&logo=googlegemini&logoColor=4285F4" alt="Google Gemini" />
-    <img src="https://img.shields.io/badge/Language-JavaScript-c9f36b?style=for-the-badge&labelColor=171916&logo=javascript&logoColor=F7DF1E" alt="JavaScript" />
-    <img src="https://img.shields.io/badge/Dependencies-0-c9f36b?style=for-the-badge&labelColor=171916" alt="Без зависимостей" />
-    <a href="https://t.me/FitterFoodBot?start=github"><img src="https://img.shields.io/badge/Telegram-@FitterFoodBot-2CA5E0?style=for-the-badge&logo=telegram&logoColor=white" alt="Telegram" /></a>
-  </div>
+<a href="https://t.me/FitterFoodBot?start=github"><img src="assets/readme/cta-bot.svg" height="44" alt="Открыть @FitterFoodBot в Telegram"></a>&nbsp;&nbsp;<a href="https://sailxx.github.io/FITTER-AI/"><img src="assets/readme/cta-site.svg" height="44" alt="Сайт FITTER"></a>
+
+<sub><a href="#-возможности">Возможности</a> · <a href="#-как-это-работает">Как работает</a> · <a href="#-скриншоты">Скриншоты</a> · <a href="https://t.me/arkhitkovv">Связь</a></sub>
+
 </div>
 
 <hr />
@@ -36,26 +17,14 @@
 > [!IMPORTANT]
 > **FITTER оценивает калории приблизительно.** Результат по фото зависит от состава и размера порции, а любую запись можно поправить вручную. Бот не заменяет консультацию врача или диетолога.
 
-## 💡 О проекте
-
-**FITTER** не ещё одна таблица продуктов, где нужно взвешивать каждый ингредиент и искать состав вручную. Это бот, который смотрит на твою тарелку: нейросеть находит продукты, оценивает вес, считает калории, белки, жиры и углеводы и сама ведёт дневник.
-
-Он живёт прямо в Telegram, поэтому начать можно за секунду: без установки, регистрации и подписок. А если захочется полного контроля, бота можно запустить у себя бесплатно за 20 минут.
-
-<div align="center">
-
-| 📸 Фото вместо таблиц | ✏️ Всегда можно поправить | 📅 Дневник в Mini App | 💸 Бесплатно |
-|:---:|:---:|:---:|:---:|
-| ИИ распознаёт еду и порцию за пару секунд | Исправь продукт или вес, КБЖУ пересчитаются | Календарь, кольцо калорий, вода и вес | Работает на бесплатных тарифах |
-
-</div>
+<p align="center"><img src="assets/readme/about-ru.svg" width="100%" alt="О проекте FITTER"></p>
 
 ---
 
 ## 📸 Скриншоты
 
 <div align="center" id="-скриншоты">
-  <img src="docs/screens.webp" width="100%" alt="Чат с ботом FITTER и дневник питания в Telegram Mini App">
+  <img src="assets/readme/screens-ru.svg" width="100%" alt="Чат с ботом FITTER и дневник питания в Telegram Mini App">
 </div>
 
 ---
@@ -219,86 +188,6 @@ sequenceDiagram
 | Деплой | GitHub → Cloudflare Builds | Каждый коммит сам попадает на сервер |
 
 Весь сервер — один файл [`worker.js`](worker.js) без единой зависимости.
-
----
-
-## 🚀 Запусти свою копию
-
-Бесплатно, примерно за 20 минут и без программирования.
-
-> [!TIP]
-> Пошаговая инструкция для новичков с каждым кликом: **[SETUP.md](SETUP.md)**.
-
-<details>
-<summary><b>Для разработчиков</b></summary>
-
-```bash
-git clone https://github.com/sailxx/FITTER-AI.git
-cd FITTER-AI
-npm test                                      # тесты без интернета
-npx wrangler kv namespace create fitter-db    # id вставить в wrangler.toml
-npx wrangler secret put BOT_TOKEN
-npx wrangler secret put GEMINI_API_KEY
-npx wrangler secret put WEBHOOK_SECRET
-npx wrangler deploy
-```
-
-Затем открой `https://<твой-воркер>.workers.dev/setup` и введи `WEBHOOK_SECRET` (или `SETUP_SECRET`): все пункты должны быть с ✅.
-
-</details>
-
-<details>
-<summary><b>Переменные окружения</b></summary>
-
-| Переменная | Обязательна | Описание |
-|:---|:---:|:---|
-| `BOT_TOKEN` | ✅ | Токен бота от @BotFather |
-| `GEMINI_API_KEY` | ✅ | Ключ Google AI Studio |
-| `WEBHOOK_SECRET` | ✅ | Пароль для webhook и страницы `/setup` |
-| `DB` | ✅ | Привязка Cloudflare KV |
-| `GEMINI_MODEL` | | Модель Gemini, по умолчанию `gemini-3.5-flash` с запасными |
-| `DAILY_AI_LIMIT` | | Запросов к ИИ в день на человека, по умолчанию `40` |
-| `SETUP_SECRET` | | Отдельный пароль для страницы `/setup`, по умолчанию подходит `WEBHOOK_SECRET` |
-| `ADMIN_ID` | | Telegram ID владельца для `/stats` и служебных команд иконок; без него они закрыты для всех |
-| `CUSTOM_EMOJI` | | `off` — выключить свои иконки |
-
-</details>
-
-<details>
-<summary><b>API дневника</b></summary>
-
-Все запросы подписаны данными Telegram (`X-Init-Data`), сервер проверяет подпись HMAC-SHA256.
-
-| Метод | Путь | Что делает |
-|:---|:---|:---|
-| `GET` | `/api/day?date=YYYY-MM-DD` | День, неделя, норма, вес |
-| `POST` | `/api/item/edit` | Изменить граммы продукта |
-| `POST` | `/api/item/rename` | Переименовать продукт и пересчитать КБЖУ |
-| `POST` | `/api/item/delete` | Удалить продукт |
-| `POST` | `/api/meal/add` | Записать еду текстом |
-| `POST` | `/api/meal/delete` | Удалить приём пищи |
-| `POST` | `/api/water` | Добавить или убрать 250 мл воды |
-| `POST` | `/api/pill/add` | Добавить препарат и время приёма |
-| `POST` | `/api/pill/mark` | Отметить приём |
-| `POST` | `/api/pill/delete` | Удалить препарат и напоминания |
-
-</details>
-
-<details>
-<summary><b>Структура проекта</b></summary>
-
-```
-FITTER-AI/
-├── worker.js          # весь сервер: бот, ИИ, база, API и Mini App
-├── test/test.js       # автотесты: Telegram, Gemini и база подменены
-├── icons/             # FITTER Icons: PNG 100×100 и SVG
-├── docs/              # лендинг, политика конфиденциальности, картинки
-├── SETUP.md           # инструкция по запуску
-├── CHANGELOG.md       # история версий
-└── wrangler.toml      # настройки Cloudflare
-```
-
-</details>
 
 ---
 

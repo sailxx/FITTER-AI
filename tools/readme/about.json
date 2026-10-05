@@ -1,0 +1,32 @@
+{
+  "ru": {
+    "label": "О ПРОЕКТЕ", "c1": "ЧАТ С БОТОМ", "c2": "ДНЕВНИК · MINI APP", "note": "",
+    "text": "FITTER — не ещё одна таблица продуктов, где нужно взвешивать каждый ингредиент. Это бот, который смотрит на твою тарелку: нейросеть находит продукты, оценивает вес, считает КБЖУ и сама ведёт дневник. Он живёт прямо в Telegram — без установки, регистрации и подписок.",
+    "tiles": [["Фото вместо таблиц", "ИИ распознаёт еду и порцию за пару секунд"], ["Всегда можно поправить", "Исправь продукт или вес — КБЖУ пересчитаются"], ["Дневник в Mini App", "Календарь, кольцо калорий, вода и вес"], ["Бесплатно", "Работает на бесплатных тарифах"]]
+  },
+  "en": {
+    "label": "ABOUT", "c1": "BOT CHAT", "c2": "DIARY · MINI APP", "note": "The bot interface is in Russian",
+    "text": "FITTER is not another food table where you weigh every ingredient. It is a bot that looks at your plate: the AI finds the foods, estimates their weight, counts calories and macros, and keeps the diary for you. It lives right inside Telegram — no install, no sign-up, no subscription.",
+    "tiles": [["Photos, not tables", "AI recognises the dish and portion in seconds"], ["Always editable", "Fix a food or its grams and macros recalculate"], ["Mini App diary", "Calendar, calorie ring, water and weight"], ["Free", "Runs on free tiers"]]
+  },
+  "es": {
+    "label": "SOBRE EL PROYECTO", "c1": "CHAT CON EL BOT", "c2": "DIARIO · MINI APP", "note": "La interfaz del bot está en ruso",
+    "text": "FITTER no es otra tabla de alimentos en la que hay que pesar cada ingrediente. Es un bot que mira tu plato: la IA encuentra los alimentos, estima su peso, calcula calorías y macros y lleva el diario por ti. Vive dentro de Telegram — sin instalar nada, sin registro y sin suscripciones.",
+    "tiles": [["Fotos, no tablas", "La IA reconoce el plato y la ración en segundos"], ["Siempre editable", "Corrige un alimento o sus gramos y los macros se recalculan"], ["Diario en Mini App", "Calendario, anillo de calorías, agua y peso"], ["Gratis", "Funciona con planes gratuitos"]]
+  },
+  "pt": {
+    "label": "SOBRE O PROJETO", "c1": "CONVERSA COM O BOT", "c2": "DIÁRIO · MINI APP", "note": "A interface do bot está em russo",
+    "text": "FITTER não é mais uma tabela de alimentos em que você pesa cada ingrediente. É um bot que olha para o seu prato: a IA encontra os alimentos, estima o peso, calcula calorias e macros e cuida do diário para você. Ele vive dentro do Telegram — sem instalar nada, sem cadastro e sem assinatura.",
+    "tiles": [["Fotos, não tabelas", "A IA reconhece o prato e a porção em segundos"], ["Sempre editável", "Corrija um alimento ou os gramas e os macros são recalculados"], ["Diário em Mini App", "Calendário, anel de calorias, água e peso"], ["Grátis", "Funciona nos planos gratuitos"]]
+  },
+  "de": {
+    "label": "ÜBER DAS PROJEKT", "c1": "CHAT MIT DEM BOT", "c2": "TAGEBUCH · MINI APP", "note": "Die Oberfläche des Bots ist auf Russisch",
+    "text": "FITTER ist keine weitere Nährwerttabelle, in der du jede Zutat wiegen musst. Es ist ein Bot, der auf deinen Teller schaut: Die KI erkennt die Lebensmittel, schätzt das Gewicht, berechnet Kalorien und Makros und führt das Tagebuch für dich. Er lebt direkt in Telegram — ohne Installation, Registrierung oder Abo.",
+    "tiles": [["Fotos statt Tabellen", "Die KI erkennt Gericht und Portion in Sekunden"], ["Immer korrigierbar", "Lebensmittel oder Gramm ändern, Makros werden neu berechnet"], ["Tagebuch als Mini App", "Kalender, Kalorienring, Wasser und Gewicht"], ["Kostenlos", "Läuft mit kostenlosen Tarifen"]]
+  },
+  "fr": {
+    "label": "À PROPOS", "c1": "CHAT AVEC LE BOT", "c2": "JOURNAL · MINI APP", "note": "L’interface du bot est en russe",
+    "text": "FITTER n’est pas un énième tableau nutritionnel où il faut peser chaque ingrédient. C’est un bot qui regarde ton assiette : l’IA reconnaît les aliments, estime leur poids, calcule calories et macros et tient le journal pour toi. Il vit directement dans Telegram — rien à installer, pas d’inscription, pas d’abonnement.",
+    "tiles": [["Des photos, pas des tableaux", "L’IA reconnaît le plat et la portion en quelques secondes"], ["Toujours modifiable", "Corrige un aliment ou ses grammes, les macros sont recalculées"], ["Journal en Mini App", "Calendrier, anneau de calories, eau et poids"], ["Gratuit", "Fonctionne avec les offres gratuites"]]
+  }
+}
