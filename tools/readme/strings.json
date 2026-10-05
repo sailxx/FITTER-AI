@@ -1,0 +1,44 @@
+{
+  "ru": {
+    "tag": "TELEGRAM-БОТ · ИИ · БЕСПЛАТНО", "l1": "Сфоткай еду.", "l2": "ИИ посчитает калории.",
+    "sub": "Счётчик калорий и БЖУ прямо в Telegram. Без установки и регистрации.", "kcal": "ККАЛ",
+    "s1": "Фото или текст", "s1b": "«2 яйца и тост»",
+    "s2": "ИИ находит продукты", "s2b": "вес и КБЖУ за ~8 секунд",
+    "s3": "Запись в дневник", "s3b": "кольцо, вода, вес"
+  },
+  "en": {
+    "tag": "TELEGRAM BOT · AI · FREE", "l1": "Snap your meal.", "l2": "AI counts the calories.",
+    "sub": "A calorie and macro tracker that lives in Telegram. Nothing to install.", "kcal": "KCAL",
+    "s1": "Photo or text", "s1b": "“2 eggs and toast”",
+    "s2": "AI finds the food", "s2b": "grams and macros in ~8 s",
+    "s3": "Saved to your diary", "s3b": "ring, water, weight"
+  },
+  "es": {
+    "tag": "BOT DE TELEGRAM · IA · GRATIS", "l1": "Fotografía tu comida.", "l2": "La IA cuenta las calorías.",
+    "sub": "Contador de calorías y macros dentro de Telegram. Sin instalar nada.", "kcal": "KCAL",
+    "s1": "Foto o texto", "s1b": "«2 huevos y una tostada»",
+    "s2": "La IA reconoce la comida", "s2b": "gramos y macros en ~8 s",
+    "s3": "Guardado en tu diario", "s3b": "anillo, agua, peso"
+  },
+  "pt": {
+    "tag": "BOT DO TELEGRAM · IA · GRÁTIS", "l1": "Fotografe sua refeição.", "l2": "A IA conta as calorias.",
+    "sub": "Contador de calorias e macros dentro do Telegram. Sem instalar nada.", "kcal": "KCAL",
+    "s1": "Foto ou texto", "s1b": "“2 ovos e uma torrada”",
+    "s2": "A IA reconhece a comida", "s2b": "gramas e macros em ~8 s",
+    "s3": "Salvo no seu diário", "s3b": "anel, água, peso"
+  },
+  "de": {
+    "tag": "TELEGRAM-BOT · KI · KOSTENLOS", "l1": "Fotografiere dein Essen.", "l2": "Die KI zählt die Kalorien.",
+    "sub": "Kalorien- und Makro-Tracker direkt in Telegram. Ohne Installation.", "kcal": "KCAL",
+    "s1": "Foto oder Text", "s1b": "„2 Eier und Toast“",
+    "s2": "Die KI erkennt das Essen", "s2b": "Gramm und Makros in ~8 s",
+    "s3": "Im Tagebuch gespeichert", "s3b": "Ring, Wasser, Gewicht"
+  },
+  "fr": {
+    "tag": "BOT TELEGRAM · IA · GRATUIT", "l1": "Prends ton repas en photo.", "l2": "L’IA compte les calories.",
+    "sub": "Compteur de calories et de macros dans Telegram. Rien à installer.", "kcal": "KCAL",
+    "s1": "Photo ou texte", "s1b": "« 2 œufs et un toast »",
+    "s2": "L’IA reconnaît les plats", "s2b": "grammes et macros en ~8 s",
+    "s3": "Enregistré dans ton journal", "s3b": "anneau, eau, poids"
+  }
+}

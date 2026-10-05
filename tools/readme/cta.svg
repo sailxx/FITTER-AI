@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="{{w}}" height="48" viewBox="0 0 {{w}} 48" role="img" aria-label="{{label}}">
+<style>
+{{FONT}}
+text{font-family:"JBM",ui-monospace,Consolas,monospace}
+</style>
+<rect x=".5" y=".5" width="{{w1}}" height="47" rx="23.5" fill="{{bg}}" stroke="{{edge}}"/>
+<text x="{{cx}}" y="30" text-anchor="middle" font-size="15" font-weight="800" letter-spacing="-.2" fill="{{fg}}">{{label}}</text>
+</svg>

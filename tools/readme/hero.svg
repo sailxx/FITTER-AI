@@ -1,0 +1,63 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="880" height="380" viewBox="0 0 880 380" role="img" aria-label="FITTER — {{l1}} {{l2}}">
+<style>
+{{FONT}}
+text{font-family:"JBM",ui-monospace,Consolas,monospace}
+.lb{font-size:11px;font-weight:600;letter-spacing:2.4px;fill:#8d9488}
+.st{font-size:13px;font-weight:700;fill:#eef1ea}
+.sb{font-size:12px;fill:#a5ac9e}
+.r{animation:in .8s cubic-bezier(.2,.8,.2,1) backwards}
+.d1{animation-delay:.1s}.d2{animation-delay:.25s}.d3{animation-delay:.4s}.d4{animation-delay:.55s}.d5{animation-delay:.75s}.d6{animation-delay:.95s}.d7{animation-delay:1.15s}
+.arc{stroke-dasharray:440;stroke-dashoffset:150;animation:fill 1.8s cubic-bezier(.2,.8,.2,1) .4s backwards}
+
+@keyframes in{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+@keyframes fill{from{stroke-dashoffset:440}}
+
+@media (prefers-reduced-motion:reduce){.r,.arc{animation:none}}
+</style>
+<defs>
+  <pattern id="dots" width="22" height="22" patternUnits="userSpaceOnUse"><circle cx="1.5" cy="1.5" r="1.1" fill="#c9f36b" fill-opacity=".07"/></pattern>
+  <radialGradient id="glow" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(780 120) scale(330 260)"><stop offset="0" stop-color="#c9f36b" stop-opacity=".18"/><stop offset="1" stop-color="#c9f36b" stop-opacity="0"/></radialGradient>
+  <clipPath id="card"><rect width="880" height="380" rx="22"/></clipPath>
+</defs>
+<g clip-path="url(#card)">
+  <rect width="880" height="380" fill="#171916"/>
+  <rect width="880" height="380" fill="url(#dots)"/>
+  <rect width="880" height="380" fill="url(#glow)"/>
+</g>
+<rect x=".5" y=".5" width="879" height="379" rx="21.5" fill="none" stroke="#ffffff" stroke-opacity=".07"/>
+
+<g class="r d1">
+  <rect x="44" y="40" width="44" height="44" rx="11" fill="#000" stroke="#ffffff" stroke-opacity=".12"/>
+  <g transform="translate(51 47) scale(1.25)" fill="none" stroke="#fff" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 8V6.5a3 3 0 0 1 3-3H8"/><path d="M16 3.5h1.5a3 3 0 0 1 3 3V8"/><path d="M20.5 16v1.5a3 3 0 0 1-3 3H16"/><path d="M8 20.5H6.5a3 3 0 0 1-3-3V16"/><path d="M12 9.3c-1.2-.9-3.9-1.1-4.4 1.9-.4 2.4 1.2 5.4 2.9 5.4.6 0 1-.3 1.5-.3s.9.3 1.5.3c1.7 0 3.3-3 2.9-5.4-.5-3-3.2-2.8-4.4-1.9z"/><path d="M12 9.3c0-1.3.6-2.2 1.7-2.6"/></g>
+  <text x="102" y="74" font-size="34" font-weight="800" letter-spacing="-1" fill="#c9f36b">FITTER</text>
+</g>
+<text x="44" y="122" class="lb r d2">{{tag}}</text>
+<text x="44" y="164" class="r d3" font-size="30" font-weight="800" letter-spacing="-.9" fill="#f2f4ef">{{l1}}</text>
+<text x="44" y="202" class="r d3" font-size="30" font-weight="800" letter-spacing="-.9" fill="#c9f36b">{{l2}}</text>
+<text x="44" y="236" class="r d4" font-size="14" fill="#a5ac9e">{{sub}}</text>
+
+<g class="r d2" transform="translate(770 150)">
+  <circle r="70" fill="none" stroke="#2a2e27" stroke-width="14"/>
+  <g transform="rotate(-90)">
+    <circle class="arc" r="70" fill="none" stroke="#c9f36b" stroke-width="14" stroke-linecap="round"/>
+  </g>
+  <circle r="46" fill="#ffffff"/>
+  <text y="-4" text-anchor="middle" font-size="22" font-weight="800" letter-spacing="-.8" fill="#171916">1 240</text>
+  <text y="14" text-anchor="middle" font-size="10" font-weight="700" letter-spacing="1.6" fill="#5c6656">{{kcal}}</text>
+</g>
+
+<g class="r d5">
+  <rect x="44" y="270" width="246" height="76" rx="14" fill="#ffffff" fill-opacity=".04" stroke="#ffffff" stroke-opacity=".08"/>
+  <text x="62" y="302" class="st">{{s1}}</text><text x="62" y="326" class="sb">{{s1b}}</text>
+</g>
+<text x="303" y="314" class="r d5" font-size="18" font-weight="800" text-anchor="middle" fill="#c9f36b">→</text>
+<g class="r d6">
+  <rect x="316" y="270" width="246" height="76" rx="14" fill="#ffffff" fill-opacity=".04" stroke="#ffffff" stroke-opacity=".08"/>
+  <text x="334" y="302" class="st">{{s2}}</text><text x="334" y="326" class="sb">{{s2b}}</text>
+</g>
+<text x="575" y="314" class="r d6" font-size="18" font-weight="800" text-anchor="middle" fill="#c9f36b">→</text>
+<g class="r d7">
+  <rect x="588" y="270" width="248" height="76" rx="14" fill="#c9f36b"/>
+  <text x="606" y="302" class="st" fill="#171916" style="fill:#171916">{{s3}}</text><text x="606" y="326" class="sb" style="fill:#3d4a1f">{{s3b}}</text>
+</g>
+</svg>
