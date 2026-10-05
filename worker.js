@@ -2720,11 +2720,19 @@ const APP_HTML = `<!doctype html>
     --f:#f5a524; --f-bg:rgba(245,165,36,.15);
     --c:#22b36b; --c-bg:rgba(34,179,107,.13);
     --w1:#5ab8ff; --w2:#2a7bf0;
-    --shadow:0 6px 24px rgba(16,40,28,.08);
+    --edge:rgba(19,32,26,.07);
+    --fill:rgba(19,32,26,.05);
+    --shadow:0 1px 2px rgba(16,40,28,.04),0 4px 14px rgba(16,40,28,.04);
+    --r:20px;
   }
   /* Тема, выбранная кнопкой: перекрывает цвета Telegram */
-  html[data-theme="light"]{--bg:#f3f5f2;--card:#ffffff;--text:#13201a;--hint:#8a948e;--line:rgba(127,127,127,.14);--shadow:0 6px 24px rgba(16,40,28,.08)}
-  html[data-theme="dark"]{--bg:#0e1311;--card:#1a211e;--text:#eef3f0;--hint:#87928c;--line:rgba(255,255,255,.09);--shadow:0 6px 24px rgba(0,0,0,.35)}
+  html[data-theme="light"]{--bg:#f3f5f2;--card:#ffffff;--text:#13201a;--hint:#8a948e;--line:rgba(127,127,127,.14);--edge:rgba(19,32,26,.07);--fill:rgba(19,32,26,.05);--shadow:0 1px 2px rgba(16,40,28,.04),0 4px 14px rgba(16,40,28,.04)}
+  html[data-theme="dark"]{--bg:#0c100e;--card:#161c19;--text:#eef3f0;--hint:#8b968f;--line:rgba(255,255,255,.08);--edge:rgba(255,255,255,.06);--fill:rgba(255,255,255,.07);--shadow:none}
+  /* Шапка: максимально яркий зелёный в обеих темах, текст тёмно-зелёный (контраст от 9:1) */
+  html{--h-bg:radial-gradient(90% 70% at 90% -12%,rgba(220,255,236,.8),rgba(220,255,236,0) 60%),linear-gradient(165deg,#5dffad,#33f792 50%,#1fec84);
+    --h-ink:#03301a;--h-sub:rgba(3,48,26,.75);--h-btn:rgba(255,255,255,.42);--h-chip:rgba(255,255,255,.5);--h-track:rgba(3,48,26,.12);--h-arc:#ffffff;--h-arc2:#e6fff1;
+    --h-sel:#03301a;--h-sel-ink:#5dffad;--h-sel-sub:rgba(93,255,173,.7);--h-dot-ok:#03301a;--h-dot-lo:rgba(3,48,26,.3);--h-dot-ov:#d93a2f;--h-shadow:0 12px 30px rgba(31,236,132,.3)}
+  html[data-theme="dark"]{--h-shadow:0 12px 30px rgba(31,236,132,.18)}
   html.tt,html.tt *{transition:background-color .3s,color .3s,border-color .3s!important}
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
   html,body{margin:0;background:var(--bg);color:var(--text);font:15px/1.4 -apple-system,BlinkMacSystemFont,"SF Pro Rounded","Segoe UI",Roboto,sans-serif}
@@ -2733,89 +2741,111 @@ const APP_HTML = `<!doctype html>
   button:active{transform:scale(.9);filter:brightness(.94)}
   .ic{width:24px;height:24px;flex:none;display:block}
 
-  /* ── Шапка ── */
-  .hero{position:relative;color:#fff;padding:14px 14px 22px;border-radius:0 0 30px 30px;overflow:hidden;
-    background:radial-gradient(120% 90% at 100% 0,#7cf3c1 0,rgba(124,243,193,0) 55%),linear-gradient(150deg,var(--g1),var(--g2) 55%,var(--g3));
-    box-shadow:0 14px 34px rgba(22,184,106,.28)}
-  .hero:before,.hero:after{content:"";position:absolute;border-radius:50%;background:rgba(255,255,255,.12);pointer-events:none}
-  .hero:before{width:220px;height:220px;right:-70px;top:-90px}
-  .hero:after{width:150px;height:150px;left:-60px;bottom:-70px;background:rgba(255,255,255,.08)}
-  .top{position:relative;z-index:1;display:flex;align-items:center;justify-content:space-between}
-  .logo{display:flex;align-items:center;gap:8px;font-weight:800;font-size:19px;letter-spacing:.5px}
-  .logo .mk{width:30px;height:30px;border-radius:9px;background:#0d1512;display:flex;align-items:center;justify-content:center}
-  .logo small{display:block;font-weight:500;font-size:11px;opacity:.85;letter-spacing:0;white-space:nowrap}
-  .nav{display:flex;align-items:center;gap:6px}
-  .nav button{width:34px;height:34px;border-radius:11px;background:rgba(255,255,255,.2);color:#fff;font-size:20px;line-height:1;backdrop-filter:blur(6px)}
-  .nav .d{min-width:78px;text-align:center;font-weight:700;font-size:15px}
-  .week{position:relative;z-index:1;display:grid;grid-template-columns:repeat(7,1fr);gap:5px;margin:14px 0 8px}
-  .wd{background:rgba(255,255,255,.14);color:#fff;border-radius:14px;padding:7px 0 6px;display:flex;flex-direction:column;align-items:center;gap:1px}
-  .wd small{font-size:11px;opacity:.8}
-  .wd b{font-size:16px}
-  .wd i{width:5px;height:5px;border-radius:50%;background:transparent;margin-top:2px}
-  .wd.sel{background:#fff;color:var(--g3);box-shadow:0 6px 16px rgba(0,0,0,.12)}
-  .wd.sel small{opacity:.7}
-  .wd.today:not(.sel) b{text-decoration:underline;text-underline-offset:3px}
+  /* ── Шапка (цвета — токены --h-*) ── */
+  .hero{position:relative;color:var(--h-ink);padding:14px 14px 22px;border-radius:0 0 30px 30px;overflow:hidden;background:var(--h-bg);box-shadow:var(--h-shadow)}
+  .hero:before{content:"";position:absolute;width:240px;height:240px;right:-80px;top:-110px;border-radius:50%;background:rgba(255,255,255,.1);pointer-events:none}
+  .top{position:relative;z-index:1;display:flex;align-items:center;justify-content:space-between;gap:10px}
+  .ttl{min-width:0}
+  .ttl b{display:block;font-size:30px;font-weight:800;letter-spacing:-.02em;line-height:1.1;white-space:nowrap}
+  .ttl small{display:block;margin-top:2px;font-size:14px;font-weight:600;color:var(--h-sub);white-space:nowrap}
+  .nav{display:flex;align-items:center;gap:6px;flex:none}
+  .nav button{width:36px;height:36px;border-radius:12px;background:var(--h-btn);color:var(--h-ink);display:flex;align-items:center;justify-content:center}
+  .nav button svg{width:18px;height:18px}
+  .av{width:40px;height:40px;border-radius:50%;background:#fff;color:#0a7a43;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:17px;margin-left:2px;box-shadow:0 4px 12px rgba(5,46,28,.14)}
+  .av:empty{display:none}
+  .week{position:relative;z-index:1;display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin:16px 0 8px}
+  .wd{background:transparent;color:var(--h-ink);border-radius:14px;padding:7px 0;display:flex;flex-direction:column;align-items:center;gap:2px}
+  .wd small{font-size:12px;font-weight:600;color:var(--h-sub)}
+  .wd b{font-size:17px;font-weight:800}
+  .wd i{width:6px;height:6px;border-radius:50%;background:transparent;margin-top:2px}
+  .wd i.ok{background:var(--h-dot-ok)} .wd i.lo{background:var(--h-dot-lo)} .wd i.ov{background:var(--h-dot-ov)}
+  .wd.sel{background:var(--h-sel);color:var(--h-sel-ink);box-shadow:0 6px 16px rgba(5,46,28,.22)}
+  .wd.sel small{color:var(--h-sel-sub)}
+  .wd.sel i.ok{background:var(--h-sel-ink)} .wd.sel i.lo{background:var(--h-sel-sub)} .wd.sel i.ov{background:var(--danger)}
+  .wd.today:not(.sel) b{text-decoration:underline;text-decoration-thickness:2px;text-underline-offset:4px}
+  .wd[disabled]{opacity:.4}
   .main{position:relative;z-index:1;display:flex;flex-direction:column;align-items:center;margin-top:6px}
-  .ring{position:relative;width:196px;height:196px}
-  .ring svg{transform:rotate(-90deg);overflow:visible}
-  .ring .arc{transition:stroke-dashoffset 1.2s cubic-bezier(.2,.8,.2,1)}
+  /* Кольцо калорий: светлая дорожка, градиентная дуга с бегунком, белый диск с числом */
+  .ring{position:relative;width:204px;height:204px}
+  .ring > svg{position:absolute;inset:0;transform:rotate(-90deg);overflow:visible}
+  .ring .trk{stroke:var(--h-track)}
+  .ring .arc{transition:stroke-dashoffset 1.2s cubic-bezier(.2,.8,.2,1);filter:drop-shadow(0 3px 8px rgba(3,48,26,.22))}
+  .ring .s1{stop-color:var(--h-arc)} .ring .s2{stop-color:var(--h-arc2)}
+  .ring.over .s1{stop-color:#b4231a} .ring.over .s2{stop-color:#ff6a4d}
+  .ring .knob{transform-origin:102px 102px;transition:transform 1.2s cubic-bezier(.2,.8,.2,1)}
+  .ring .knob circle{fill:#13a35a;stroke:#fff;stroke-width:4}
+  .ring.over .knob circle{fill:#d93a2f}
   .ring.ok .arc{filter:drop-shadow(0 0 8px rgba(255,255,255,.9))}
-  .ring .in{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center}
-  .ring .in .ic{width:30px;height:30px;margin-bottom:2px}
-  .ring .in b{font-size:40px;font-weight:800;letter-spacing:-1px;line-height:1.05}
-  .ring .in small{font-size:13px;opacity:.9}
-  .chip{margin-top:10px;display:inline-flex;align-items:center;gap:6px;padding:7px 14px;border-radius:99px;background:rgba(255,255,255,.22);font-weight:600;font-size:14px;backdrop-filter:blur(6px)}
-  .chip.over{background:rgba(255,90,78,.9)}
+  .ring .in{position:absolute;left:34px;top:34px;width:136px;height:136px;border-radius:50%;background:#fff;color:#03301a;
+    box-shadow:0 10px 26px rgba(3,48,26,.16),inset 0 -6px 14px rgba(3,48,26,.05);display:flex;flex-direction:column;align-items:center;justify-content:center}
+  .ring .in .ic{width:22px;height:22px;margin-bottom:1px}
+  .ring .in b{font-size:36px;font-weight:800;letter-spacing:-.03em;line-height:1.05}
+  .ring .in small{font-size:12px;font-weight:600;color:#55705f}
+  .ring .in em{margin-top:5px;font-style:normal;font-size:12px;font-weight:800;padding:2px 8px;border-radius:99px;background:#e3fbee;color:#0b6b3a}
+  .ring.over .in em{background:#ffe6e2;color:#b4231a}
+  .chip{margin-top:10px;display:inline-flex;align-items:center;gap:6px;padding:7px 14px;border-radius:99px;background:var(--h-chip);font-weight:700;font-size:14px}
+  .chip.over{background:#d93a2f;color:#fff}
   .chips{display:flex;gap:8px;flex-wrap:wrap;justify-content:center}
 
   .wrap{padding:0 12px}
   /* ── БЖУ ── */
   .macros{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:-14px;position:relative;z-index:2}
-  .mc{background:var(--card);border-radius:20px;padding:12px 10px 11px;box-shadow:var(--shadow);position:relative;overflow:hidden}
-  .mc .ib{width:38px;height:38px;border-radius:13px;display:flex;align-items:center;justify-content:center;margin-bottom:8px}
-  .mc .ib .ic{width:26px;height:26px}
+  .mc{background:var(--card);border:1px solid var(--edge);border-radius:var(--r);padding:12px;box-shadow:var(--shadow);position:relative;overflow:hidden}
+  .mc .ib{width:30px;height:30px;border-radius:10px;display:flex;align-items:center;justify-content:center;margin-bottom:10px}
+  .mc .ib .ic{width:20px;height:20px}
   .mc .lb{font-size:12px;color:var(--hint);font-weight:600}
-  .mc .vl{font-size:18px;font-weight:800;margin:1px 0 7px}
+  .mc .vl{font-size:20px;font-weight:800;letter-spacing:-.02em;margin:1px 0 8px}
   .mc .vl small{font-size:12px;color:var(--hint);font-weight:600}
-  .bar{height:7px;border-radius:9px;background:var(--line);overflow:hidden}
+  .bar{height:5px;border-radius:9px;background:var(--line);overflow:hidden}
   .bar div{height:100%;width:0;border-radius:9px;transition:width 1s cubic-bezier(.2,.8,.2,1)}
-  .mc.p .ib{background:var(--p-bg)} .mc.p .bar div{background:linear-gradient(90deg,#ffb36b,var(--p))}
-  .mc.f .ib{background:var(--f-bg)} .mc.f .bar div{background:linear-gradient(90deg,#ffe07a,var(--f))}
-  .mc.c .ib{background:var(--c-bg)} .mc.c .bar div{background:linear-gradient(90deg,#8fe6b2,var(--c))}
+  .mc.p .ib{background:var(--p-bg)} .mc.p .bar div{background:var(--p)}
+  .mc.f .ib{background:var(--f-bg)} .mc.f .bar div{background:var(--f)}
+  .mc.c .ib{background:var(--c-bg)} .mc.c .bar div{background:var(--c)}
+  .mc .st{margin-top:8px;font-size:12px;font-weight:700;color:var(--hint);font-variant-numeric:tabular-nums}
+  .mc .st .ok{color:var(--g3)} .mc .st .ov{color:var(--danger)}
+  html[data-theme="dark"] .mc .st .ok{color:var(--g1)}
+  .mc .vl,.meal .k,.wt b,.ring .in b,.wb em{font-variant-numeric:tabular-nums}
+  /* Подсказка по БЖУ */
+  .hint{margin-top:8px;background:var(--card);border:1px solid var(--edge);border-radius:var(--r);padding:12px 14px 12px 32px;font-size:14px;line-height:1.4;box-shadow:var(--shadow);position:relative;text-wrap:pretty}
+  .hint:before{content:"";position:absolute;left:14px;top:18px;width:8px;height:8px;border-radius:50%;background:var(--p)}
+  .hint b{font-weight:800}
+  .hint.good:before{background:var(--c)}
+  .hint.warn:before{background:var(--danger)}
 
   /* ── Вода ── */
-  .water{margin-top:12px;border-radius:24px;padding:14px;color:#fff;display:flex;align-items:center;gap:14px;position:relative;overflow:hidden;
-    background:linear-gradient(135deg,var(--w1),var(--w2));box-shadow:0 10px 26px rgba(42,123,240,.28);transition:box-shadow .4s}
+  .water{margin-top:8px;border-radius:var(--r);padding:14px;color:#fff;display:flex;align-items:center;gap:14px;position:relative;overflow:hidden;
+    background:linear-gradient(135deg,var(--w1),var(--w2));box-shadow:0 8px 22px rgba(42,123,240,.24);transition:box-shadow .4s}
   .water:after{content:"";position:absolute;width:160px;height:160px;border-radius:50%;right:-50px;top:-70px;background:rgba(255,255,255,.12)}
-  .water.done{box-shadow:0 0 0 3px rgba(255,255,255,.7) inset,0 10px 30px rgba(42,123,240,.45)}
-  .glass{width:58px;height:78px;flex:none;position:relative}
+  .water.done{box-shadow:0 0 0 2px rgba(255,255,255,.7) inset,0 8px 26px rgba(42,123,240,.4)}
+  html[data-theme="dark"] .water:not(.done){box-shadow:none}
+  .glass{width:52px;height:70px;flex:none;position:relative}
   .glass svg{width:100%;height:100%;overflow:visible}
   .glass .lvl{transition:transform 1s cubic-bezier(.2,.8,.2,1)}
   .glass .wave{animation:wave 2.4s linear infinite}
   .glass .wave2{animation:wave 3.6s linear infinite reverse;opacity:.55}
   @keyframes wave{from{transform:translateX(0)}to{transform:translateX(-40px)}}
   .wt{flex:1;position:relative;z-index:1}
-  .wt .lb{font-size:13px;opacity:.9;font-weight:600}
-  .wt b{font-size:26px;font-weight:800;letter-spacing:-.5px}
-  .wt small{font-size:13px;opacity:.9}
+  .wt .lb{font-size:12px;font-weight:600;color:rgba(255,255,255,.85)}
+  .wt b{font-size:24px;font-weight:800;letter-spacing:-.02em}
+  .wt small{font-size:12px;font-weight:600;color:rgba(255,255,255,.85)}
   .wbtn{display:flex;flex-direction:column;gap:6px;position:relative;z-index:1}
-  .wbtn button{height:38px;border-radius:13px;padding:0 14px;font-weight:700;background:rgba(255,255,255,.22);color:#fff}
-  .wbtn button.add{background:#fff;color:var(--w2);box-shadow:0 4px 12px rgba(0,0,0,.12)}
+  .wbtn button{height:36px;border-radius:12px;padding:0 14px;font-weight:700;font-size:14px;background:rgba(255,255,255,.22);color:#fff}
+  .wbtn button.add{background:#fff;color:var(--w2)}
   /* ── Таблетки ── */
-  .pills{background:var(--card);border-radius:22px;padding:12px 14px;margin-top:12px;box-shadow:var(--shadow)}
+  .pills{background:var(--card);border:1px solid var(--edge);border-radius:var(--r);padding:12px 14px;margin-top:8px;box-shadow:var(--shadow)}
   .pills .ph{display:flex;align-items:center;gap:10px}
-  .pills .ib{width:42px;height:42px;border-radius:14px;background:rgba(200,107,255,.14);display:flex;align-items:center;justify-content:center;flex:none;font-size:22px}
+  .pills .ib{width:36px;height:36px;border-radius:12px;background:rgba(143,91,255,.1);display:flex;align-items:center;justify-content:center;flex:none;font-size:18px}
   .pills .t{flex:1;min-width:0;font-weight:800}
   .pills .t small{display:block;color:var(--hint);font-weight:600;font-size:12px}
-  .pbtn{flex:none;height:34px;padding:0 12px;border-radius:11px;background:var(--bg);color:var(--text);font-weight:700;font-size:13px}
-  .pbar{height:6px;border-radius:9px;background:var(--bg);margin:10px 0 4px;overflow:hidden}
-  .pbar i{display:block;height:100%;width:0;border-radius:9px;background:linear-gradient(90deg,#c86bff,#8f5bff);transition:width .8s cubic-bezier(.2,.8,.2,1)}
+  .pbtn{flex:none;height:32px;padding:0 12px;border-radius:10px;background:var(--fill);color:var(--text);font-weight:700;font-size:13px}
+  .pbar{height:5px;border-radius:9px;background:var(--line);margin:12px 0 4px;overflow:hidden}
+  .pbar i{display:block;height:100%;width:0;border-radius:9px;background:#8f5bff;transition:width .8s cubic-bezier(.2,.8,.2,1)}
   .dose{display:flex;align-items:center;gap:10px;width:100%;padding:10px 0;border-top:1px solid var(--line);background:transparent;color:var(--text);text-align:left}
   .dose:first-of-type{border-top:0}
   .dose .tm{flex:none;width:44px;font-weight:800;font-size:13px;color:var(--hint)}
   .dose .nm{flex:1;min-width:0;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .dose .nm small{display:block;color:var(--hint);font-size:12px;font-weight:500}
-  .dose .ck{flex:none;width:28px;height:28px;border-radius:50%;border:2px solid var(--line);display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:800;color:#fff;transition:background .2s,border-color .2s}
+  .dose .ck{flex:none;width:26px;height:26px;border-radius:50%;border:2px solid var(--line);display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:800;color:#fff;transition:background .2s,border-color .2s}
   .dose.taken .ck{background:#8f5bff;border-color:#8f5bff}
   .dose.taken .pn{color:var(--hint);text-decoration:line-through}
   .dose.skip .ck{border-style:dashed}
@@ -2827,7 +2857,7 @@ const APP_HTML = `<!doctype html>
   .ptimes .chip{display:flex;align-items:center;gap:4px;height:34px;padding:0 6px 0 12px;border-radius:11px;background:rgba(143,91,255,.14);color:var(--text);font-weight:700}
   .ptimes .chip b{width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:var(--hint);font-weight:700}
   .ptimes select{width:auto;flex:1;min-width:110px;padding:8px 10px}
-  .psave{height:44px;border-radius:14px;background:linear-gradient(135deg,#c86bff,#8f5bff);color:#fff;font-weight:800}
+  .psave{height:44px;border-radius:12px;background:#8f5bff;color:#fff;font-weight:800}
   .plist{margin-top:6px}
   .plist .row{display:flex;align-items:center;gap:10px;padding:9px 0;border-top:1px solid var(--line)}
   .plist .row div{flex:1;min-width:0;font-weight:600}
@@ -2836,15 +2866,15 @@ const APP_HTML = `<!doctype html>
   .phint{color:var(--hint);font-size:13px;margin:8px 0 2px;line-height:1.45}
 
   /* ── Приёмы пищи ── */
-  h3{margin:20px 4px 10px;font-size:17px;font-weight:800;display:flex;align-items:center;justify-content:space-between}
+  h3{margin:24px 4px 10px;font-size:17px;font-weight:800;display:flex;align-items:center;justify-content:space-between}
   h3 small{font-size:13px;color:var(--hint);font-weight:600}
-  .meal{background:var(--card);border-radius:22px;padding:12px 14px 6px;margin-bottom:10px;box-shadow:var(--shadow)}
+  .meal{background:var(--card);border:1px solid var(--edge);border-radius:var(--r);padding:12px 14px 4px;margin-bottom:8px;box-shadow:var(--shadow)}
   .meal .hd{display:flex;align-items:center;gap:10px;margin-bottom:4px}
-  .meal .ib{width:42px;height:42px;border-radius:14px;background:var(--c-bg);display:flex;align-items:center;justify-content:center;flex:none}
-  .meal .ib .ic{width:30px;height:30px}
+  .meal .ib{width:36px;height:36px;border-radius:12px;background:var(--c-bg);display:flex;align-items:center;justify-content:center;flex:none}
+  .meal .ib .ic{width:24px;height:24px}
   .meal .t{flex:1;min-width:0;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .meal .t small{display:block;color:var(--hint);font-weight:500;font-size:12px}
-  .meal .k{flex:none;padding:6px 10px;border-radius:99px;background:linear-gradient(135deg,#ffb36b,#ff6a3d);color:#fff;font-weight:800;font-size:13px}
+  .meal .k{flex:none;padding:5px 9px;border-radius:10px;background:var(--fill);color:var(--text);font-weight:800;font-size:14px}
   .it{display:flex;align-items:center;gap:10px;padding:10px 0;border-top:1px solid var(--line)}
   .it .dot{width:8px;height:8px;border-radius:50%;flex:none}
   .it .n{flex:1;min-width:0}
@@ -2852,33 +2882,62 @@ const APP_HTML = `<!doctype html>
   .it .n small{color:var(--hint);font-size:12px}
   .it .nm{cursor:pointer}
   .it .nm:after{content:" ✎";font-size:12px;color:var(--hint)}
-  .it .gr{display:flex;align-items:center;background:var(--bg);border-radius:11px;padding:0 8px 0 2px}
+  .it .gr{display:flex;align-items:center;background:var(--fill);border-radius:10px;padding:0 8px 0 2px}
   .it input{width:52px;padding:7px 2px;border:0;background:transparent;color:var(--text);font:inherit;font-weight:700;text-align:right;outline:none}
   .it .g{color:var(--hint);font-size:13px}
   .it .ren{width:100%;padding:5px 8px;border-radius:9px;border:2px solid var(--g2);background:var(--bg);color:var(--text);font:inherit;outline:none}
-  .del{display:block;width:100%;background:transparent;color:var(--danger);font-size:13px;font-weight:600;padding:8px 0;border-top:1px solid var(--line)}
-  .addm{display:flex;align-items:flex-end;gap:8px;background:var(--card);border-radius:22px;padding:7px 7px 7px 15px;box-shadow:var(--shadow);border:2px solid transparent;transition:border-color .2s}
-  .addm:focus-within{border-color:var(--g2)}
+  .del{display:block;width:100%;background:transparent;color:var(--danger);font-size:13px;font-weight:600;padding:10px 0;border-top:1px solid var(--line);opacity:.85}
+  .addm{display:flex;align-items:flex-end;gap:8px;background:var(--card);border-radius:var(--r);padding:6px 6px 6px 15px;box-shadow:var(--shadow);border:1px solid var(--edge);transition:border-color .2s,box-shadow .2s}
+  .addm:focus-within{border-color:var(--g2);box-shadow:0 0 0 3px var(--c-bg)}
   .addm textarea{flex:1;min-width:0;border:0;background:transparent;color:var(--text);font:inherit;font-size:15px;line-height:1.4;padding:10px 0;resize:none;outline:none;max-height:120px}
   .addm textarea::placeholder{color:var(--hint)}
-  .addb{flex:none;width:44px;height:44px;border-radius:15px;background:linear-gradient(135deg,var(--g1),var(--g2));color:#fff;font-size:26px;font-weight:600;line-height:1;box-shadow:0 6px 14px rgba(22,184,106,.3)}
+  .addb{flex:none;width:44px;height:44px;border-radius:14px;background:var(--g2);color:#fff;font-size:26px;font-weight:600;line-height:1}
   .addb:active{transform:scale(.92)}
   .addm.busy .addb{font-size:0}
   .addm.busy .addb:after{content:"";display:block;width:18px;height:18px;margin:auto;border:3px solid rgba(255,255,255,.45);border-top-color:#fff;border-radius:50%;animation:spin .8s linear infinite}
   @keyframes spin{to{transform:rotate(360deg)}}
   .addh{margin:7px 8px 12px;color:var(--hint);font-size:12px}
-  .empty{background:var(--card);border-radius:22px;padding:26px 16px;text-align:center;color:var(--hint);box-shadow:var(--shadow)}
-  .empty .ib{width:64px;height:64px;border-radius:20px;margin:0 auto 10px;background:var(--c-bg);display:flex;align-items:center;justify-content:center}
+  .empty{background:var(--card);border:1px solid var(--edge);border-radius:var(--r);padding:26px 16px;text-align:center;color:var(--hint);box-shadow:var(--shadow)}
+  .empty .ib{width:56px;height:56px;border-radius:18px;margin:0 auto 10px;background:var(--c-bg);display:flex;align-items:center;justify-content:center}
   .empty .ib .ic{width:42px;height:42px}
   .empty b{display:block;color:var(--text);font-size:16px;margin-bottom:4px}
 
+  /* ── Полоска БЖУ у приёма пищи ── */
+  .mbar{display:flex;gap:3px;height:4px;margin:6px 0 8px}
+  .mbar i{border-radius:3px;min-width:3px}
+  .mbar .p{background:var(--p)} .mbar .f{background:var(--f)} .mbar .c{background:var(--c)}
+
+  /* ── Неделя ── */
+  .wkc{background:var(--card);border:1px solid var(--edge);border-radius:var(--r);padding:22px 10px 12px;box-shadow:var(--shadow)}
+  .wkc .bars{position:relative;display:grid;grid-template-columns:repeat(7,1fr);gap:4px;height:156px}
+  .wkc .nl{position:absolute;left:4px;right:4px;height:0;border-top:1.5px dashed var(--hint);opacity:.6;pointer-events:none;z-index:1}
+  .wkc .nl span{position:absolute;right:0;top:-18px;font-size:11px;font-weight:700;color:var(--hint);background:var(--card);padding:0 4px}
+  .wkc .plot{position:absolute;left:0;right:0;top:0;bottom:30px;pointer-events:none}
+  .wb{display:flex;flex-direction:column;align-items:center;gap:4px;background:transparent;color:var(--text);padding:0;min-width:0}
+  .wb .col{flex:1;width:100%;display:flex;align-items:flex-end;justify-content:center}
+  .wb .col i{display:block;width:62%;max-width:26px;height:0;border-radius:7px;background:var(--line);transition:height 1s cubic-bezier(.2,.8,.2,1)}
+  .wb .col i.ok{background:var(--g2)}
+  .wb .col i.lo{background:#9fe3bf}
+  .wb .col i.ov{background:var(--p)}
+  html[data-theme="dark"] .wb .col i.lo,html[data-theme="dark"] .wsum .lg i.lo{background:#2f6b4f}
+  .wb small{font-size:11px;font-weight:700;color:var(--hint);line-height:1}
+  .wb em{font-style:normal;font-size:11px;font-weight:700;color:var(--hint);line-height:1}
+  .wb.sel small,.wb.sel em{color:var(--text)}
+  .wb.sel .col i{box-shadow:0 0 0 2px var(--card),0 0 0 4px var(--g2)}
+  .wb[disabled]{opacity:.45}
+  .wsum{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;margin:12px 6px 0;padding-top:11px;border-top:1px solid var(--line);font-size:13px;color:var(--hint);font-weight:600}
+  .wsum b{color:var(--text)}
+  .wsum .lg{display:flex;align-items:center;gap:4px;font-size:12px}
+  .wsum .lg i{width:8px;height:8px;border-radius:3px;margin-left:6px}
+  .wsum .lg i.ok{background:var(--g2)} .wsum .lg i.lo{background:#9fe3bf} .wsum .lg i.ov{background:var(--p)}
+
   /* ── Вес ── */
-  .wcard{background:var(--card);border-radius:22px;padding:14px;box-shadow:var(--shadow);display:flex;align-items:center;gap:12px}
-  .wcard .ib{width:42px;height:42px;border-radius:14px;background:rgba(127,140,155,.14);display:flex;align-items:center;justify-content:center;flex:none;color:#8e9aa6}
+  .wcard{background:var(--card);border:1px solid var(--edge);border-radius:var(--r);padding:12px 14px;box-shadow:var(--shadow);display:flex;align-items:center;gap:12px}
+  .wcard .ib{width:36px;height:36px;border-radius:12px;background:rgba(127,140,155,.14);display:flex;align-items:center;justify-content:center;flex:none;color:#8e9aa6}
   .wcard .v{flex:1}
   .wcard .v b{font-size:22px;font-weight:800}
   .wcard .v small{display:block;color:var(--hint);font-size:12px}
-  .wcard .wed{flex:none;width:36px;height:36px;border-radius:12px;background:var(--bg);color:var(--text);font-size:16px;display:flex;align-items:center;justify-content:center}
+  .wcard .wed{flex:none;width:34px;height:34px;border-radius:10px;background:var(--fill);color:var(--text);font-size:16px;display:flex;align-items:center;justify-content:center}
   .wcard .win{width:84px;padding:4px 8px;border:2px solid var(--g1);border-radius:10px;background:var(--bg);color:var(--text);font:inherit;font-size:20px;font-weight:800;outline:none}
   .err{color:var(--danger);text-align:center;padding:40px 24px}
   .load{padding:60px 0;text-align:center;opacity:.8}
@@ -2898,8 +2957,8 @@ const APP_HTML = `<!doctype html>
 <svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs><symbol id="i-plate" viewBox="0 0 24 24"><defs><linearGradient id="pl" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFFFFF"/><stop offset="1" stop-color="#DCE3EA"/></linearGradient></defs> <ellipse cx="12" cy="13" rx="10" ry="9" fill="#AFBBC7"/> <ellipse cx="12" cy="12.4" rx="10" ry="9" fill="url(#pl)"/> <ellipse cx="12" cy="12.4" rx="6.6" ry="5.9" fill="#EEF2F6" stroke="#C9D3DD" stroke-width=".6"/> <path d="M8.2 13.6c-.6-2.6 1.2-4.6 3.4-4.4-1 1.4-1.6 2.9-1.5 4.6z" fill="#4CC38A"/> <path d="M10.1 13.8c0-2.6 2.2-4.2 4.3-3.4-1.4 1-2.4 2.2-2.6 3.6z" fill="#2FA36B"/> <circle cx="14.6" cy="13.4" r="1.9" fill="#FF6B4A"/> <circle cx="14.2" cy="12.8" r=".5" fill="#FFB4A3"/> <ellipse cx="11.6" cy="15.2" rx="2.4" ry="1.3" fill="#FFB547"/></symbol><symbol id="i-protein" viewBox="0 0 24 24"><defs><linearGradient id="pr" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#FFB15C"/><stop offset="1" stop-color="#D9662B"/></linearGradient></defs> <path d="M15.2 2.8c3.5 0 6 2.7 6 6 0 4.2-3.9 7.3-8 6.6L10 18.6l-3.2-3.2 3.2-3.2c-.6-4.6 1.6-9.4 5.2-9.4z" fill="url(#pr)"/> <path d="M17.6 5.6c1.2.6 1.9 1.8 1.9 3.1" stroke="#FFD9AE" stroke-width="1.2" stroke-linecap="round" fill="none"/> <path d="M10.6 15.5 7.3 18.8" stroke="#F3E9DA" stroke-width="2.6" stroke-linecap="round"/> <circle cx="5.6" cy="18.4" r="1.9" fill="#F3E9DA" stroke="#C9BBA6" stroke-width=".5"/> <circle cx="7.6" cy="20.4" r="1.9" fill="#F3E9DA" stroke="#C9BBA6" stroke-width=".5"/></symbol><symbol id="i-fat" viewBox="0 0 24 24"><defs><linearGradient id="ft" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFE27A"/><stop offset="1" stop-color="#F5A524"/></linearGradient></defs> <path d="M12 2.2c-1 1.8-7.2 8.7-7.2 13.1a7.2 7.2 0 0 0 14.4 0C19.2 10.9 13 4 12 2.2z" fill="url(#ft)"/> <path d="M12 2.2c-1 1.8-7.2 8.7-7.2 13.1a7.2 7.2 0 0 0 14.4 0C19.2 10.9 13 4 12 2.2z" fill="none" stroke="#D98A12" stroke-width=".6"/> <path d="M8.6 15.6a3.4 3.4 0 0 0 3 3.2" stroke="#FFF6CF" stroke-width="1.5" stroke-linecap="round" fill="none"/></symbol><symbol id="i-carbs" viewBox="0 0 24 24"><path d="M12 22.2V8.6" stroke="#C98A1F" stroke-width="2" stroke-linecap="round"/> <g fill="#F7C04A" stroke="#C98A1F" stroke-width=".6"> <path d="M11.6 12.6c-3.4.3-5.8-1.8-6-5 3.3-.2 5.7 1.8 6 5z"/> <path d="M12.4 12.6c3.4.3 5.8-1.8 6-5-3.3-.2-5.7 1.8-6 5z"/> <path d="M11.6 18c-3.4.3-5.8-1.8-6-5 3.3-.2 5.7 1.8 6 5z"/> <path d="M12.4 18c3.4.3 5.8-1.8 6-5-3.3-.2-5.7 1.8-6 5z"/> <path d="M12 9c-2-1.1-2-4.3 0-6.3 2 2 2 5.2 0 6.3z"/> </g> <g fill="#FFE6A3"><ellipse cx="8.4" cy="9.4" rx="1.2" ry=".6" transform="rotate(35 8.4 9.4)"/><ellipse cx="8.4" cy="14.8" rx="1.2" ry=".6" transform="rotate(35 8.4 14.8)"/></g></symbol><symbol id="i-kcal" viewBox="0 0 24 24"><defs><linearGradient id="fl" x1="0" y1="1" x2="0" y2="0"><stop offset="0" stop-color="#FF3D2E"/><stop offset=".6" stop-color="#FF8A1F"/><stop offset="1" stop-color="#FFC23D"/></linearGradient> <linearGradient id="fi" x1="0" y1="1" x2="0" y2="0"><stop offset="0" stop-color="#FFB02E"/><stop offset="1" stop-color="#FFF1A8"/></linearGradient></defs> <path d="M12.6 2c.6 3.4-1.3 5-3 6.8C7.8 10.7 6 12.6 6 15.6A6.2 6.2 0 0 0 12 22a6.4 6.4 0 0 0 6-6.6c0-2.6-1.2-4.3-2.3-5.6-.2 1.4-.9 2.4-1.9 2.8.6-4.6-.7-8.3-1.2-10.6z" fill="url(#fl)"/> <path d="M12.2 12.2c.2 1.9-1.3 2.6-2 3.7-.4.6-.6 1.2-.6 1.9A2.6 2.6 0 0 0 12.2 20.6a2.7 2.7 0 0 0 2.6-2.8c0-1.6-1.2-2.5-1.6-3.2-.5.5-.9.6-1.2.5.3-1 .3-2 .2-2.9z" fill="url(#fi)"/></symbol><symbol id="i-scales" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="3.5" width="17" height="17" rx="5"/> <path d="M8 9.2a5.6 5.6 0 0 1 8 0"/> <path d="M12 10.6l1.4-2"/> <circle cx="12" cy="10.8" r="0.4" fill="currentColor"/></g></symbol><symbol id="i-apple" viewBox="0 0 24 24"><g fill="none" stroke="#fff" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 8V6.5a3 3 0 0 1 3-3H8"/> <path d="M16 3.5h1.5a3 3 0 0 1 3 3V8"/> <path d="M20.5 16v1.5a3 3 0 0 1-3 3H16"/> <path d="M8 20.5H6.5a3 3 0 0 1-3-3V16"/> <path d="M12 9.3c-1.2-.9-3.9-1.1-4.4 1.9-.4 2.4 1.2 5.4 2.9 5.4.6 0 1-.3 1.5-.3s.9.3 1.5.3c1.7 0 3.3-3 2.9-5.4-.5-3-3.2-2.8-4.4-1.9z"/> <path d="M12 9.3c0-1.3.6-2.2 1.7-2.6"/></g></symbol></defs></svg>
 <div class="hero">
   <div class="top">
-    <div class="logo"><span class="mk"><svg class="ic" style="width:22px;height:22px"><use href="#i-apple"/></svg></span><div>FITTER</div></div>
-    <div class="nav"><button id="theme" aria-label="Сменить тему"></button><button id="prev">‹</button><span class="d" id="dl">…</span><button id="next">›</button></div>
+    <div class="ttl"><b id="dl">Дневник</b><small id="ds">FITTER</small></div>
+    <div class="nav"><button id="prev" aria-label="Предыдущий день"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg></button><button id="next" aria-label="Следующий день"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5l7 7-7 7"/></svg></button><button id="theme" aria-label="Сменить тему"></button><span class="av" id="av"></span></div>
   </div>
   <div id="hero"><div class="load">Загрузка…</div></div>
 </div>
@@ -2907,17 +2966,17 @@ const APP_HTML = `<!doctype html>
 <script>
 (function(){
   var tg = window.Telegram && window.Telegram.WebApp;
-  if (tg) { tg.ready(); tg.expand(); try { tg.setHeaderColor("#2ee59d"); } catch(e){} }
+  if (tg) { tg.ready(); tg.expand();  }
 
   // Тема: выбор сохраняется на устройстве, по умолчанию — как в Telegram
   var themeBtn = document.getElementById("theme");
-  var SUN = '<svg class="ic" style="width:19px;height:19px;margin:auto" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v2M12 19.5v2M2.5 12h2M19.5 12h2M5.3 5.3l1.4 1.4M17.3 17.3l1.4 1.4M5.3 18.7l1.4-1.4M17.3 6.7l1.4-1.4"/></svg>';
-  var MOON = '<svg class="ic" style="width:18px;height:18px;margin:auto" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z"/></svg>';
+  var SUN = '<svg class="ic" style="width:19px;height:19px" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v2M12 19.5v2M2.5 12h2M19.5 12h2M5.3 5.3l1.4 1.4M17.3 17.3l1.4 1.4M5.3 18.7l1.4-1.4M17.3 6.7l1.4-1.4"/></svg>';
+  var MOON = '<svg class="ic" style="width:18px;height:18px" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z"/></svg>';
   function savedTheme(){ try { return localStorage.getItem("fitter_theme"); } catch(e){ return null; } }
   function setTheme(t, save){
     document.documentElement.setAttribute("data-theme", t);
     themeBtn.innerHTML = t === "dark" ? SUN : MOON;
-    try { tg.setBackgroundColor(t === "dark" ? "#0e1311" : "#f3f5f2"); } catch(e){}
+    try { tg.setBackgroundColor(t === "dark" ? "#0c100e" : "#f3f5f2"); tg.setHeaderColor("#5dffad"); } catch(e){}
     if (save) try { localStorage.setItem("fitter_theme", t); } catch(e){}
   }
   var sysTheme = (tg && tg.colorScheme) || (window.matchMedia && matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
@@ -2933,11 +2992,15 @@ const APP_HTML = `<!doctype html>
   var initData = tg ? tg.initData : "";
   var MONTHS = ["января","февраля","марта","апреля","мая","июня","июля","августа","сентября","октября","ноября","декабря"];
   var WD = ["Пн","Вт","Ср","Чт","Пт","Сб","Вс"];
+  var WDF = ["понедельник","вторник","среда","четверг","пятница","суббота","воскресенье"];
   var state = { date: null, data: null };
   var root = document.getElementById("root"), hero = document.getElementById("hero");
 
   function esc(s){ return String(s).replace(/[&<>"]/g, function(c){ return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]; }); }
   function r(x){ return Math.round(x); }
+  // Число с разрядами: 2 100
+  function n(x){ return Math.round(x).toLocaleString("ru-RU"); }
+  function kg(x){ return String(x).replace(".", ","); }
   function shift(date, n){ var d = new Date(date + "T00:00:00Z"); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0,10); }
   function human(date){ var d = new Date(date + "T00:00:00Z"); return d.getUTCDate() + " " + MONTHS[d.getUTCMonth()]; }
   function L(ml){ return String(Math.round(ml / 10) / 100).replace(".", ",") + " л"; }
@@ -2974,11 +3037,11 @@ const APP_HTML = `<!doctype html>
     document.body.appendChild(f); setTimeout(function(){ f.remove(); }, 950);
   }
   function countUp(el, to){
-    if (calm) { el.textContent = to; return; }
+    if (calm) { el.textContent = n(to); return; }
     var t0 = performance.now(), dur = 1000;
     (function step(now){
       var k = Math.min(1, (now - t0) / dur), e = 1 - Math.pow(1 - k, 3);
-      el.textContent = Math.round(to * e);
+      el.textContent = n(to * e);
       if (k < 1) requestAnimationFrame(step);
     })(t0);
   }
@@ -3006,18 +3069,61 @@ const APP_HTML = `<!doctype html>
 
   // Большое кольцо калорий в шапке
   function ring(val, max){
-    var R = 84, C = 2 * Math.PI * R, pct = max ? Math.min(1, val / max) : 0;
+    var R = 88, C = 2 * Math.PI * R, pct = max ? Math.min(1, val / max) : 0;
     var ok = val >= max * 0.9 && val <= max * 1.1, over = val > max * 1.1;
-    return '<div class="ring' + (ok ? ' ok' : '') + '"><svg width="196" height="196" viewBox="0 0 196 196">' +
-      '<circle cx="98" cy="98" r="' + R + '" fill="none" stroke="rgba(255,255,255,.22)" stroke-width="16"/>' +
-      '<circle class="arc" cx="98" cy="98" r="' + R + '" fill="none" stroke="' + (over ? '#ffd2cc' : '#fff') + '" stroke-width="16" stroke-linecap="round" stroke-dasharray="' + C + '" stroke-dashoffset="' + C + '" data-off="' + (C * (1 - pct)) + '"/></svg>' +
-      '<div class="in"><b data-to="' + r(val) + '">0</b><small>из ' + max + ' ккал</small></div></div>';
+    var share = max ? Math.round(val / max * 100) : 0;
+    return '<div class="ring' + (ok ? ' ok' : '') + (over ? ' over' : '') + '"><svg width="204" height="204" viewBox="0 0 204 204">' +
+      '<defs><linearGradient id="rg" x1="0" y1="0" x2="1" y2="1"><stop class="s1" offset="0"/><stop class="s2" offset="1"/></linearGradient></defs>' +
+      '<circle class="trk" cx="102" cy="102" r="' + R + '" fill="none" stroke-width="14"/>' +
+      '<circle class="arc" cx="102" cy="102" r="' + R + '" fill="none" stroke="url(#rg)" stroke-width="14" stroke-linecap="round" stroke-dasharray="' + C + '" stroke-dashoffset="' + C + '" data-off="' + (C * (1 - pct)) + '"/>' +
+      (pct > 0.02 ? '<g class="knob" data-rot="' + (pct * 360) + '"><circle cx="' + (102 + R) + '" cy="102" r="8"/></g>' : '') + '</svg>' +
+      '<div class="in">' + icon("kcal") + '<b data-to="' + r(val) + '">0</b><small>из ' + n(max) + ' ккал</small><em>' + share + '%</em></div></div>';
   }
 
   function macro(cls, ic, label, val, max){
     var pct = max ? Math.min(100, val / max * 100) : 0;
+    var left = max - val, ok = max && val >= max * 0.9 && val <= max * 1.1;
+    var st = !max ? '' : ok ? '<span class="ok">в норме</span>' : left > 0 ? 'ещё ' + r(left) + ' г' : '<span class="ov">+' + r(-left) + ' г</span>';
     return '<div class="mc ' + cls + ' rise"><div class="ib">' + icon(ic) + '</div><div class="lb">' + label + '</div>' +
-      '<div class="vl">' + r(val) + '<small> / ' + max + ' г</small></div><div class="bar"><div data-pct="' + pct + '"></div></div></div>';
+      '<div class="vl">' + r(val) + '<small> / ' + max + ' г</small></div><div class="bar"><div data-pct="' + pct + '"></div></div><div class="st">' + st + '</div></div>';
+  }
+
+  // Подсказка под БЖУ: чего не хватает сильнее всего и чего уже много
+  var FOODS = { p: "творог 200 г или куриная грудка 150 г", f: "горсть орехов или ложка масла в салат", c: "порция каши, хлеб или фрукт" };
+  var NAMES = { p: "белка", f: "жиров", c: "углеводов" };
+  function macroHint(d){
+    var t = d.totals, g = d.targets;
+    if (!d.meals.length || d.date > d.today) return "";
+    var keys = ["p", "f", "c"], over = null, need = null;
+    keys.forEach(function(k){
+      if (!g[k]) return;
+      var k1 = t[k] / g[k];
+      if (k1 > 1.1 && (!over || k1 > t[over] / g[over])) over = k;
+      if (k1 < 0.9 && (!need || k1 < t[need] / g[need])) need = k;
+    });
+    var txt, cls = "";
+    if (over) { txt = "<b>" + NAMES[over].charAt(0).toUpperCase() + NAMES[over].slice(1) + " уже больше нормы на " + r(t[over] - g[over]) + " г.</b> " + (need ? "А вот " + NAMES[need] + " не хватает " + r(g[need] - t[need]) + " г." : "Остальное в порядке."); cls = " warn"; }
+    else if (need && d.date === d.today) txt = "Сильнее всего не хватает " + NAMES[need] + ": <b>добери " + r(g[need] - t[need]) + "&nbsp;г</b>&nbsp;— например, " + FOODS[need] + ".";
+    else if (need) txt = "В этот день не хватило " + NAMES[need] + ": " + r(t[need]) + " из " + g[need] + " г.";
+    else { txt = "<b>БЖУ в балансе.</b> Белки, жиры и углеводы — все в пределах нормы."; cls = " good"; }
+    return '<div class="hint rise' + cls + '">' + txt + '</div>';
+  }
+
+  // Неделя: столбики в одном масштабе с линией нормы
+  function weekBlock(d){
+    var g = d.targets.kcal, days = d.week.filter(function(w){ return w.meals; });
+    if (days.length < 2) return "";
+    var top = Math.max(g * 1.25, Math.max.apply(null, d.week.map(function(w){ return w.kcal; })));
+    var sum = 0, inN = 0;
+    days.forEach(function(w){ sum += w.kcal; if (w.kcal >= g * 0.9 && w.kcal <= g * 1.1) inN++; });
+    var bars = d.week.map(function(w, i){
+      var h = w.meals ? Math.max(4, w.kcal / top * 100) : 0;
+      var c = !w.meals ? "" : w.kcal > g * 1.1 ? " ov" : w.kcal >= g * 0.9 ? " ok" : " lo";
+      return '<button class="wb' + (w.date === d.date ? " sel" : "") + '" data-date="' + w.date + '"' + (w.date > d.today ? " disabled" : "") + '>' +
+        '<span class="col"><i class="' + c + '" data-h="' + h + '"></i></span><small>' + WD[i] + '</small><em>' + (w.meals ? n(w.kcal) : "—") + '</em></button>';
+    }).join("");
+    return '<h3>Неделя <small>в среднем ' + n(sum / days.length) + ' ккал</small></h3><div class="wkc rise"><div class="bars"><div class="plot"><div class="nl" style="bottom:' + (g / top * 100) + '%"><span>норма ' + n(g) + '</span></div></div>' + bars + '</div>' +
+      '<div class="wsum"><span>В норме <b>' + inN + ' из ' + days.length + '</b> ' + (days.length === 1 ? 'дня' : 'дней') + '</span><span class="lg"><i class="ok"></i>норма <i class="lo"></i>меньше <i class="ov"></i>больше</span></div></div>';
   }
 
   // Стакан с волной: уровень воды поднимается
@@ -3135,8 +3241,8 @@ const APP_HTML = `<!doctype html>
         '<polygon points="0,' + H + ' ' + pts.join(" ") + ' ' + W + ',' + H + '" fill="url(#wg)"/>' +
         '<polyline points="' + pts.join(" ") + '" fill="none" stroke="#16b86a" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/></svg>';
     }
-    return '<h3>Вес</h3><div class="wcard rise"><div class="ib">' + icon("scales") + '</div><div class="v"><b>' + last.kg + ' кг</b><small>' +
-      (ws.length > 1 ? (diff > 0 ? "+" : "") + diff + " кг с " + human(first.date) : "записан " + human(last.date)) +
+    return '<h3>Вес</h3><div class="wcard rise"><div class="ib">' + icon("scales") + '</div><div class="v"><b>' + kg(last.kg) + ' кг</b><small>' +
+      (ws.length > 1 ? (diff > 0 ? "+" : diff < 0 ? "−" : "") + kg(Math.abs(diff)) + " кг с " + human(first.date) : "записан " + human(last.date)) +
       '</small></div>' + spark + '<button class="wed" data-wedit="1" aria-label="Изменить вес">✏️</button></div>';
   }
 
@@ -3163,25 +3269,34 @@ const APP_HTML = `<!doctype html>
     inp.addEventListener("blur", function(){ finish(true); });
   }
 
+  // Полоска БЖУ приёма пищи: доля калорий из белков, жиров и углеводов
+  function mbar(t){
+    var p = t.p * 4, f = t.f * 9, c = t.c * 4, s = p + f + c;
+    if (!s) return "";
+    return '<div class="mbar"><i class="p" style="flex:' + p + '"></i><i class="f" style="flex:' + f + '"></i><i class="c" style="flex:' + c + '"></i></div>';
+  }
+
   var DOTS = ["#ff7a2f", "#22b36b", "#f5a524", "#2a7bf0", "#c86bff", "#ff5a8a"];
 
   function render(){
     var d = state.data, t = d.totals, g = d.targets;
-    document.getElementById("dl").textContent = d.date === d.today ? "Сегодня" : human(d.date);
+    var wdi = (new Date(d.date + "T00:00:00Z").getUTCDay() + 6) % 7;
+    document.getElementById("dl").textContent = d.date === d.today ? "Сегодня" : d.date === shift(d.today, -1) ? "Вчера" : human(d.date);
+    document.getElementById("ds").textContent = d.date === d.today ? WDF[wdi] + ", " + human(d.date) : WDF[wdi];
+    document.getElementById("av").textContent = d.name ? String(d.name).trim().charAt(0).toUpperCase() : "";
     document.getElementById("next").style.visibility = d.date >= d.today ? "hidden" : "visible";
 
     var week = '<div class="week">' + d.week.map(function(w, i){
-      var dot = !w.meals ? "transparent" : w.kcal > g.kcal * 1.1 ? "#ffd2cc" : w.kcal >= g.kcal * 0.8 ? "#fff" : "rgba(255,255,255,.55)";
-      if (w.date === d.date && w.meals) dot = w.kcal > g.kcal * 1.1 ? "var(--danger)" : "var(--g2)";
+      var dot = !w.meals ? "" : w.kcal > g.kcal * 1.1 ? "ov" : w.kcal >= g.kcal * 0.8 ? "ok" : "lo";
       var cls = "wd" + (w.date === d.date ? " sel" : "") + (w.date === d.today ? " today" : "");
-      var dis = w.date > d.today ? ' disabled style="opacity:.4"' : "";
-      return '<button class="' + cls + '" data-date="' + w.date + '"' + dis + '><small>' + WD[i] + '</small><b>' + Number(w.date.slice(8)) + '</b><i style="background:' + dot + '"></i></button>';
+      var dis = w.date > d.today ? " disabled" : "";
+      return '<button class="' + cls + '" data-date="' + w.date + '"' + dis + '><small>' + WD[i] + '</small><b>' + Number(w.date.slice(8)) + '</b><i class="' + dot + '"></i></button>';
     }).join("") + '</div>';
 
     var left = g.kcal - t.kcal;
     var streak = d.date === d.today && d.streak >= 2 ? '<div class="chip">🔥 ' + d.streak + ' ' + (d.streak % 10 === 1 && d.streak % 100 !== 11 ? 'день' : [2,3,4].indexOf(d.streak % 10) >= 0 && (d.streak % 100 < 12 || d.streak % 100 > 14) ? 'дня' : 'дней') + ' подряд</div>' : '';
     hero.innerHTML = week + '<div class="main">' + ring(t.kcal, g.kcal) +
-      '<div class="chips"><div class="chip' + (left < 0 ? ' over' : '') + '">' + (left >= 0 ? 'Осталось ' + r(left) + ' ккал' : 'Больше нормы на ' + r(-left) + ' ккал') + '</div>' + streak + '</div></div>';
+      '<div class="chips"><div class="chip' + (left < 0 ? ' over' : '') + '">' + (left >= 0 ? 'Осталось ' + n(left) + ' ккал' : 'Больше нормы на ' + n(-left) + ' ккал') + '</div>' + streak + '</div></div>';
 
     var macros = '<div class="macros">' + macro("p", "protein", "Белки", t.p, g.p) + macro("f", "fat", "Жиры", t.f, g.f) + macro("c", "carbs", "Углеводы", t.c, g.c) + '</div>';
 
@@ -3193,8 +3308,8 @@ const APP_HTML = `<!doctype html>
     var total = d.meals.reduce(function(a, m){ return a + m.totals.kcal; }, 0);
     var add = d.date <= d.today ? '<div class="addm rise"><textarea id="addt" rows="1" maxlength="500" enterkeyhint="send" placeholder="Что съел? Например: 2 яйца и тост"></textarea><button class="addb" id="addb" aria-label="Добавить еду">+</button></div>' +
       '<div class="addh">ИИ посчитает калории и БЖУ' + (d.date !== d.today ? ' · запишу на ' + human(d.date) : '') + '</div>' : '';
-    var meals = (d.meals.length ? '<h3>Приёмы пищи <small>' + d.meals.length + ' · ' + r(total) + ' ккал</small></h3>' : '<h3>Приёмы пищи</h3>') + add + (d.meals.length ? d.meals.map(function(m, mi){
-      return '<div class="meal rise" data-id="' + m.id + '" style="animation-delay:' + (0.05 * mi + 0.1) + 's"><div class="hd"><div class="ib">' + icon("plate") + '</div><div class="t">' + esc(m.title) + '<small>' + esc(m.time) + ' · ' + m.items.length + ' ' + (m.items.length === 1 ? 'продукт' : m.items.length < 5 ? 'продукта' : 'продуктов') + '</small></div><div class="k">' + r(m.totals.kcal) + ' ккал</div></div>' +
+    var meals = (d.meals.length ? '<h3>Приёмы пищи <small>' + d.meals.length + ' · ' + n(total) + ' ккал</small></h3>' : '<h3>Приёмы пищи</h3>') + add + (d.meals.length ? d.meals.map(function(m, mi){
+      return '<div class="meal rise" data-id="' + m.id + '" style="animation-delay:' + (0.05 * mi + 0.1) + 's"><div class="hd"><div class="ib">' + icon("plate") + '</div><div class="t">' + esc(m.title) + '<small>' + esc(m.time) + (total ? ' · ' + r(m.totals.kcal / total * 100) + '% дня' : '') + ' · Б ' + r(m.totals.p) + ' · Ж ' + r(m.totals.f) + ' · У ' + r(m.totals.c) + '</small></div><div class="k">' + r(m.totals.kcal) + ' ккал</div></div>' + mbar(m.totals) +
         m.items.map(function(it, i){
           return '<div class="it"><i class="dot" style="background:' + DOTS[i % DOTS.length] + '"></i><div class="n"><div class="nm" data-meal="' + m.id + '" data-idx="' + i + '">' + esc(it.name) + '</div><small>' + r(it.totals.kcal) + ' ккал · Б ' + r(it.totals.p) + ' · Ж ' + r(it.totals.f) + ' · У ' + r(it.totals.c) + '</small></div>' +
             '<div class="gr"><input type="number" inputmode="numeric" min="1" max="3000" value="' + it.grams + '" data-meal="' + m.id + '" data-idx="' + i + '"><span class="g">г</span></div></div>';
@@ -3202,7 +3317,7 @@ const APP_HTML = `<!doctype html>
         '<button class="del" data-del="' + m.id + '">Удалить приём пищи</button></div>';
     }).join("") : '<div class="empty rise"><div class="ib">' + icon("plate") + '</div><b>Здесь пока пусто</b>' + (add ? 'Напиши выше, что ты съел, или отправь боту фото еды 📸' : 'Отправь боту фото еды, и оно появится в дневнике 📸') + '</div>');
 
-    root.innerHTML = macros + water + pillsBlock(d) + meals + weightBlock(d.weights);
+    root.innerHTML = macros + macroHint(d) + water + pillsBlock(d) + meals + weekBlock(d) + weightBlock(d.weights);
     animateIn();
   }
 
@@ -3210,7 +3325,9 @@ const APP_HTML = `<!doctype html>
     var d = state.data, t = d.totals, g = d.targets;
     requestAnimationFrame(function(){ requestAnimationFrame(function(){
       document.querySelectorAll("[data-pct]").forEach(function(el){ el.style.width = el.dataset.pct + "%"; });
+      document.querySelectorAll("[data-h]").forEach(function(el){ el.style.height = el.dataset.h + "%"; });
       document.querySelectorAll("[data-off]").forEach(function(el){ el.setAttribute("stroke-dashoffset", el.dataset.off); });
+      document.querySelectorAll("[data-rot]").forEach(function(el){ el.style.transform = "rotate(" + el.dataset.rot + "deg)"; });
       document.querySelectorAll("[data-to]").forEach(function(el){ countUp(el, Number(el.dataset.to)); });
     }); });
     if (state.flash) {
