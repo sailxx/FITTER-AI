@@ -339,7 +339,6 @@ function edit(env, chatId, messageId, text, extra = {}) {
 const MAIN_KEYBOARD = {
   keyboard: [
     [{ text: "📊 Сегодня" }, { text: "📅 Неделя" }],
-    [{ text: "💧 Вода" }, { text: "💊 Таблетки" }],
     [{ text: "👤 Профиль" }, { text: "❓ Помощь" }],
   ],
   resize_keyboard: true,
