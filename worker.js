@@ -2961,7 +2961,7 @@ const APP_HTML = `<!doctype html>
   .fx{position:fixed;z-index:40;pointer-events:none;font-size:20px;line-height:1;will-change:transform,opacity}
   @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 
-  /* ══════ Новое оформление: монохромный прибор в стиле Okto — корпус, клавиши, утопленные дисплеи, моноширинные цифры ══════ */
+  /* ══════ Эксклюзивная тема Okto в честь запуска приложения Okto: монохромный прибор — корпус, клавиши, утопленные дисплеи, моноширинные цифры ══════ */
   html[data-skin="okto"]{--o-bg:#ffffff;--o-ink:#141414;--o-muted:#5f5f5c;--o-line:#e4e4e1;--o-soft:#f3f3f1;--o-key:#ffffff;--o-key-edge:#cfcfcc;--o-key-hi:#ffffff;
     --o-well:#f1f1ef;--o-well-ink:#111111;--o-well-dim:#5a5a57;--o-well-edge:rgba(0,0,0,.13);--o-red:#d33a3f;
     --o-ghost:rgba(17,17,17,.07);--o-rest:rgba(17,17,17,.28);--o-dim:rgba(20,20,20,.35);--o-ink55:rgba(20,20,20,.55);--o-ink25:rgba(20,20,20,.25);
@@ -3136,7 +3136,7 @@ const APP_HTML = `<!doctype html>
   var themeBtn = document.getElementById("theme");
   var SUN = '<svg class="ic" style="width:19px;height:19px" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v2M12 19.5v2M2.5 12h2M19.5 12h2M5.3 5.3l1.4 1.4M17.3 17.3l1.4 1.4M5.3 18.7l1.4-1.4M17.3 6.7l1.4-1.4"/></svg>';
   var MOON = '<svg class="ic" style="width:18px;height:18px" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z"/></svg>';
-  // Оформление: новое (прибор в стиле Okto) по умолчанию, классическое с зелёной шапкой — по кнопке. Выбор хранится на устройстве
+  // Тема Okto — эксклюзивная тема в честь запуска приложения Okto; классический вид с зелёной шапкой — по кнопке. Выбор хранится на устройстве
   var skinBtn = document.getElementById("skin");
   var KEYS = '<svg class="ic" style="width:18px;height:18px" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="3.5" y="3.5" width="7" height="7" rx="1.6"/><rect x="13.5" y="3.5" width="7" height="7" rx="1.6"/><rect x="3.5" y="13.5" width="7" height="7" rx="1.6"/><rect x="13.5" y="13.5" width="7" height="7" rx="1.6"/></svg>';
   var RING = '<svg class="ic" style="width:18px;height:18px" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><circle cx="12" cy="12" r="8" opacity=".35"/><path d="M12 4a8 8 0 0 1 7.6 10.5"/></svg>';
@@ -3144,7 +3144,7 @@ const APP_HTML = `<!doctype html>
   function setSkin(s, save){
     document.documentElement.setAttribute("data-skin", s);
     skinBtn.innerHTML = s === "okto" ? RING : KEYS;
-    skinBtn.setAttribute("aria-label", s === "okto" ? "Классическое оформление" : "Новое оформление");
+    skinBtn.setAttribute("aria-label", s === "okto" ? "Классический вид" : "Тема Okto");
     if (save) try { localStorage.setItem("fitter_skin", s); } catch(e){}
   }
   try { setSkin(localStorage.getItem("fitter_skin") === "classic" ? "classic" : "okto", false); } catch(e){ setSkin("okto", false); }
@@ -3197,7 +3197,7 @@ const APP_HTML = `<!doctype html>
   function icon(name, style){ return '<svg class="ic"' + (style ? ' style="' + style + '"' : '') + '><use href="#i-' + name + '"/></svg>'; }
   function plural(x, a, b, c){ var m = x % 10, h = x % 100; return m === 1 && h !== 11 ? a : m >= 2 && m <= 4 && (h < 12 || h > 14) ? b : c; }
 
-  // ── Детали нового оформления ──
+  // ── Детали темы Okto ──
   // Цифры дисплея: под живым числом погашенные «восьмёрки», как на сегментном индикаторе
   function ghost(s){ return String(s).replace(/[0-9]/g, "8"); }
   function dg(s, cls, to){ return '<span class="dg"><span class="gh">' + ghost(s) + '</span><span class="lv' + (cls ? ' ' + cls : '') + '"' + (to !== undefined ? ' data-to="' + to + '">0' : '>' + s) + '</span></span>'; }

@@ -350,7 +350,7 @@ console.log("✓ Mini App API, итого за день:", Math.round(d.totals.k
   assert.match(_test.APP_HTML, /id="theme"/);
   assert.match(_test.APP_HTML, /data-theme="light"]/);
   assert.match(_test.APP_HTML, /data-theme="dark"]/);
-  // Два оформления: новое по умолчанию, классическое по кнопке; вода стаканами в обоих
+  // Тема Okto и классический вид по кнопке; вода стаканами в обоих
   assert.match(_test.APP_HTML, /id="skin"/);
   assert.match(_test.APP_HTML, /html\[data-skin="okto"\]/);
   assert.match(_test.APP_HTML, /localStorage\.getItem\("fitter_skin"\) === "classic" \? "classic" : "okto"/);
