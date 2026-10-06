@@ -617,8 +617,8 @@ function mealText(meal) {
   const lines = meal.items.map((it) => `• ${esc(it.name)} — ${it.grams} г · <b>${round(itemTotals(it).kcal)}</b> ккал`);
   return (
     `🍽 <b>${esc(meal.title)}</b> · ${meal.time}\n` +
-    `<blockquote>${lines.join("\n")}</blockquote>\n` +
-    `🔥 <b>${round(t.kcal)} ккал</b> · 🥩 ${round(t.p)} г · 🧈 ${round(t.f)} г · 🍞 ${round(t.c)} г`
+    `\n${lines.join("\n")}\n\n` +
+    `🔥 <b>${round(t.kcal)} ккал</b>   🥩 ${round(t.p)} г   🧈 ${round(t.f)} г   🍞 ${round(t.c)} г`
   );
 }
 
@@ -627,8 +627,8 @@ function remainingText(u, day, date) {
   const left = u.targets.kcal - t.kcal;
   const label = date === today(u) ? "За сегодня" : `За ${humanDate(date)}`;
   return (
-    `📊 ${label}: <b>${round(t.kcal)}</b> из ${u.targets.kcal} ккал\n${squares(t.kcal, u.targets.kcal)}\n` +
-    (left >= 0 ? `Осталось <b>${round(left)} ккал</b>` : `Больше нормы на <b>${round(-left)} ккал</b>`)
+    `📊 ${label}  <b>${round(t.kcal)}</b> / ${u.targets.kcal} ккал\n${squares(t.kcal, u.targets.kcal)}\n` +
+    (left >= 0 ? `<i>Осталось ${round(left)} ккал</i>` : `<i>Больше нормы на ${round(-left)} ккал</i>`)
   );
 }
 
@@ -649,34 +649,42 @@ function mealKeyboard(env, date, meal) {
   return { inline_keyboard: rows };
 }
 
-const HELP = `🍏 <b>FITTER</b> — твой счётчик калорий 🥦
+const HELP = `🍏 <b>FITTER</b>
 <i>Одно фото. Полный контроль.</i>
 
+
 📸 <b>Как это работает</b>
-<blockquote>1️⃣ Сфотографируй еду и отправь сюда
-2️⃣ Я найду продукты, оценю вес и посчитаю КБЖУ
-3️⃣ Ошибся? Нажми ✏️ под записью и поправь
-4️⃣ Всё сохранится в дневник питания</blockquote>
+
+1️⃣ Сфотографируй еду и отправь сюда
+2️⃣ Я найду продукты и посчитаю КБЖУ
+3️⃣ Ошибся? Нажми ✏️ под записью
+4️⃣ Всё сохранится в дневник
+
 
 ✨ <b>Ещё умею</b>
-<blockquote>📝 «съел 2 яйца и тост» — запишу текстом
+
+📝 «съел 2 яйца и тост» — запишу
 💬 «сколько белка в твороге?» — отвечу
-📦 Фото этикетки или цифры штрихкода — найду КБЖУ
+📦 Этикетка или штрихкод — найду КБЖУ
 💧 «вода 300» — отмечу воду
-⚖️ <code>/weight 72.5</code> — запишу вес</blockquote>
+⚖️ <code>/weight 72.5</code> — запишу вес
+
 
 ⌨️ <b>Команды</b>
-/today — итоги дня · /week — неделя
-/water — вода · /remind — напоминания
-/pills — таблетки · /weight — вес
-/profile — профиль
-/app — дневник
-/advice — что съесть · /analysis — разбор недели
-/awards — достижения
-/reset — пройти анкету заново
-/delete — удалить все мои данные
 
-<i>FITTER считает примерно и не заменяет врача или диетолога</i>`;
+/today  итоги дня
+/week  неделя
+/water  вода  ·  /pills  таблетки
+/weight  вес  ·  /remind  напоминания
+/advice  что съесть
+/analysis  разбор недели
+/awards  достижения
+/profile  профиль  ·  /app  дневник
+/reset  анкета заново
+/delete  удалить мои данные
+
+
+<i>FITTER считает примерно и не заменяет врача</i>`;
 
 // ───────────────────────────── Обработка сообщений ─────────────────────────────
 
@@ -1335,11 +1343,11 @@ function waterText(u, day, date, added) {
   const goal = waterGoal(u);
   const left = goal - ml;
   return (
-    (added ? `💧 ${added > 0 ? "+" : "−"}${Math.abs(added)} мл записал\n\n` : "") +
-    `💧 <b>Вода ${date === today(u) ? "за сегодня" : "за " + humanDate(date)}</b>\n` +
-    `<b>${liters(ml)}</b> из ${liters(goal)} · ${pctOf(ml, goal)}%\n${squares(Math.min(ml, goal), goal, "🟦")}\n\n` +
-    (left > 0 ? `Осталось: <b>${left} мл</b>, это примерно ${Math.ceil(left / 250)} стак.` : "Норма воды выполнена 🎉") +
-    `\n\n<i>Норма: 30 мл на 1 кг веса. Можно написать «вода 300» или «+500»</i>`
+    `💧 <b>Вода ${date === today(u) ? "за сегодня" : "за " + humanDate(date)}</b>` +
+    (added ? ` · ${added > 0 ? "+" : "−"}${Math.abs(added)} мл записал` : "") + `\n\n\n` +
+    `<b>${liters(ml)}</b> / ${liters(goal)}\n${squares(Math.min(ml, goal), goal, "🟦")}\n` +
+    (left > 0 ? `<i>Осталось ${left} мл · ${pctOf(ml, goal)}%</i>` : "<i>Норма воды выполнена</i> 🎉") +
+    `\n\n\n<i>Норма — 30 мл на кг веса. Можно написать «вода 300» или «+500»</i>`
   );
 }
 
@@ -1551,28 +1559,27 @@ async function sendDay(env, u, chatId, date) {
   const wGoal = waterGoal(u);
 
   let text =
-    `📊 <b>${isToday ? "Сегодня" : WEEKDAYS[new Date(date + "T00:00:00Z").getUTCDay()]}, ${humanDate(date)}</b>\n\n` +
-    `🔥 <b>${round(t.kcal)}</b> из ${g.kcal} ккал · ${pctOf(t.kcal, g.kcal)}%\n` +
+    `📊 <b>${isToday ? "Сегодня" : WEEKDAYS[new Date(date + "T00:00:00Z").getUTCDay()]}</b> · ${humanDate(date)}\n\n\n` +
+    `🔥 <b>${round(t.kcal)}</b> / ${g.kcal} ккал\n` +
     `${squares(t.kcal, g.kcal)}\n` +
-    (left >= 0 ? `Осталось <b>${round(left)} ккал</b>` : `Больше нормы на <b>${round(-left)} ккал</b>`) +
+    (left >= 0 ? `<i>Осталось ${round(left)} ккал · ${pctOf(t.kcal, g.kcal)}%</i>` : `<i>Больше нормы на ${round(-left)} ккал</i>`) +
     (isToday && streakNow(u) >= 2 ? `\n🔥 Серия: <b>${streakNow(u)}</b> ${plural(streakNow(u), "день", "дня", "дней")} подряд` : "") + `\n\n` +
-    `<blockquote>🥩 Белки — <b>${round(t.p)}</b> / ${g.p} г · ${pctOf(t.p, g.p)}%\n` +
-    `🧈 Жиры — <b>${round(t.f)}</b> / ${g.f} г · ${pctOf(t.f, g.f)}%\n` +
-    `🍞 Углеводы — <b>${round(t.c)}</b> / ${g.c} г · ${pctOf(t.c, g.c)}%\n` +
-    `💧 Вода — <b>${liters(water)}</b> / ${liters(wGoal)}${water >= wGoal ? " ✓" : ""}</blockquote>\n\n`;
+    `\n🥩 Белки  <b>${round(t.p)}</b> / ${g.p} г\n` +
+    `🧈 Жиры  <b>${round(t.f)}</b> / ${g.f} г\n` +
+    `🍞 Углеводы  <b>${round(t.c)}</b> / ${g.c} г\n` +
+    `💧 Вода  <b>${liters(water)}</b> / ${liters(wGoal)}${water >= wGoal ? " ✓" : ""}\n\n\n`;
 
   if (day.meals.length) {
-    text += `🍽 <b>Приёмы пищи</b>\n<blockquote>` +
-      day.meals.map((m) => `${m.time} · ${esc(m.title)} — <b>${round(sumItems(m.items).kcal)}</b> ккал`).join("\n") +
-      `</blockquote>`;
+    text += `🍽 <b>Приёмы пищи</b>\n\n` +
+      day.meals.map((m) => `${m.time}  ${esc(m.title)}  <b>${round(sumItems(m.items).kcal)}</b>`).join("\n");
     // Подсказка по белку во второй половине дня
     if (isToday && nowTime(u) >= "15:00" && t.p < g.p * 0.5 && left > 0) {
-      text += `\n\n💡 Белка пока мало. Добавь творог, яйца, курицу или рыбу`;
+      text += `\n\n\n💡 <i>Белка пока мало. Добавь творог, яйца, курицу или рыбу</i>`;
     } else if (left < 0) {
-      text += `\n\n💡 Норма на сегодня набрана. Если хочется есть, выбирай овощи и белок`;
+      text += `\n\n\n💡 <i>Норма набрана. Если хочется есть, выбирай овощи и белок</i>`;
     }
   } else {
-    text += isToday ? "📸 Пока ничего не записано. Отправь фото еды, и я всё посчитаю" : "За этот день записей нет";
+    text += isToday ? "📸 <i>Отправь фото еды — я всё посчитаю</i>" : "<i>За этот день записей нет</i>";
   }
   return send(env, chatId, text, {
     reply_markup: {
@@ -1611,7 +1618,7 @@ async function sendWeek(env, u, chatId) {
     const k = round(dayTotals(days[i]).kcal);
     const label = `${wdOf(d)} ${d.slice(8)}`;
     const isToday = d === end;
-    if (!has) return { d, has, k: 0, line: `${isToday ? "<b>" + label + "</b>" : label}  <i>${isToday ? "сегодня пока пусто" : "—"}</i>` };
+    if (!has) return { d, has, k: 0, line: `${isToday ? "<b>" + label + "</b>" : label}  ${isToday ? "<i>сегодня пусто</i>" : "·"}` };
     const pct = k / norm;
     return { d, has, k, pct, line: `${isToday ? "<b>" + label + "</b>" : label}  ${weekBar(pct)}  <b>${k}</b>${isToday ? " · <i>сегодня</i>" : ""}` };
   });
@@ -1627,12 +1634,12 @@ async function sendWeek(env, u, chatId) {
   const avgWater = water.length ? water.reduce((a, b) => a + b, 0) / water.length : 0;
 
   let text =
-    `📅 <b>Неделя</b> · ${shortDate(dates[0])} — ${shortDate(end)}\n\n` +
-    `<blockquote>${rows.map((r) => r.line).join("\n")}</blockquote>\n` +
-    `<i>🟩 норма · 🟦 меньше · 🟥 больше · цель ${norm} ккал</i>\n\n`;
+    `📅 <b>Неделя</b> · ${shortDate(dates[0])} — ${shortDate(end)}\n\n\n` +
+    `${rows.map((r) => r.line).join("\n")}\n\n` +
+    `<i>🟩 норма   🟦 меньше   🟥 больше\nЦель ${norm} ккал</i>\n\n\n`;
 
   if (!recorded) {
-    text += "📸 За неделю пока нет записей. Отправь фото еды, и я начну считать";
+    text += "📸 <i>За неделю пока нет записей. Отправь фото еды, и я начну считать</i>";
   } else {
     const stats = [
       `🔥 В среднем <b>${avg}</b> из ${norm} ккал${done.length ? "" : " (пока только сегодня)"}`,
@@ -1645,8 +1652,8 @@ async function sendWeek(env, u, chatId) {
       const diff = r1(wk[wk.length - 1].kg - wk[0].kg);
       stats.push(`⚖️ Вес <b>${wk[wk.length - 1].kg} кг</b> · ${diff > 0 ? "+" : ""}${diff} кг за неделю`);
     }
-    text += `📊 <b>Итоги</b>\n<blockquote>${stats.join("\n")}</blockquote>\n\n`;
-    text += `💡 <b>Совет</b>\n${weekTip(u, avg, norm)}`;
+    text += `📊 <b>Итоги</b>\n\n${stats.join("\n")}\n\n\n`;
+    text += `💡 <i>${weekTip(u, avg, norm)}</i>`;
   }
   return send(env, chatId, text, {
     reply_markup: {
@@ -1750,10 +1757,10 @@ function adviceText(u, left, intro, options) {
       `${o.items.map((it) => `${esc(it.name)} ${it.grams} г`).join(", ")}\n` +
       `<i>Б ${round(t.p)} · Ж ${round(t.f)} · У ${round(t.c)}${o.why ? " — " + esc(o.why) : ""}</i>`;
   });
-  return `🥗 <b>Что съесть</b>\n${head}\n\n` +
-    (intro ? `💡 ${esc(String(intro).slice(0, 200))}\n\n` : "") +
-    `<blockquote>${list.join("\n\n")}</blockquote>\n\n` +
-    `Съел вариант? Нажми его номер, и я запишу в дневник`;
+  return `🥗 <b>Что съесть</b>\n\n${head}\n\n` +
+    (intro ? `💡 <i>${esc(String(intro).slice(0, 200))}</i>\n\n` : "") +
+    `\n${list.join("\n\n")}\n\n\n` +
+    `<i>Съел вариант? Нажми его номер, и я запишу в дневник</i>`;
 }
 
 function adviceKeyboard(options) {
@@ -1769,18 +1776,18 @@ async function sendProfile(env, u, chatId) {
   const t = u.targets;
   const yrs = `${u.age} ${plural(u.age, "год", "года", "лет")}`;
   const text =
-    `👤 <b>${esc(u.name || "Профиль")}</b>\n\n` +
-    `<blockquote>${u.sex === "m" ? "👨 Мужской" : "👩 Женский"} · 🎂 ${yrs}\n` +
+    `👤 <b>${esc(u.name || "Профиль")}</b>\n\n\n` +
+    `${u.sex === "m" ? "👨 Мужской" : "👩 Женский"} · 🎂 ${yrs}\n` +
     `📏 ${u.height} см · ⚖️ ${u.weight} кг\n` +
     `${ACTIVITY[u.activity]}\n` +
-    `${GOALS[u.goal]}</blockquote>\n\n` +
-    `🎯 <b>Дневная норма</b>\n` +
-    `🔥 <b>${t.kcal} ккал</b>\n` +
-    `<blockquote>🥩 Белки — <b>${t.p} г</b>\n` +
-    `🧈 Жиры — <b>${t.f} г</b>\n` +
-    `🍞 Углеводы — <b>${t.c} г</b>\n` +
-    `💧 Вода — <b>${liters(waterGoal(u))}</b></blockquote>\n` +
-    `<i>Норма пересчитывается, когда ты записываешь новый вес</i>`;
+    `${GOALS[u.goal]}\n\n\n` +
+    `🎯 <b>Норма на день</b>\n\n` +
+    `🔥 <b>${t.kcal}</b> ккал\n` +
+    `🥩 Белки  <b>${t.p}</b> г\n` +
+    `🧈 Жиры  <b>${t.f}</b> г\n` +
+    `🍞 Углеводы  <b>${t.c}</b> г\n` +
+    `💧 Вода  <b>${liters(waterGoal(u))}</b>\n\n` +
+    `<i>Норма пересчитается, когда запишешь новый вес</i>`;
   return send(env, chatId, text, {
     reply_markup: {
       inline_keyboard: [
@@ -1929,17 +1936,17 @@ async function sendAwards(env, u, chatId) {
   const left = ACHIEVEMENTS.filter((a) => !u.ach[a[0]]);
   const n = streakNow(u);
   let text =
-    `🏆 <b>Достижения</b> · ${got.length} из ${ACHIEVEMENTS.length}\n` +
-    `🔥 Серия: <b>${n}</b> ${plural(n, "день", "дня", "дней")} подряд · рекорд ${u.streak?.best || 0}\n\n`;
+    `🏆 <b>Достижения</b> · ${got.length} из ${ACHIEVEMENTS.length}\n\n` +
+    `🔥 Серия: <b>${n}</b> ${plural(n, "день", "дня", "дней")} подряд · рекорд ${u.streak?.best || 0}\n\n\n`;
   if (got.length) {
-    text += `<b>Получено</b>\n<blockquote>${got.map((a) => `${a[1]} <b>${a[2]}</b> · ${a[3]}`).join("\n")}</blockquote>\n\n`;
+    text += `<b>Получено</b>\n\n${got.map((a) => `${a[1]} <b>${a[2]}</b> · ${a[3]}`).join("\n")}\n\n\n`;
   }
   if (left.length) {
     // Ближайшие награды — те, к которым ты ближе всего
     const near = [...left].sort((x, y) => statValue(u, y[4]) / y[5] - statValue(u, x[4]) / x[5]);
     const show = near.slice(0, 4);
-    text += `<b>Ближайшие</b>\n<blockquote>${show.map((a) => `🔒 ${a[2]} · ${a[3]} · <i>${Math.min(statValue(u, a[4]), a[5])}/${a[5]}</i>`).join("\n")}</blockquote>` +
-      (near.length > show.length ? `\n<i>И ещё ${near.length - show.length} впереди</i>` : "");
+    text += `<b>Ближайшие</b>\n\n${show.map((a) => `🔒 ${a[2]} · ${a[3]} · <i>${Math.min(statValue(u, a[4]), a[5])}/${a[5]}</i>`).join("\n")}` +
+      (near.length > show.length ? `\n\n<i>И ещё ${near.length - show.length} впереди</i>` : "");
   } else {
     text += "Ты собрал все награды! 🎉";
   }
@@ -2013,10 +2020,10 @@ function analysisText(a) {
   return (
     `🧠 <b>Разбор недели</b>\n<i>${humanDate(a.from)} — ${humanDate(a.end)} · ${a.recorded} ${plural(a.recorded, "день", "дня", "дней")} с записями</i>\n\n` +
     `🎯 Оценка: <b>${a.score}</b> из 10\n${squares(a.score, 10)}\n\n` +
-    (a.summary ? `<blockquote>${esc(a.summary)}</blockquote>\n\n` : "") +
-    (a.good.length ? `✅ <b>Что получилось</b>\n${a.good.map((s) => `• ${esc(s)}`).join("\n")}\n\n` : "") +
-    (a.improve.length ? `🔍 <b>Что улучшить</b>\n${a.improve.map((s) => `• ${esc(s)}`).join("\n")}\n\n` : "") +
-    (a.tips.length ? `💡 <b>Советы на неделю</b>\n<blockquote>${a.tips.map((s, i) => `${nums[i]} ${esc(s)}`).join("\n")}</blockquote>\n\n` : "") +
+    (a.summary ? `<i>${esc(a.summary)}</i>\n\n\n` : "") +
+    (a.good.length ? `✅ <b>Что получилось</b>\n\n${a.good.map((s) => `• ${esc(s)}`).join("\n")}\n\n\n` : "") +
+    (a.improve.length ? `🔍 <b>Что улучшить</b>\n\n${a.improve.map((s) => `• ${esc(s)}`).join("\n")}\n\n\n` : "") +
+    (a.tips.length ? `💡 <b>Советы на неделю</b>\n\n${a.tips.map((s, i) => `${nums[i]} ${esc(s)}`).join("\n")}\n\n\n` : "") +
     `<i>FITTER считает примерно и не заменяет врача или диетолога</i>`
   );
 }
@@ -2080,9 +2087,9 @@ function remindText(u, note = "") {
     (note ? `${note}\n\n` : "") +
     `⏰ <b>Напоминания о воде</b>\n\n` +
     (on
-      ? `<blockquote>🔔 Каждые <b>${everyLabel(w.every)}</b>\n🌅 Начало дня: <b>${hh(w.from)}</b>\n🌙 Конец дня: <b>${hh(w.to)}</b></blockquote>\n` +
-        `Ночью я молчу. Когда норма воды выполнена, напоминания на сегодня заканчиваются.`
-      : `Сейчас выключены. Выбери, как часто напоминать, и я буду писать в течение дня, пока не наберётся норма.`)
+      ? `🔔 Каждые <b>${everyLabel(w.every)}</b>\n🌅 С <b>${hh(w.from)}</b>\n🌙 До <b>${hh(w.to)}</b>\n\n` +
+        `<i>Ночью молчу. Когда норма воды выполнена, напоминания на сегодня заканчиваются</i>`
+      : `<i>Сейчас выключены. Выбери, как часто напоминать, и я буду писать днём, пока не наберётся норма</i>`)
   );
 }
 
@@ -2307,13 +2314,13 @@ function pillsView(env, u, day, date, mode) {
   const list = u.pills || [];
   if (!list.length) {
     return {
-      text: "💊 <b>Таблетки</b>\n\nДобавь витамины или лекарства, и я напомню в чате, когда их принять ⏰",
+      text: "💊 <b>Таблетки</b>\n\n<i>Добавь витамины или лекарства, и я напомню в чате, когда их принять</i> ⏰",
       kb: [[{ text: "➕ Добавить препарат", callback_data: "pl|add" }], [appButton(env)]],
     };
   }
   if (mode === "edit") {
     return {
-      text: "💊 <b>Мои препараты</b>\n\n<blockquote>" + list.map((p) => `${pillLine(p)}\n⏰ ${p.times.join(", ")}`).join("\n\n") + "</blockquote>\n\nНажми 🗑, чтобы удалить препарат и его напоминания",
+      text: "💊 <b>Мои препараты</b>\n\n\n" + list.map((p) => `${pillLine(p)}\n⏰ ${p.times.join(", ")}`).join("\n\n") + "\n\n\n<i>Нажми 🗑, чтобы удалить препарат и его напоминания</i>",
       kb: [
         ...list.map((p) => [{ text: `🗑 ${p.name}`.slice(0, 60), callback_data: `pl|x|${p.id}` }]),
         list.length < PILL_MAX ? [{ text: "➕ Добавить", callback_data: "pl|add" }, { text: "↩️ Назад", callback_data: "pl|back" }] : [{ text: "↩️ Назад", callback_data: "pl|back" }],
@@ -2327,7 +2334,7 @@ function pillsView(env, u, day, date, mode) {
     return `${PILL_ICON[x.s] || "⬜"} ${x.time} <b>${esc(x.name)}</b>${x.dose ? " · " + esc(x.dose) : ""}${tail}`;
   });
   return {
-    text: `💊 <b>Таблетки на сегодня</b> · ${taken} из ${doses.length} принято\n\n<blockquote>${lines.join("\n")}</blockquote>\n\n<i>Нажми на приём, чтобы отметить. Напомню в чате в нужное время</i>`,
+    text: `💊 <b>Таблетки на сегодня</b> · ${taken} из ${doses.length} принято\n\n\n${lines.join("\n")}\n\n\n<i>Нажми на приём, чтобы отметить. Напомню в нужное время</i>`,
     kb: [
       ...doses.map((x) => [{ text: `${x.s === "taken" ? "✅" : "⬜"} ${x.time} ${x.name}`.slice(0, 60), callback_data: `pl|m|${date}|${x.id}|${x.time}` }]),
       [{ text: "➕ Добавить", callback_data: "pl|add" }, { text: "✏️ Изменить", callback_data: "pl|edit" }],
