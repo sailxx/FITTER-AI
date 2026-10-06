@@ -2834,6 +2834,9 @@ const APP_HTML = `<!doctype html>
   .wt .lb{font-size:12px;font-weight:600;color:rgba(255,255,255,.85)}
   .wt b{font-size:24px;font-weight:800;letter-spacing:-.02em}
   .wt small{font-size:12px;font-weight:600;color:rgba(255,255,255,.85)}
+  .cups{display:flex;flex-wrap:wrap;gap:4px;margin-top:7px}
+  .cups i{width:9px;height:12px;border-radius:1px 1px 3px 3px;background:rgba(255,255,255,.28);transition:background .3s}
+  .cups i.on{background:#fff}
   .wbtn{display:flex;flex-direction:column;gap:6px;position:relative;z-index:1}
   .wbtn button{height:36px;border-radius:12px;padding:0 14px;font-weight:700;font-size:14px;background:rgba(255,255,255,.22);color:#fff}
   .wbtn button.add{background:#fff;color:var(--w2)}
@@ -2957,6 +2960,161 @@ const APP_HTML = `<!doctype html>
   @keyframes fup{to{transform:translateY(-46px);opacity:0}}
   .fx{position:fixed;z-index:40;pointer-events:none;font-size:20px;line-height:1;will-change:transform,opacity}
   @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+
+  /* ══════ Новое оформление: монохромный прибор в стиле Okto — корпус, клавиши, утопленные дисплеи, моноширинные цифры ══════ */
+  html[data-skin="okto"]{--o-bg:#ffffff;--o-ink:#141414;--o-muted:#5f5f5c;--o-line:#e4e4e1;--o-soft:#f3f3f1;--o-key:#ffffff;--o-key-edge:#cfcfcc;--o-key-hi:#ffffff;
+    --o-well:#f1f1ef;--o-well-ink:#111111;--o-well-dim:#5a5a57;--o-well-edge:rgba(0,0,0,.13);--o-red:#d33a3f;
+    --o-ghost:rgba(17,17,17,.07);--o-rest:rgba(17,17,17,.28);--o-dim:rgba(20,20,20,.35);--o-ink55:rgba(20,20,20,.55);--o-ink25:rgba(20,20,20,.25);
+    --o-mono:ui-monospace,"SF Mono","Cascadia Mono","Roboto Mono",Menlo,Consolas,monospace;--o-ease:cubic-bezier(.16,1,.3,1);
+    --bg:var(--o-bg);--card:var(--o-bg);--text:var(--o-ink);--hint:var(--o-muted);--line:var(--o-line);--danger:var(--o-red)}
+  html[data-skin="okto"][data-theme="dark"]{--o-bg:#141414;--o-ink:#ededed;--o-muted:#8e8e8e;--o-line:#2a2a2a;--o-soft:#1d1d1d;--o-key:#262626;--o-key-edge:#070707;--o-key-hi:rgba(255,255,255,.07);
+    --o-well:#0a0a0a;--o-well-ink:#f2f2f2;--o-well-dim:#8a8a8a;--o-well-edge:rgba(0,0,0,.7);--o-red:#ef5a5f;
+    --o-ghost:rgba(242,242,242,.08);--o-rest:rgba(242,242,242,.28);--o-dim:rgba(237,237,237,.35);--o-ink55:rgba(237,237,237,.55);--o-ink25:rgba(237,237,237,.25)}
+  html[data-skin="okto"] body{font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+  html[data-skin="okto"] button:active{transform:translateY(1px);filter:none}
+  /* Клавиши: светлая грань сверху, 1px «ход» снизу, при нажатии утапливаются */
+  html[data-skin="okto"] .nav button,html[data-skin="okto"] .av,html[data-skin="okto"] .wd,html[data-skin="okto"] .wbtn button,html[data-skin="okto"] .pbtn,
+  html[data-skin="okto"] .dose .ck,html[data-skin="okto"] .wcard .wed,html[data-skin="okto"] .plist .x,html[data-skin="okto"] .ptimes .chip{
+    background:var(--o-key);color:var(--o-ink);border:0;border-radius:10px;box-shadow:inset 0 1px 0 var(--o-key-hi),0 1px 0 var(--o-key-edge),0 2px 3px -1px rgba(0,0,0,.22);
+    transition:transform 90ms var(--o-ease),box-shadow 90ms var(--o-ease)}
+  html[data-skin="okto"] .nav button:active,html[data-skin="okto"] .wd:active,html[data-skin="okto"] .wbtn button:active,html[data-skin="okto"] .pbtn:active,html[data-skin="okto"] .wcard .wed:active,html[data-skin="okto"] .plist .x:active{
+    transform:translateY(1px);box-shadow:inset 0 1px 2px rgba(0,0,0,.18)}
+  /* Дисплеи: всё, что показывает показания, утоплено в корпус */
+  html[data-skin="okto"] .kw,html[data-skin="okto"] .mc,html[data-skin="okto"] .water.ow,html[data-skin="okto"] .pills,html[data-skin="okto"] .wkc,html[data-skin="okto"] .wcard,html[data-skin="okto"] .empty,html[data-skin="okto"] .addm,html[data-skin="okto"] .it .gr{
+    background:var(--o-well);color:var(--o-well-ink);border:0;border-radius:8px;box-shadow:inset 0 2px 3px var(--o-well-edge),inset 0 0 0 1px var(--o-well-edge),0 1px 0 var(--o-key-hi)}
+  /* Цифры с погашенными «восьмёрками» под ними и сегментные шкалы */
+  html[data-skin="okto"] .dg{display:inline-grid;font-family:var(--o-mono);font-weight:700;font-variant-numeric:tabular-nums;line-height:.92;letter-spacing:-.045em;white-space:nowrap}
+  html[data-skin="okto"] .dg > span{grid-area:1/1;text-align:right}
+  html[data-skin="okto"] .dg .gh{color:var(--o-ghost)}
+  html[data-skin="okto"] .dg .lv.r{color:var(--o-red)}
+  html[data-skin="okto"] .oseg{display:flex;gap:3px;height:8px}
+  html[data-skin="okto"] .oseg i{flex:1;border-radius:1.5px;background:var(--o-ghost);transition:background .3s}
+  html[data-skin="okto"] .oseg i.on{background:var(--o-well-ink)}
+  html[data-skin="okto"] .oseg i.r{background:var(--o-red)}
+  html[data-skin="okto"] .olr{display:flex;align-items:center;justify-content:space-between;gap:8px}
+  html[data-skin="okto"] .olg{font:500 11px var(--o-mono);letter-spacing:.12em;text-transform:uppercase;color:var(--o-well-dim)}
+  html[data-skin="okto"] .ord{font:500 12px var(--o-mono);color:var(--o-well-dim);font-variant-numeric:tabular-nums}
+
+  /* Шапка — это корпус: без градиента, дни — ряд клавиш с LED */
+  html[data-skin="okto"] .hero{background:var(--o-bg);color:var(--o-ink);box-shadow:none;border-radius:0;padding:12px 14px 4px;overflow:visible}
+  html[data-skin="okto"] .hero:before{display:none}
+  html[data-skin="okto"] .ttl b{font-size:30px;font-weight:700;letter-spacing:-.03em}
+  html[data-skin="okto"] .ttl small{margin-top:4px;font:500 12px var(--o-mono);letter-spacing:.02em;color:var(--o-muted)}
+  html[data-skin="okto"] .nav button{width:38px;height:38px}
+  html[data-skin="okto"] .av{width:38px;height:38px;margin-left:0;font:700 15px var(--o-mono)}
+  html[data-skin="okto"] .week{gap:5px;margin:16px 0 12px}
+  html[data-skin="okto"] .wd{height:58px;padding:0;justify-content:center;gap:3px}
+  html[data-skin="okto"] .wd small{font:500 10px var(--o-mono);letter-spacing:.08em;text-transform:uppercase;color:var(--o-muted)}
+  html[data-skin="okto"] .wd b{font:700 16px var(--o-mono);letter-spacing:-.02em}
+  html[data-skin="okto"] .wd i{width:5px;height:5px;margin-top:1px}
+  html[data-skin="okto"] .wd i.ok,html[data-skin="okto"] .wd.sel i.ok{background:var(--o-ink)}
+  html[data-skin="okto"] .wd i.lo,html[data-skin="okto"] .wd.sel i.lo{background:var(--o-dim)}
+  html[data-skin="okto"] .wd i.ov,html[data-skin="okto"] .wd.sel i.ov{background:var(--o-red)}
+  html[data-skin="okto"] .wd.sel{background:var(--o-soft);color:var(--o-ink);transform:translateY(1px);box-shadow:inset 0 1px 2px rgba(0,0,0,.18)}
+  html[data-skin="okto"] .wd.sel small,html[data-skin="okto"] .wd.today small{color:var(--o-ink)}
+  html[data-skin="okto"] .wd.today:not(.sel) b{text-decoration:none}
+  html[data-skin="okto"] .wd[disabled]{opacity:.35}
+  /* Калории: крупная цифра «осталось» и линейка из 20 сегментов вместо кольца */
+  html[data-skin="okto"] .kw{padding:14px}
+  html[data-skin="okto"] .kw .ro{text-align:right;margin:12px 0}
+  html[data-skin="okto"] .kw .ro .dg{font-size:76px}
+  html[data-skin="okto"] .kw .oseg{height:12px;margin-bottom:10px}
+  html[data-skin="okto"] .wrap{padding:0 14px}
+  /* БЖУ: три дисплея, нутриенты различаются подписью, а не цветом */
+  html[data-skin="okto"] .macros{margin-top:10px;gap:8px}
+  html[data-skin="okto"] .mc{padding:12px}
+  html[data-skin="okto"] .mc .ib{display:none}
+  html[data-skin="okto"] .mc .lb{font:500 11px var(--o-mono);letter-spacing:.1em;text-transform:uppercase;color:var(--o-well-dim)}
+  html[data-skin="okto"] .mc .vl{margin:10px 0 8px}
+  html[data-skin="okto"] .mc .vl .dg{font-size:28px}
+  html[data-skin="okto"] .mc .vl small{display:block;margin-top:4px;font:500 12px var(--o-mono);color:var(--o-well-dim)}
+  html[data-skin="okto"] .mc .st{font:500 12px var(--o-mono);color:var(--o-well-dim)}
+  html[data-skin="okto"] .mc .st .ok{color:var(--o-well-ink)}
+  html[data-skin="okto"] .mc .st .ov{color:var(--o-red)}
+  html[data-skin="okto"] .hint{background:transparent;border:0;box-shadow:none;padding:4px 4px 2px 20px;margin-top:10px}
+  html[data-skin="okto"] .hint:before,html[data-skin="okto"] .hint.good:before{left:4px;top:11px;width:6px;height:6px;background:var(--o-ink)}
+  html[data-skin="okto"] .hint.warn:before{background:var(--o-red)}
+  /* Вода: стаканы — ячейки, которые загораются по одной */
+  html[data-skin="okto"] .water.ow{display:block;margin-top:10px;padding:14px;color:var(--o-well-ink)}
+  html[data-skin="okto"] .water.ow:after{display:none}
+  html[data-skin="okto"] .water.ow .vl{margin:10px 0;display:flex;align-items:baseline;gap:6px}
+  html[data-skin="okto"] .water.ow .vl .dg{font-size:34px}
+  html[data-skin="okto"] .water.ow .vl small{font:500 12px var(--o-mono);color:var(--o-well-dim)}
+  html[data-skin="okto"] .ocup{display:grid;grid-template-columns:repeat(var(--n),1fr);gap:4px;height:26px}
+  html[data-skin="okto"] .ocup i{border-radius:3px;background:var(--o-ghost);transition:background .3s}
+  html[data-skin="okto"] .ocup i.on{background:var(--o-well-ink)}
+  html[data-skin="okto"] .water.ow .wbtn{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px}
+  html[data-skin="okto"] .water.ow .wbtn button{height:40px;font:500 12px var(--o-mono);letter-spacing:.08em;text-transform:uppercase}
+  /* Таблетки */
+  html[data-skin="okto"] .pills{margin-top:10px;padding:12px 14px}
+  html[data-skin="okto"] .pills .ib{display:none}
+  html[data-skin="okto"] .pills .t{font:500 11px var(--o-mono);letter-spacing:.12em;text-transform:uppercase;color:var(--o-well-dim)}
+  html[data-skin="okto"] .pills .t small{margin-top:3px;font:500 12px var(--o-mono);letter-spacing:0;text-transform:none;color:var(--o-well-dim)}
+  html[data-skin="okto"] .pbtn{height:32px;font:500 11px var(--o-mono);letter-spacing:.08em;text-transform:uppercase}
+  html[data-skin="okto"] .pbar{height:6px;border-radius:1.5px;background:var(--o-ghost)}
+  html[data-skin="okto"] .pbar i{border-radius:1.5px;background:var(--o-well-ink)}
+  html[data-skin="okto"] .dose{color:var(--o-well-ink);border-top-color:rgba(127,127,127,.18)}
+  html[data-skin="okto"] .dose .tm{font:500 12px var(--o-mono);color:var(--o-well-dim)}
+  html[data-skin="okto"] .dose .nm small,html[data-skin="okto"] .dose.taken .pn{color:var(--o-well-dim)}
+  html[data-skin="okto"] .dose .ck{width:30px;height:30px;font-size:14px;color:var(--o-ink)}
+  html[data-skin="okto"] .dose.taken .ck{background:var(--o-key);color:var(--o-ink);transform:translateY(1px);box-shadow:inset 0 1px 2px rgba(0,0,0,.18)}
+  html[data-skin="okto"] .dose.skip .ck{opacity:.5}
+  html[data-skin="okto"] .pform input,html[data-skin="okto"] .pform select{background:var(--o-key);color:var(--o-ink);border:1px solid var(--o-line);border-radius:8px}
+  html[data-skin="okto"] .pform input:focus,html[data-skin="okto"] .pform select:focus{border-color:var(--o-ink)}
+  html[data-skin="okto"] .ptimes .chip b{color:var(--o-muted)}
+  html[data-skin="okto"] .psave{background:var(--o-ink);color:var(--o-bg);border-radius:10px;font-weight:600}
+  html[data-skin="okto"] .plist .row{border-top-color:rgba(127,127,127,.18)}
+  html[data-skin="okto"] .plist .row small,html[data-skin="okto"] .phint{color:var(--o-well-dim)}
+  html[data-skin="okto"] .plist .x{color:var(--o-red)}
+  /* Еда: не карточки, а строки на корпусе с тонкими линиями */
+  html[data-skin="okto"] h3{margin:24px 2px 8px;font-size:20px;font-weight:700;letter-spacing:-.02em}
+  html[data-skin="okto"] h3 small{font:500 12px var(--o-mono);color:var(--o-muted)}
+  html[data-skin="okto"] .meal{background:transparent;border:0;border-top:1px solid var(--o-line);border-radius:0;box-shadow:none;padding:12px 2px 2px;margin:0}
+  html[data-skin="okto"] .meal .ib,html[data-skin="okto"] .empty .ib,html[data-skin="okto"] .wcard .ib,html[data-skin="okto"] .it .dot{display:none}
+  html[data-skin="okto"] .meal .t{font-size:16px;font-weight:600}
+  html[data-skin="okto"] .meal .t small,html[data-skin="okto"] .it .n small{margin-top:2px;font:500 11.5px var(--o-mono);color:var(--o-muted)}
+  html[data-skin="okto"] .meal .k{background:transparent;padding:0;font:700 15px var(--o-mono)}
+  html[data-skin="okto"] .mbar{height:4px;gap:2px}
+  html[data-skin="okto"] .mbar i{border-radius:1px}
+  html[data-skin="okto"] .mbar .p{background:var(--o-ink)}
+  html[data-skin="okto"] .mbar .f{background:var(--o-ink55)}
+  html[data-skin="okto"] .mbar .c{background:var(--o-ink25)}
+  html[data-skin="okto"] .it{border-top-color:var(--o-line)}
+  html[data-skin="okto"] .it input{font-family:var(--o-mono);color:var(--o-well-ink)}
+  html[data-skin="okto"] .it .g{font-family:var(--o-mono);color:var(--o-well-dim)}
+  html[data-skin="okto"] .it .ren{border-color:var(--o-ink);border-radius:8px;background:var(--o-well)}
+  html[data-skin="okto"] .del{text-align:left;font:500 11px var(--o-mono);letter-spacing:.1em;text-transform:uppercase;color:var(--o-red);border-top-color:var(--o-line)}
+  html[data-skin="okto"] .addm{border-radius:10px;padding:6px 6px 6px 14px}
+  html[data-skin="okto"] .addm:focus-within{box-shadow:inset 0 0 0 2px var(--o-ink)}
+  html[data-skin="okto"] .addm textarea{color:var(--o-well-ink)}
+  html[data-skin="okto"] .addm textarea::placeholder{color:var(--o-well-dim)}
+  html[data-skin="okto"] .addb{background:var(--o-ink);color:var(--o-bg);border-radius:10px;font-weight:500;box-shadow:inset 0 1px 0 rgba(255,255,255,.35),0 2px 0 var(--o-key-edge),0 8px 18px -8px rgba(0,0,0,.4)}
+  html[data-skin="okto"] .addm.busy .addb:after{border-color:rgba(127,127,127,.4);border-top-color:var(--o-bg)}
+  html[data-skin="okto"] .addh{font:500 11px var(--o-mono);color:var(--o-muted)}
+  html[data-skin="okto"] .empty{color:var(--o-well-dim)}
+  html[data-skin="okto"] .empty b{color:var(--o-well-ink)}
+  /* Неделя: норма — сплошной столбик, недобор — бледный, перебор — красный */
+  html[data-skin="okto"] .wkc .nl{border-top:1px dashed var(--o-well-dim)}
+  html[data-skin="okto"] .wkc .nl span{background:var(--o-well);color:var(--o-well-dim);font:500 10px var(--o-mono)}
+  html[data-skin="okto"] .wb .col i{max-width:22px;border-radius:2px 2px 0 0;background:var(--o-ghost)}
+  html[data-skin="okto"] .wb .col i.ok,html[data-skin="okto"] .wsum .lg i.ok{background:var(--o-well-ink)}
+  html[data-skin="okto"] .wb .col i.lo,html[data-skin="okto"] .wsum .lg i.lo{background:var(--o-rest)}
+  html[data-skin="okto"] .wb .col i.ov,html[data-skin="okto"] .wsum .lg i.ov{background:var(--o-red)}
+  html[data-skin="okto"] .wb small,html[data-skin="okto"] .wb em{font-family:var(--o-mono);color:var(--o-well-dim)}
+  html[data-skin="okto"] .wb.sel small,html[data-skin="okto"] .wb.sel em{color:var(--o-well-ink)}
+  html[data-skin="okto"] .wb.sel .col i{box-shadow:none;outline:1px solid var(--o-well-ink);outline-offset:2px}
+  html[data-skin="okto"] .wsum{border-top-color:rgba(127,127,127,.2);color:var(--o-well-dim)}
+  html[data-skin="okto"] .wsum b{color:var(--o-well-ink)}
+  html[data-skin="okto"] .wsum .lg i{border-radius:1.5px}
+  /* Вес */
+  html[data-skin="okto"] .wcard{padding:14px}
+  html[data-skin="okto"] .wcard .v b{font:700 30px var(--o-mono);letter-spacing:-.04em;color:var(--o-well-ink)}
+  html[data-skin="okto"] .wcard .v small{font:500 12px var(--o-mono);color:var(--o-well-dim)}
+  html[data-skin="okto"] .wcard polyline{stroke:var(--o-well-ink)}
+  html[data-skin="okto"] .wcard polygon{fill:var(--o-ghost)}
+  html[data-skin="okto"] .wcard .wed{font-size:14px}
+  html[data-skin="okto"] .wcard .win{border-color:var(--o-ink);background:var(--o-key);font-family:var(--o-mono)}
+  html[data-skin="okto"] .fl{color:var(--o-ink);text-shadow:none;font-family:var(--o-mono)}
 </style>
 </head>
 <body>
@@ -2964,7 +3122,7 @@ const APP_HTML = `<!doctype html>
 <div class="hero">
   <div class="top">
     <div class="ttl"><b id="dl">Дневник</b><small id="ds">FITTER</small></div>
-    <div class="nav"><button id="prev" aria-label="Предыдущий день"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg></button><button id="next" aria-label="Следующий день"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5l7 7-7 7"/></svg></button><button id="theme" aria-label="Сменить тему"></button><span class="av" id="av"></span></div>
+    <div class="nav"><button id="prev" aria-label="Предыдущий день"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg></button><button id="next" aria-label="Следующий день"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5l7 7-7 7"/></svg></button><button id="skin"></button><button id="theme" aria-label="Сменить тему"></button><span class="av" id="av"></span></div>
   </div>
   <div id="hero"><div class="load">Загрузка…</div></div>
 </div>
@@ -2978,12 +3136,33 @@ const APP_HTML = `<!doctype html>
   var themeBtn = document.getElementById("theme");
   var SUN = '<svg class="ic" style="width:19px;height:19px" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v2M12 19.5v2M2.5 12h2M19.5 12h2M5.3 5.3l1.4 1.4M17.3 17.3l1.4 1.4M5.3 18.7l1.4-1.4M17.3 6.7l1.4-1.4"/></svg>';
   var MOON = '<svg class="ic" style="width:18px;height:18px" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z"/></svg>';
+  // Оформление: новое (прибор в стиле Okto) по умолчанию, классическое с зелёной шапкой — по кнопке. Выбор хранится на устройстве
+  var skinBtn = document.getElementById("skin");
+  var KEYS = '<svg class="ic" style="width:18px;height:18px" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="3.5" y="3.5" width="7" height="7" rx="1.6"/><rect x="13.5" y="3.5" width="7" height="7" rx="1.6"/><rect x="3.5" y="13.5" width="7" height="7" rx="1.6"/><rect x="13.5" y="13.5" width="7" height="7" rx="1.6"/></svg>';
+  var RING = '<svg class="ic" style="width:18px;height:18px" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><circle cx="12" cy="12" r="8" opacity=".35"/><path d="M12 4a8 8 0 0 1 7.6 10.5"/></svg>';
+  function OK(){ return document.documentElement.getAttribute("data-skin") === "okto"; }
+  function setSkin(s, save){
+    document.documentElement.setAttribute("data-skin", s);
+    skinBtn.innerHTML = s === "okto" ? RING : KEYS;
+    skinBtn.setAttribute("aria-label", s === "okto" ? "Классическое оформление" : "Новое оформление");
+    if (save) try { localStorage.setItem("fitter_skin", s); } catch(e){}
+  }
+  try { setSkin(localStorage.getItem("fitter_skin") === "classic" ? "classic" : "okto", false); } catch(e){ setSkin("okto", false); }
+
   function savedTheme(){ try { return localStorage.getItem("fitter_theme"); } catch(e){ return null; } }
   function setTheme(t, save){
     document.documentElement.setAttribute("data-theme", t);
     themeBtn.innerHTML = t === "dark" ? SUN : MOON;
-    try { tg.setBackgroundColor(t === "dark" ? "#0c100e" : "#f3f5f2"); tg.setHeaderColor("#5dffad"); } catch(e){}
+    chrome();
     if (save) try { localStorage.setItem("fitter_theme", t); } catch(e){}
+  }
+  // Цвет шапки и фона Telegram под оформление и тему
+  function chrome(){
+    var dark = document.documentElement.getAttribute("data-theme") === "dark";
+    try {
+      if (OK()) { tg.setBackgroundColor(dark ? "#141414" : "#ffffff"); tg.setHeaderColor(dark ? "#141414" : "#ffffff"); }
+      else { tg.setBackgroundColor(dark ? "#0c100e" : "#f3f5f2"); tg.setHeaderColor("#5dffad"); }
+    } catch(e){}
   }
   var sysTheme = (tg && tg.colorScheme) || (window.matchMedia && matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
   setTheme(savedTheme() || sysTheme, false);
@@ -2993,6 +3172,11 @@ const APP_HTML = `<!doctype html>
     setTheme(el.getAttribute("data-theme") === "dark" ? "light" : "dark", true);
     tick();
     setTimeout(function(){ el.classList.remove("tt"); }, 350);
+  };
+  skinBtn.onclick = function(){
+    setSkin(OK() ? "classic" : "okto", true);
+    chrome(); tick();
+    if (state.data) render();
   };
 
   var initData = tg ? tg.initData : "";
@@ -3011,6 +3195,29 @@ const APP_HTML = `<!doctype html>
   function human(date){ var d = new Date(date + "T00:00:00Z"); return d.getUTCDate() + " " + MONTHS[d.getUTCMonth()]; }
   function L(ml){ return String(Math.round(ml / 10) / 100).replace(".", ",") + " л"; }
   function icon(name, style){ return '<svg class="ic"' + (style ? ' style="' + style + '"' : '') + '><use href="#i-' + name + '"/></svg>'; }
+  function plural(x, a, b, c){ var m = x % 10, h = x % 100; return m === 1 && h !== 11 ? a : m >= 2 && m <= 4 && (h < 12 || h > 14) ? b : c; }
+
+  // ── Детали нового оформления ──
+  // Цифры дисплея: под живым числом погашенные «восьмёрки», как на сегментном индикаторе
+  function ghost(s){ return String(s).replace(/[0-9]/g, "8"); }
+  function dg(s, cls, to){ return '<span class="dg"><span class="gh">' + ghost(s) + '</span><span class="lv' + (cls ? ' ' + cls : '') + '"' + (to !== undefined ? ' data-to="' + to + '">0' : '>' + s) + '</span></span>'; }
+  function setDg(el, s){ el.textContent = s; if (el.previousSibling) el.previousSibling.textContent = ghost(s); }
+  // Шкала из сегментов; при перерасходе горит красным целиком
+  function seg(cnt, frac, red){
+    var lit = Math.round(Math.min(1, frac || 0) * cnt), h = '<div class="oseg">';
+    for (var i = 0; i < cnt; i++) h += '<i class="' + (i < lit ? (red ? "r" : "on") : "") + '"></i>';
+    return h + '</div>';
+  }
+  // Вода считается стаканами по 250 мл
+  var CUP = 250;
+  function cupsOf(ml){ return Math.floor(ml / CUP); }
+  function cupsGoal(ml){ return Math.max(1, Math.ceil(ml / CUP)); }
+  function cupWord(x){ return plural(x, "стакан", "стакана", "стаканов"); }
+  function cupCells(wv, wg, cls){
+    var all = cupsGoal(wg), on = cupsOf(wv), h = '<div class="' + cls + '" style="--n:' + all + '">';
+    for (var i = 0; i < all; i++) h += '<i class="' + (i < on ? "on" : "") + '"></i>';
+    return h + '</div>';
+  }
 
   function haptic(style){ try { tg.HapticFeedback.impactOccurred(style || "light"); } catch(e){} }
   function notify(type){ try { tg.HapticFeedback.notificationOccurred(type); } catch(e){} }
@@ -3090,6 +3297,8 @@ const APP_HTML = `<!doctype html>
     var pct = max ? Math.min(100, val / max * 100) : 0;
     var left = max - val, ok = max && val >= max * 0.9 && val <= max * 1.1;
     var st = !max ? '' : ok ? '<span class="ok">в норме</span>' : left > 0 ? 'ещё ' + r(left) + ' г' : '<span class="ov">+' + r(-left) + ' г</span>';
+    if (OK()) return '<div class="mc ' + cls + ' rise"><div class="lb">' + label + '</div>' +
+      '<div class="vl">' + dg(r(val), max && val > max * 1.1 ? "r" : "") + '<small>/ ' + max + ' г</small></div>' + seg(10, max ? val / max : 0, max && val > max * 1.1) + '<div class="st" style="margin-top:8px">' + st + '</div></div>';
     return '<div class="mc ' + cls + ' rise"><div class="ib">' + icon(ic) + '</div><div class="lb">' + label + '</div>' +
       '<div class="vl">' + r(val) + '<small> / ' + max + ' г</small></div><div class="bar"><div data-pct="' + pct + '"></div></div><div class="st">' + st + '</div></div>';
   }
@@ -3300,16 +3509,28 @@ const APP_HTML = `<!doctype html>
     }).join("") + '</div>';
 
     var left = g.kcal - t.kcal;
-    var streak = d.date === d.today && d.streak >= 2 ? '<div class="chip">🔥 ' + d.streak + ' ' + (d.streak % 10 === 1 && d.streak % 100 !== 11 ? 'день' : [2,3,4].indexOf(d.streak % 10) >= 0 && (d.streak % 100 < 12 || d.streak % 100 > 14) ? 'дня' : 'дней') + ' подряд</div>' : '';
-    hero.innerHTML = week + '<div class="main">' + ring(t.kcal, g.kcal) +
+    var days = d.date === d.today && d.streak >= 2 ? d.streak + ' ' + plural(d.streak, 'день', 'дня', 'дней') : '';
+    var streak = days ? '<div class="chip">🔥 ' + days + ' подряд</div>' : '';
+    if (OK()) {
+      // Дисплей калорий: сколько осталось (или перебор красным), линейка из 20 сегментов
+      var share = g.kcal ? Math.round(t.kcal / g.kcal * 100) : 0;
+      hero.innerHTML = week + '<div class="kw rise"><div class="olr"><span class="olg">' + (left >= 0 ? 'Осталось · ккал' : 'Перебор · ккал') + '</span><span class="ord">норма ' + n(g.kcal) + '</span></div>' +
+        '<div class="ro">' + dg(n(Math.abs(left)), left < 0 ? "r" : "", r(Math.abs(left))) + '</div>' + seg(20, g.kcal ? t.kcal / g.kcal : 0, left < 0) +
+        '<div class="olr"><span class="olg">Съедено ' + n(t.kcal) + '</span><span class="ord">' + (days ? '🔥 ' + days + ' · ' : '') + share + '%</span></div></div>';
+    } else hero.innerHTML = week + '<div class="main">' + ring(t.kcal, g.kcal) +
       '<div class="chips"><div class="chip' + (left < 0 ? ' over' : '') + '">' + (left >= 0 ? 'Осталось ' + n(left) + ' ккал' : 'Больше нормы на ' + n(-left) + ' ккал') + '</div>' + streak + '</div></div>';
 
     var macros = '<div class="macros">' + macro("p", "protein", "Белки", t.p, g.p) + macro("f", "fat", "Жиры", t.f, g.f) + macro("c", "carbs", "Углеводы", t.c, g.c) + '</div>';
 
     var wg = d.waterGoal || 2000, wv = d.water || 0;
-    var water = '<div class="water rise' + (wv >= wg ? ' done' : '') + '">' + glass(wv / wg) +
-      '<div class="wt"><div class="lb">Вода</div><b class="wv">' + L(wv) + '</b><br><small>из ' + L(wg) + '<span class="wn">' + (wv >= wg ? ' · норма ✓' : '') + '</span></small></div>' +
-      '<div class="wbtn"><button class="add" data-w="250">+250 мл</button><button data-w="-250">− 250</button></div></div>';
+    var water = OK() ?
+      '<div class="water ow rise' + (wv >= wg ? ' done' : '') + '"><div class="olr"><span class="olg">Вода · стаканы по 250 мл</span><span class="ord wl">' + L(wv) + ' из ' + L(wg) + '</span></div>' +
+        '<div class="vl">' + dg(String(cupsOf(wv)), "wv") + '<small class="wc">из ' + cupsGoal(wg) + ' ' + cupWord(cupsGoal(wg)) + '<span class="wn">' + (wv >= wg ? ' · норма ✓' : '') + '</span></small></div>' +
+        cupCells(wv, wg, "ocup") + '<div class="wbtn"><button data-w="-250">− стакан</button><button class="add" data-w="250">+ стакан</button></div></div>' :
+      '<div class="water rise' + (wv >= wg ? ' done' : '') + '">' + glass(wv / wg) +
+      '<div class="wt"><div class="lb">Вода</div><b class="wv">' + cupsOf(wv) + ' из ' + cupsGoal(wg) + '</b> <small class="wc">' + cupWord(cupsGoal(wg)) + '</small><br><small class="wl">' + L(wv) + ' из ' + L(wg) + '</small><small class="wn">' + (wv >= wg ? ' · норма ✓' : '') + '</small>' +
+        cupCells(wv, wg, "cups") + '</div>' +
+      '<div class="wbtn"><button class="add" data-w="250">+ стакан</button><button data-w="-250">− стакан</button></div></div>';
 
     var total = d.meals.reduce(function(a, m){ return a + m.totals.kcal; }, 0);
     var add = d.date <= d.today ? '<div class="addm rise"><textarea id="addt" rows="1" maxlength="500" enterkeyhint="send" placeholder="Что съел? Например: 2 яйца и тост"></textarea><button class="addb" id="addb" aria-label="Добавить еду">+</button></div>' +
@@ -3342,16 +3563,19 @@ const APP_HTML = `<!doctype html>
       state.flash = null;
     }
     if (d.date === d.today && d.meals.length && t.kcal >= g.kcal * 0.9 && t.kcal <= g.kcal * 1.1 && once("fx-kcal-" + d.date)) {
-      setTimeout(function(){ celebrate(hero.querySelector(".ring"), ["✨", "🥦", "🍏"]); notify("success"); }, 1100);
+      setTimeout(function(){ celebrate(hero.querySelector(".ring, .kw"),["✨", "🥦", "🍏"]); notify("success"); }, 1100);
     }
   }
 
   function waterUI(){
     var d = state.data, wg = d.waterGoal || 2000, wv = d.water || 0, card = root.querySelector(".water");
     if (!card) return;
-    card.querySelector(".wv").textContent = L(wv);
+    var c = cupsOf(wv), lvl = card.querySelector(".lvl");
+    if (OK()) setDg(card.querySelector(".wv"), String(c)); else card.querySelector(".wv").textContent = c + " из " + cupsGoal(wg);
+    card.querySelector(".wl").textContent = L(wv) + " из " + L(wg);
     card.querySelector(".wn").textContent = wv >= wg ? " · норма ✓" : "";
-    card.querySelector(".lvl").style.transform = "translateY(" + (74 - 66 * Math.min(1, wv / wg)) + "px)";
+    card.querySelectorAll(".cups i, .ocup i").forEach(function(el, i){ el.className = i < c ? "on" : ""; });
+    if (lvl) lvl.style.transform = "translateY(" + (74 - 66 * Math.min(1, wv / wg)) + "px)";
     card.classList.toggle("done", wv >= wg);
   }
 
