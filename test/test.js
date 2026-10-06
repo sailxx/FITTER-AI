@@ -361,7 +361,8 @@ console.log("✓ Mini App API, итого за день:", Math.round(d.totals.k
   // Кнопка меню вместо «Вес»
   let r = await msg("/start");
   const kb = r.find((x) => x.body.reply_markup?.keyboard).body.reply_markup.keyboard.flat().map((b) => b.text);
-  assert.ok(kb.some((t) => /Таблетки/.test(t)) && !kb.some((t) => /Вес$/.test(t)));
+  // В меню только «Сегодня», «Неделя», «Профиль», «Помощь»; старые кнопки текстом работают
+  assert.ok(!kb.some((t) => /Таблетки|Вода|Вес$/.test(t)) && kb.length === 4);
   r = await msg("💊 Таблетки");
   assert.match(lastText(r), /Добавь витамины/);
   r = await cb("pl|add");
