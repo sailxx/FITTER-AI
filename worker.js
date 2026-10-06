@@ -3015,11 +3015,13 @@ const APP_HTML = `<!doctype html>
   html[data-skin="okto"] .wd[disabled]{opacity:.35}
   /* Калории: крупная цифра «осталось» и линейка из 20 сегментов вместо кольца */
   html[data-skin="okto"] .kw{padding:16px}
-  html[data-skin="okto"] .kw .ro{margin:14px 0}
-  html[data-skin="okto"] .kw .ro .dg{font-size:64px}
+  html[data-skin="okto"] .kr{display:flex;align-items:stretch;justify-content:space-between;gap:12px;margin-bottom:16px}
+  html[data-skin="okto"] .kl,html[data-skin="okto"] .kw .ro{display:flex;flex-direction:column;justify-content:space-between;gap:10px;min-width:0}
+  html[data-skin="okto"] .kl b{line-height:1;margin-bottom:2px}
+  html[data-skin="okto"] .kw .ro{align-items:flex-end;text-align:right}
+  html[data-skin="okto"] .kw .ro .dg{font-size:clamp(44px,15vw,64px)}
   html[data-skin="okto"] .kw .oseg{height:8px}
-  html[data-skin="okto"] .kl{display:flex;align-items:baseline;justify-content:space-between;margin-top:14px;padding-top:12px;border-top:1px solid rgba(127,127,127,.16)}
-  html[data-skin="okto"] .kl b{font:700 28px var(--o-mono);letter-spacing:-.04em;font-variant-numeric:tabular-nums;color:var(--o-well-ink)}
+  html[data-skin="okto"] .kl b{font:700 28px var(--o-mono);letter-spacing:-.04em;font-variant-numeric:tabular-nums;color:var(--o-well-ink);white-space:nowrap}
   html[data-skin="okto"] .kl b small{margin-left:5px;font:500 12px var(--o-mono);letter-spacing:0;color:var(--o-well-dim)}
   html[data-skin="okto"] .kl.over b,html[data-skin="okto"] .kl.over .olg{color:var(--o-red)}
   html[data-skin="okto"] .wrap{padding:0 14px}
@@ -3514,11 +3516,11 @@ const APP_HTML = `<!doctype html>
     var days = d.date === d.today && d.streak >= 2 ? d.streak + ' ' + plural(d.streak, 'день', 'дня', 'дней') : '';
     var streak = days ? '<div class="chip">🔥 ' + days + ' подряд</div>' : '';
     if (OK()) {
-      // Дисплей калорий: крупно — сколько съедено, под шкалой отдельной строкой — сколько осталось (перебор — красным)
+      // Дисплей калорий: слева — сколько осталось (перебор — красным), справа крупно — сколько съедено
       if (days) document.getElementById("ds").textContent += " · 🔥 " + days;
-      hero.innerHTML = week + '<div class="kw rise"><div class="olr"><span class="olg">Съедено · ккал</span><span class="ord">из ' + n(g.kcal) + '</span></div>' +
-        '<div class="ro">' + dg(n(t.kcal), "", r(t.kcal)) + '</div>' + seg(20, g.kcal ? t.kcal / g.kcal : 0, left < 0) +
-        '<div class="kl' + (left < 0 ? ' over' : '') + '"><span class="olg">' + (left >= 0 ? 'Осталось' : 'Перебор') + '</span><b>' + n(Math.abs(left)) + '<small>ккал</small></b></div></div>';
+      hero.innerHTML = week + '<div class="kw rise"><div class="kr">' +
+        '<div class="kl' + (left < 0 ? ' over' : '') + '"><span class="olg">' + (left >= 0 ? 'Осталось' : 'Перебор') + '</span><b>' + n(Math.abs(left)) + '<small>ккал</small></b></div>' +
+        '<div class="ro"><span class="olg">Съедено · из ' + n(g.kcal) + '</span>' + dg(n(t.kcal), "", r(t.kcal)) + '</div></div>' + seg(20, g.kcal ? t.kcal / g.kcal : 0, left < 0) + '</div>';
     } else hero.innerHTML = week + '<div class="main">' + ring(t.kcal, g.kcal) +
       '<div class="chips"><div class="chip' + (left < 0 ? ' over' : '') + '">' + (left >= 0 ? 'Осталось ' + n(left) + ' ккал' : 'Больше нормы на ' + n(-left) + ' ккал') + '</div>' + streak + '</div></div>';
 
