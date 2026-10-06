@@ -2963,7 +2963,7 @@ const APP_HTML = `<!doctype html>
 
   /* ══════ Эксклюзивная тема Okto в честь запуска приложения Okto: монохромный прибор — корпус, клавиши, утопленные дисплеи, моноширинные цифры ══════ */
   html[data-skin="okto"]{--o-bg:#ffffff;--o-ink:#141414;--o-muted:#5f5f5c;--o-line:#e4e4e1;--o-soft:#f3f3f1;--o-key:#ffffff;--o-key-edge:#cfcfcc;--o-key-hi:#ffffff;
-    --o-well:#f1f1ef;--o-well-ink:#111111;--o-well-dim:#5a5a57;--o-well-edge:rgba(0,0,0,.13);--o-red:#d33a3f;
+    --o-well:#f4f4f2;--o-well-ink:#111111;--o-well-dim:#6a6a66;--o-well-edge:rgba(0,0,0,.07);--o-red:#d33a3f;
     --o-ghost:rgba(17,17,17,.07);--o-rest:rgba(17,17,17,.28);--o-dim:rgba(20,20,20,.35);--o-ink55:rgba(20,20,20,.55);--o-ink25:rgba(20,20,20,.25);
     --o-mono:ui-monospace,"SF Mono","Cascadia Mono","Roboto Mono",Menlo,Consolas,monospace;--o-ease:cubic-bezier(.16,1,.3,1);
     --bg:var(--o-bg);--card:var(--o-bg);--text:var(--o-ink);--hint:var(--o-muted);--line:var(--o-line);--danger:var(--o-red)}
@@ -2981,13 +2981,12 @@ const APP_HTML = `<!doctype html>
     transform:translateY(1px);box-shadow:inset 0 1px 2px rgba(0,0,0,.18)}
   /* Дисплеи: всё, что показывает показания, утоплено в корпус */
   html[data-skin="okto"] .kw,html[data-skin="okto"] .mc,html[data-skin="okto"] .water.ow,html[data-skin="okto"] .pills,html[data-skin="okto"] .wkc,html[data-skin="okto"] .wcard,html[data-skin="okto"] .empty,html[data-skin="okto"] .addm,html[data-skin="okto"] .it .gr{
-    background:var(--o-well);color:var(--o-well-ink);border:0;border-radius:8px;box-shadow:inset 0 2px 3px var(--o-well-edge),inset 0 0 0 1px var(--o-well-edge),0 1px 0 var(--o-key-hi)}
+    background:var(--o-well);color:var(--o-well-ink);border:0;border-radius:12px;box-shadow:inset 0 1px 2px var(--o-well-edge),inset 0 0 0 1px var(--o-well-edge)}
   /* Цифры с погашенными «восьмёрками» под ними и сегментные шкалы */
   html[data-skin="okto"] .dg{display:inline-grid;font-family:var(--o-mono);font-weight:700;font-variant-numeric:tabular-nums;line-height:.92;letter-spacing:-.045em;white-space:nowrap}
   html[data-skin="okto"] .dg > span{grid-area:1/1;text-align:right}
-  html[data-skin="okto"] .dg .gh{color:var(--o-ghost)}
   html[data-skin="okto"] .dg .lv.r{color:var(--o-red)}
-  html[data-skin="okto"] .oseg{display:flex;gap:3px;height:8px}
+  html[data-skin="okto"] .oseg{display:flex;gap:3px;height:6px}
   html[data-skin="okto"] .oseg i{flex:1;border-radius:1.5px;background:var(--o-ghost);transition:background .3s}
   html[data-skin="okto"] .oseg i.on{background:var(--o-well-ink)}
   html[data-skin="okto"] .oseg i.r{background:var(--o-red)}
@@ -3002,56 +3001,61 @@ const APP_HTML = `<!doctype html>
   html[data-skin="okto"] .ttl small{margin-top:4px;font:500 12px var(--o-mono);letter-spacing:.02em;color:var(--o-muted)}
   html[data-skin="okto"] .nav button{width:38px;height:38px}
   html[data-skin="okto"] .av{width:38px;height:38px;margin-left:0;font:700 15px var(--o-mono)}
-  html[data-skin="okto"] .week{gap:5px;margin:16px 0 12px}
-  html[data-skin="okto"] .wd{height:58px;padding:0;justify-content:center;gap:3px}
+  html[data-skin="okto"] .week{gap:4px;margin:18px 0 14px}
+  html[data-skin="okto"] .wd{height:56px;padding:0;justify-content:center;gap:3px;background:transparent;box-shadow:none}
   html[data-skin="okto"] .wd small{font:500 10px var(--o-mono);letter-spacing:.08em;text-transform:uppercase;color:var(--o-muted)}
   html[data-skin="okto"] .wd b{font:700 16px var(--o-mono);letter-spacing:-.02em}
   html[data-skin="okto"] .wd i{width:5px;height:5px;margin-top:1px}
   html[data-skin="okto"] .wd i.ok,html[data-skin="okto"] .wd.sel i.ok{background:var(--o-ink)}
   html[data-skin="okto"] .wd i.lo,html[data-skin="okto"] .wd.sel i.lo{background:var(--o-dim)}
   html[data-skin="okto"] .wd i.ov,html[data-skin="okto"] .wd.sel i.ov{background:var(--o-red)}
-  html[data-skin="okto"] .wd.sel{background:var(--o-soft);color:var(--o-ink);transform:translateY(1px);box-shadow:inset 0 1px 2px rgba(0,0,0,.18)}
+  html[data-skin="okto"] .wd.sel{background:var(--o-key);color:var(--o-ink);box-shadow:inset 0 1px 0 var(--o-key-hi),0 1px 0 var(--o-key-edge),0 2px 4px -1px rgba(0,0,0,.18)}
   html[data-skin="okto"] .wd.sel small,html[data-skin="okto"] .wd.today small{color:var(--o-ink)}
   html[data-skin="okto"] .wd.today:not(.sel) b{text-decoration:none}
   html[data-skin="okto"] .wd[disabled]{opacity:.35}
   /* Калории: крупная цифра «осталось» и линейка из 20 сегментов вместо кольца */
-  html[data-skin="okto"] .kw{padding:14px}
-  html[data-skin="okto"] .kw .ro{text-align:right;margin:12px 0}
-  html[data-skin="okto"] .kw .ro .dg{font-size:76px}
-  html[data-skin="okto"] .kw .oseg{height:12px;margin-bottom:10px}
+  html[data-skin="okto"] .kw{padding:16px}
+  html[data-skin="okto"] .kw .ro{margin:14px 0}
+  html[data-skin="okto"] .kw .ro .dg{font-size:64px}
+  html[data-skin="okto"] .kw .oseg{height:8px}
+  html[data-skin="okto"] .kl{display:flex;align-items:baseline;justify-content:space-between;margin-top:14px;padding-top:12px;border-top:1px solid rgba(127,127,127,.16)}
+  html[data-skin="okto"] .kl b{font:700 28px var(--o-mono);letter-spacing:-.04em;font-variant-numeric:tabular-nums;color:var(--o-well-ink)}
+  html[data-skin="okto"] .kl b small{margin-left:5px;font:500 12px var(--o-mono);letter-spacing:0;color:var(--o-well-dim)}
+  html[data-skin="okto"] .kl.over b,html[data-skin="okto"] .kl.over .olg{color:var(--o-red)}
   html[data-skin="okto"] .wrap{padding:0 14px}
   /* БЖУ: три дисплея, нутриенты различаются подписью, а не цветом */
-  html[data-skin="okto"] .macros{margin-top:10px;gap:8px}
-  html[data-skin="okto"] .mc{padding:12px}
+  html[data-skin="okto"] .macros{margin-top:12px;gap:8px}
+  html[data-skin="okto"] .mc{padding:12px 12px 11px}
   html[data-skin="okto"] .mc .ib{display:none}
   html[data-skin="okto"] .mc .lb{font:500 11px var(--o-mono);letter-spacing:.1em;text-transform:uppercase;color:var(--o-well-dim)}
-  html[data-skin="okto"] .mc .vl{margin:10px 0 8px}
-  html[data-skin="okto"] .mc .vl .dg{font-size:28px}
-  html[data-skin="okto"] .mc .vl small{display:block;margin-top:4px;font:500 12px var(--o-mono);color:var(--o-well-dim)}
-  html[data-skin="okto"] .mc .st{font:500 12px var(--o-mono);color:var(--o-well-dim)}
+  html[data-skin="okto"] .mc .vl{margin:10px 0;white-space:nowrap}
+  html[data-skin="okto"] .mc .vl .dg{font-size:24px}
+  html[data-skin="okto"] .mc .vl small{font:500 12px var(--o-mono);color:var(--o-well-dim)}
+  html[data-skin="okto"] .mc .st{margin-top:8px;font:500 11.5px var(--o-mono);color:var(--o-well-dim)}
   html[data-skin="okto"] .mc .st .ok{color:var(--o-well-ink)}
   html[data-skin="okto"] .mc .st .ov{color:var(--o-red)}
-  html[data-skin="okto"] .hint{background:transparent;border:0;box-shadow:none;padding:4px 4px 2px 20px;margin-top:10px}
+  html[data-skin="okto"] .hint{background:transparent;border:0;box-shadow:none;padding:6px 4px 2px 20px;margin-top:10px;font-size:14px;color:var(--o-muted)}
+  html[data-skin="okto"] .hint b{color:var(--o-ink);font-weight:600}
   html[data-skin="okto"] .hint:before,html[data-skin="okto"] .hint.good:before{left:4px;top:11px;width:6px;height:6px;background:var(--o-ink)}
   html[data-skin="okto"] .hint.warn:before{background:var(--o-red)}
   /* Вода: стаканы — ячейки, которые загораются по одной */
-  html[data-skin="okto"] .water.ow{display:block;margin-top:10px;padding:14px;color:var(--o-well-ink)}
+  html[data-skin="okto"] .water.ow{display:block;margin-top:12px;padding:16px;color:var(--o-well-ink)}
   html[data-skin="okto"] .water.ow:after{display:none}
   html[data-skin="okto"] .water.ow .vl{margin:10px 0;display:flex;align-items:baseline;gap:6px}
-  html[data-skin="okto"] .water.ow .vl .dg{font-size:34px}
+  html[data-skin="okto"] .water.ow .vl .dg{font-size:28px}
   html[data-skin="okto"] .water.ow .vl small{font:500 12px var(--o-mono);color:var(--o-well-dim)}
-  html[data-skin="okto"] .ocup{display:grid;grid-template-columns:repeat(var(--n),1fr);gap:4px;height:26px}
-  html[data-skin="okto"] .ocup i{border-radius:3px;background:var(--o-ghost);transition:background .3s}
+  html[data-skin="okto"] .ocup{display:grid;grid-template-columns:repeat(var(--n),1fr);gap:4px;height:14px}
+  html[data-skin="okto"] .ocup i{border-radius:2px;background:var(--o-ghost);transition:background .3s}
   html[data-skin="okto"] .ocup i.on{background:var(--o-well-ink)}
-  html[data-skin="okto"] .water.ow .wbtn{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px}
+  html[data-skin="okto"] .water.ow .wbtn{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:14px}
   html[data-skin="okto"] .water.ow .wbtn button{height:40px;font:500 12px var(--o-mono);letter-spacing:.08em;text-transform:uppercase}
   /* Таблетки */
-  html[data-skin="okto"] .pills{margin-top:10px;padding:12px 14px}
+  html[data-skin="okto"] .pills{margin-top:12px;padding:14px 16px}
   html[data-skin="okto"] .pills .ib{display:none}
   html[data-skin="okto"] .pills .t{font:500 11px var(--o-mono);letter-spacing:.12em;text-transform:uppercase;color:var(--o-well-dim)}
   html[data-skin="okto"] .pills .t small{margin-top:3px;font:500 12px var(--o-mono);letter-spacing:0;text-transform:none;color:var(--o-well-dim)}
   html[data-skin="okto"] .pbtn{height:32px;font:500 11px var(--o-mono);letter-spacing:.08em;text-transform:uppercase}
-  html[data-skin="okto"] .pbar{height:6px;border-radius:1.5px;background:var(--o-ghost)}
+  html[data-skin="okto"] .pbar{height:4px;border-radius:1.5px;background:var(--o-ghost)}
   html[data-skin="okto"] .pbar i{border-radius:1.5px;background:var(--o-well-ink)}
   html[data-skin="okto"] .dose{color:var(--o-well-ink);border-top-color:rgba(127,127,127,.18)}
   html[data-skin="okto"] .dose .tm{font:500 12px var(--o-mono);color:var(--o-well-dim)}
@@ -3069,21 +3073,21 @@ const APP_HTML = `<!doctype html>
   /* Еда: не карточки, а строки на корпусе с тонкими линиями */
   html[data-skin="okto"] h3{margin:24px 2px 8px;font-size:20px;font-weight:700;letter-spacing:-.02em}
   html[data-skin="okto"] h3 small{font:500 12px var(--o-mono);color:var(--o-muted)}
-  html[data-skin="okto"] .meal{background:transparent;border:0;border-top:1px solid var(--o-line);border-radius:0;box-shadow:none;padding:12px 2px 2px;margin:0}
+  html[data-skin="okto"] .meal{background:transparent;border:0;border-top:1px solid var(--o-line);border-radius:0;box-shadow:none;padding:14px 2px 4px;margin:0}
   html[data-skin="okto"] .meal .ib,html[data-skin="okto"] .empty .ib,html[data-skin="okto"] .wcard .ib,html[data-skin="okto"] .it .dot{display:none}
   html[data-skin="okto"] .meal .t{font-size:16px;font-weight:600}
   html[data-skin="okto"] .meal .t small,html[data-skin="okto"] .it .n small{margin-top:2px;font:500 11.5px var(--o-mono);color:var(--o-muted)}
   html[data-skin="okto"] .meal .k{background:transparent;padding:0;font:700 15px var(--o-mono)}
-  html[data-skin="okto"] .mbar{height:4px;gap:2px}
+  html[data-skin="okto"] .mbar{height:3px;gap:2px;margin:8px 0 6px}
   html[data-skin="okto"] .mbar i{border-radius:1px}
   html[data-skin="okto"] .mbar .p{background:var(--o-ink)}
   html[data-skin="okto"] .mbar .f{background:var(--o-ink55)}
   html[data-skin="okto"] .mbar .c{background:var(--o-ink25)}
-  html[data-skin="okto"] .it{border-top-color:var(--o-line)}
+  html[data-skin="okto"] .it{border-top:0;padding:8px 0}
   html[data-skin="okto"] .it input{font-family:var(--o-mono);color:var(--o-well-ink)}
   html[data-skin="okto"] .it .g{font-family:var(--o-mono);color:var(--o-well-dim)}
   html[data-skin="okto"] .it .ren{border-color:var(--o-ink);border-radius:8px;background:var(--o-well)}
-  html[data-skin="okto"] .del{text-align:left;font:500 11px var(--o-mono);letter-spacing:.1em;text-transform:uppercase;color:var(--o-red);border-top-color:var(--o-line)}
+  html[data-skin="okto"] .del{text-align:left;font:500 13px system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;color:var(--o-muted);border-top:0;padding:4px 0 10px;opacity:1}
   html[data-skin="okto"] .addm{border-radius:10px;padding:6px 6px 6px 14px}
   html[data-skin="okto"] .addm:focus-within{box-shadow:inset 0 0 0 2px var(--o-ink)}
   html[data-skin="okto"] .addm textarea{color:var(--o-well-ink)}
@@ -3198,10 +3202,8 @@ const APP_HTML = `<!doctype html>
   function plural(x, a, b, c){ var m = x % 10, h = x % 100; return m === 1 && h !== 11 ? a : m >= 2 && m <= 4 && (h < 12 || h > 14) ? b : c; }
 
   // ── Детали темы Okto ──
-  // Цифры дисплея: под живым числом погашенные «восьмёрки», как на сегментном индикаторе
-  function ghost(s){ return String(s).replace(/[0-9]/g, "8"); }
-  function dg(s, cls, to){ return '<span class="dg"><span class="gh">' + ghost(s) + '</span><span class="lv' + (cls ? ' ' + cls : '') + '"' + (to !== undefined ? ' data-to="' + to + '">0' : '>' + s) + '</span></span>'; }
-  function setDg(el, s){ el.textContent = s; if (el.previousSibling) el.previousSibling.textContent = ghost(s); }
+  // Цифры дисплея: моноширинные, с отсчётом от нуля при открытии
+  function dg(s, cls, to){ return '<span class="dg"><span class="lv' + (cls ? ' ' + cls : '') + '"' + (to !== undefined ? ' data-to="' + to + '">0' : '>' + s) + '</span></span>'; }
   // Шкала из сегментов; при перерасходе горит красным целиком
   function seg(cnt, frac, red){
     var lit = Math.round(Math.min(1, frac || 0) * cnt), h = '<div class="oseg">';
@@ -3298,7 +3300,7 @@ const APP_HTML = `<!doctype html>
     var left = max - val, ok = max && val >= max * 0.9 && val <= max * 1.1;
     var st = !max ? '' : ok ? '<span class="ok">в норме</span>' : left > 0 ? 'ещё ' + r(left) + ' г' : '<span class="ov">+' + r(-left) + ' г</span>';
     if (OK()) return '<div class="mc ' + cls + ' rise"><div class="lb">' + label + '</div>' +
-      '<div class="vl">' + dg(r(val), max && val > max * 1.1 ? "r" : "") + '<small>/ ' + max + ' г</small></div>' + seg(10, max ? val / max : 0, max && val > max * 1.1) + '<div class="st" style="margin-top:8px">' + st + '</div></div>';
+      '<div class="vl">' + dg(r(val), max && val > max * 1.1 ? "r" : "") + '<small> / ' + max + '</small></div>' + seg(10, max ? val / max : 0, max && val > max * 1.1) + '<div class="st">' + st + '</div></div>';
     return '<div class="mc ' + cls + ' rise"><div class="ib">' + icon(ic) + '</div><div class="lb">' + label + '</div>' +
       '<div class="vl">' + r(val) + '<small> / ' + max + ' г</small></div><div class="bar"><div data-pct="' + pct + '"></div></div><div class="st">' + st + '</div></div>';
   }
@@ -3512,11 +3514,11 @@ const APP_HTML = `<!doctype html>
     var days = d.date === d.today && d.streak >= 2 ? d.streak + ' ' + plural(d.streak, 'день', 'дня', 'дней') : '';
     var streak = days ? '<div class="chip">🔥 ' + days + ' подряд</div>' : '';
     if (OK()) {
-      // Дисплей калорий: сколько осталось (или перебор красным), линейка из 20 сегментов
-      var share = g.kcal ? Math.round(t.kcal / g.kcal * 100) : 0;
-      hero.innerHTML = week + '<div class="kw rise"><div class="olr"><span class="olg">' + (left >= 0 ? 'Осталось · ккал' : 'Перебор · ккал') + '</span><span class="ord">норма ' + n(g.kcal) + '</span></div>' +
-        '<div class="ro">' + dg(n(Math.abs(left)), left < 0 ? "r" : "", r(Math.abs(left))) + '</div>' + seg(20, g.kcal ? t.kcal / g.kcal : 0, left < 0) +
-        '<div class="olr"><span class="olg">Съедено ' + n(t.kcal) + '</span><span class="ord">' + (days ? '🔥 ' + days + ' · ' : '') + share + '%</span></div></div>';
+      // Дисплей калорий: крупно — сколько съедено, под шкалой отдельной строкой — сколько осталось (перебор — красным)
+      if (days) document.getElementById("ds").textContent += " · 🔥 " + days;
+      hero.innerHTML = week + '<div class="kw rise"><div class="olr"><span class="olg">Съедено · ккал</span><span class="ord">из ' + n(g.kcal) + '</span></div>' +
+        '<div class="ro">' + dg(n(t.kcal), "", r(t.kcal)) + '</div>' + seg(20, g.kcal ? t.kcal / g.kcal : 0, left < 0) +
+        '<div class="kl' + (left < 0 ? ' over' : '') + '"><span class="olg">' + (left >= 0 ? 'Осталось' : 'Перебор') + '</span><b>' + n(Math.abs(left)) + '<small>ккал</small></b></div></div>';
     } else hero.innerHTML = week + '<div class="main">' + ring(t.kcal, g.kcal) +
       '<div class="chips"><div class="chip' + (left < 0 ? ' over' : '') + '">' + (left >= 0 ? 'Осталось ' + n(left) + ' ккал' : 'Больше нормы на ' + n(-left) + ' ккал') + '</div>' + streak + '</div></div>';
 
@@ -3524,7 +3526,7 @@ const APP_HTML = `<!doctype html>
 
     var wg = d.waterGoal || 2000, wv = d.water || 0;
     var water = OK() ?
-      '<div class="water ow rise' + (wv >= wg ? ' done' : '') + '"><div class="olr"><span class="olg">Вода · стаканы по 250 мл</span><span class="ord wl">' + L(wv) + ' из ' + L(wg) + '</span></div>' +
+      '<div class="water ow rise' + (wv >= wg ? ' done' : '') + '"><div class="olr"><span class="olg">Вода</span><span class="ord wl">' + L(wv) + ' из ' + L(wg) + '</span></div>' +
         '<div class="vl">' + dg(String(cupsOf(wv)), "wv") + '<small class="wc">из ' + cupsGoal(wg) + ' ' + cupWord(cupsGoal(wg)) + '<span class="wn">' + (wv >= wg ? ' · норма ✓' : '') + '</span></small></div>' +
         cupCells(wv, wg, "ocup") + '<div class="wbtn"><button data-w="-250">− стакан</button><button class="add" data-w="250">+ стакан</button></div></div>' :
       '<div class="water rise' + (wv >= wg ? ' done' : '') + '">' + glass(wv / wg) +
@@ -3536,9 +3538,9 @@ const APP_HTML = `<!doctype html>
     var add = d.date <= d.today ? '<div class="addm rise"><textarea id="addt" rows="1" maxlength="500" enterkeyhint="send" placeholder="Что съел? Например: 2 яйца и тост"></textarea><button class="addb" id="addb" aria-label="Добавить еду">+</button></div>' +
       '<div class="addh">ИИ посчитает калории и БЖУ' + (d.date !== d.today ? ' · запишу на ' + human(d.date) : '') + '</div>' : '';
     var meals = (d.meals.length ? '<h3>Приёмы пищи <small>' + d.meals.length + ' · ' + n(total) + ' ккал</small></h3>' : '<h3>Приёмы пищи</h3>') + add + (d.meals.length ? d.meals.map(function(m, mi){
-      return '<div class="meal rise" data-id="' + m.id + '" style="animation-delay:' + (0.05 * mi + 0.1) + 's"><div class="hd"><div class="ib">' + icon("plate") + '</div><div class="t">' + esc(m.title) + '<small>' + esc(m.time) + (total ? ' · ' + r(m.totals.kcal / total * 100) + '% дня' : '') + ' · Б ' + r(m.totals.p) + ' · Ж ' + r(m.totals.f) + ' · У ' + r(m.totals.c) + '</small></div><div class="k">' + r(m.totals.kcal) + ' ккал</div></div>' + mbar(m.totals) +
+      return '<div class="meal rise" data-id="' + m.id + '" style="animation-delay:' + (0.05 * mi + 0.1) + 's"><div class="hd"><div class="ib">' + icon("plate") + '</div><div class="t">' + esc(m.title) + '<small>' + esc(m.time) + (total && !OK() ? ' · ' + r(m.totals.kcal / total * 100) + '% дня' : '') + ' · Б ' + r(m.totals.p) + ' · Ж ' + r(m.totals.f) + ' · У ' + r(m.totals.c) + '</small></div><div class="k">' + r(m.totals.kcal) + ' ккал</div></div>' + mbar(m.totals) +
         m.items.map(function(it, i){
-          return '<div class="it"><i class="dot" style="background:' + DOTS[i % DOTS.length] + '"></i><div class="n"><div class="nm" data-meal="' + m.id + '" data-idx="' + i + '">' + esc(it.name) + '</div><small>' + r(it.totals.kcal) + ' ккал · Б ' + r(it.totals.p) + ' · Ж ' + r(it.totals.f) + ' · У ' + r(it.totals.c) + '</small></div>' +
+          return '<div class="it"><i class="dot" style="background:' + DOTS[i % DOTS.length] + '"></i><div class="n"><div class="nm" data-meal="' + m.id + '" data-idx="' + i + '">' + esc(it.name) + '</div><small>' + r(it.totals.kcal) + ' ккал' + (OK() ? '' : ' · Б ' + r(it.totals.p) + ' · Ж ' + r(it.totals.f) + ' · У ' + r(it.totals.c)) + '</small></div>' +
             '<div class="gr"><input type="number" inputmode="numeric" min="1" max="3000" value="' + it.grams + '" data-meal="' + m.id + '" data-idx="' + i + '"><span class="g">г</span></div></div>';
         }).join("") +
         '<button class="del" data-del="' + m.id + '">Удалить приём пищи</button></div>';
@@ -3571,7 +3573,7 @@ const APP_HTML = `<!doctype html>
     var d = state.data, wg = d.waterGoal || 2000, wv = d.water || 0, card = root.querySelector(".water");
     if (!card) return;
     var c = cupsOf(wv), lvl = card.querySelector(".lvl");
-    if (OK()) setDg(card.querySelector(".wv"), String(c)); else card.querySelector(".wv").textContent = c + " из " + cupsGoal(wg);
+    if (OK()) card.querySelector(".wv").textContent = c; else card.querySelector(".wv").textContent = c + " из " + cupsGoal(wg);
     card.querySelector(".wl").textContent = L(wv) + " из " + L(wg);
     card.querySelector(".wn").textContent = wv >= wg ? " · норма ✓" : "";
     card.querySelectorAll(".cups i, .ocup i").forEach(function(el, i){ el.className = i < c ? "on" : ""; });
