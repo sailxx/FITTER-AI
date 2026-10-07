@@ -40,5 +40,33 @@
     "s1": "Photo ou texte", "s1b": "« 2 œufs et un toast »",
     "s2": "L’IA reconnaît les plats", "s2b": "grammes et macros en ~8 s",
     "s3": "Enregistré dans ton journal", "s3b": "anneau, eau, poids"
+  },
+  "it": {
+    "tag": "BOT TELEGRAM · IA · GRATIS", "l1": "Fotografa il tuo piatto.", "l2": "L’IA conta le calorie.",
+    "sub": "Contacalorie e macro direttamente in Telegram. Niente da installare.", "kcal": "KCAL",
+    "s1": "Foto o testo", "s1b": "«2 uova e un toast»",
+    "s2": "L’IA riconosce il cibo", "s2b": "grammi e macro in ~8 s",
+    "s3": "Salvato nel tuo diario", "s3b": "anello, acqua, peso"
+  },
+  "tr": {
+    "tag": "TELEGRAM BOTU · YZ · ÜCRETSİZ", "l1": "Yemeğinin fotoğrafını çek.", "l2": "Kalorileri YZ saysın.",
+    "sub": "Telegram içinde kalori ve makro takibi. Kurulum gerekmez.", "kcal": "KCAL",
+    "s1": "Fotoğraf veya metin", "s1b": "“2 yumurta ve tost”",
+    "s2": "YZ yemeği tanır", "s2b": "~8 sn'de gram ve makrolar",
+    "s3": "Günlüğüne kaydedilir", "s3b": "halka, su, kilo"
+  },
+  "uk": {
+    "tag": "TELEGRAM-БОТ · ШІ · БЕЗКОШТОВНО", "l1": "Сфотографуй їжу.", "l2": "ШІ порахує калорії.",
+    "sub": "Лічильник калорій і БЖВ просто в Telegram. Без встановлення.", "kcal": "ККАЛ",
+    "s1": "Фото або текст", "s1b": "«2 яйця і тост»",
+    "s2": "ШІ знаходить продукти", "s2b": "вага і КБЖВ за ~8 секунд",
+    "s3": "Запис у щоденник", "s3b": "кільце, вода, вага"
+  },
+  "pl": {
+    "tag": "BOT TELEGRAM · AI · ZA DARMO", "l1": "Zrób zdjęcie posiłku.", "l2": "AI policzy kalorie.",
+    "sub": "Licznik kalorii i makro prosto w Telegramie. Bez instalowania.", "kcal": "KCAL",
+    "s1": "Zdjęcie lub tekst", "s1b": "„2 jajka i tost”",
+    "s2": "AI rozpoznaje jedzenie", "s2b": "gramy i makro w ~8 s",
+    "s3": "Zapis w dzienniku", "s3b": "pierścień, woda, waga"
   }
 }

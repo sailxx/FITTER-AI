@@ -28,5 +28,25 @@
     "label": "À PROPOS", "c1": "CHAT AVEC LE BOT", "c2": "JOURNAL · MINI APP", "note": "L’interface du bot est en russe",
     "text": "FITTER n’est pas un énième tableau nutritionnel où il faut peser chaque ingrédient. C’est un bot qui regarde ton assiette : l’IA reconnaît les aliments, estime leur poids, calcule calories et macros et tient le journal pour toi. Il vit directement dans Telegram — rien à installer, pas d’inscription.",
     "tiles": [["Des photos, pas des tableaux", "L’IA reconnaît le plat et la portion en quelques secondes"], ["Toujours modifiable", "Corrige un aliment ou ses grammes, les macros sont recalculées"], ["Journal en Mini App", "Calendrier, anneau de calories, eau et poids"], ["Gratuit", "Fonctionne avec les offres gratuites"]]
+  },
+  "it": {
+    "label": "IL PROGETTO", "c1": "CHAT CON IL BOT", "c2": "DIARIO · MINI APP", "note": "L’interfaccia del bot è in russo",
+    "text": "FITTER non è l’ennesima tabella nutrizionale in cui pesare ogni ingrediente. È un bot che guarda il tuo piatto: l’IA trova gli alimenti, ne stima il peso, calcola calorie e macro e tiene il diario al posto tuo. Vive dentro Telegram — niente da installare e nessuna registrazione.",
+    "tiles": [["Foto, non tabelle", "L’IA riconosce piatto e porzione in pochi secondi"], ["Sempre modificabile", "Correggi un alimento o i grammi e le macro si ricalcolano"], ["Diario in Mini App", "Calendario, anello delle calorie, acqua e peso"], ["Gratis", "Funziona con i piani gratuiti"]]
+  },
+  "tr": {
+    "label": "PROJE HAKKINDA", "c1": "BOTLA SOHBET", "c2": "GÜNLÜK · MINI APP", "note": "Botun arayüzü Rusçadır",
+    "text": "FITTER, her malzemeyi tartmanız gereken bir besin tablosu daha değil. Tabağınıza bakan bir bot: yapay zekâ yiyecekleri bulur, ağırlığını tahmin eder, kalori ve makroları hesaplar ve günlüğü sizin yerinize tutar. Doğrudan Telegram’ın içinde yaşar — kurulum ve kayıt yok.",
+    "tiles": [["Tablo değil, fotoğraf", "YZ yemeği ve porsiyonu saniyeler içinde tanır"], ["Her zaman düzenlenebilir", "Yiyeceği veya gramı düzelt, makrolar yeniden hesaplanır"], ["Mini App günlüğü", "Takvim, kalori halkası, su ve kilo"], ["Ücretsiz", "Ücretsiz planlarla çalışır"]]
+  },
+  "uk": {
+    "label": "ПРО ПРОЄКТ", "c1": "ЧАТ З БОТОМ", "c2": "ЩОДЕННИК · MINI APP", "note": "Інтерфейс бота російською мовою",
+    "text": "FITTER — не ще одна таблиця продуктів, де треба зважувати кожен інгредієнт. Це бот, який дивиться на твою тарілку: нейромережа знаходить продукти, оцінює вагу, рахує КБЖВ і сама веде щоденник. Він живе просто в Telegram — без встановлення й реєстрації.",
+    "tiles": [["Фото замість таблиць", "ШІ розпізнає їжу й порцію за кілька секунд"], ["Завжди можна виправити", "Зміни продукт або вагу — КБЖВ перерахуються"], ["Щоденник у Mini App", "Календар, кільце калорій, вода і вага"], ["Безкоштовно", "Працює на безкоштовних тарифах"]]
+  },
+  "pl": {
+    "label": "O PROJEKCIE", "c1": "CZAT Z BOTEM", "c2": "DZIENNIK · MINI APP", "note": "Interfejs bota jest po rosyjsku",
+    "text": "FITTER to nie kolejna tabela produktów, w której trzeba ważyć każdy składnik. To bot, który patrzy na twój talerz: AI rozpoznaje produkty, szacuje ich wagę, liczy kalorie i makro i sama prowadzi dziennik. Działa prosto w Telegramie — bez instalacji i rejestracji.",
+    "tiles": [["Zdjęcia zamiast tabel", "AI rozpoznaje danie i porcję w kilka sekund"], ["Zawsze do poprawienia", "Popraw produkt lub gramy, a makro przeliczy się samo"], ["Dziennik w Mini App", "Kalendarz, pierścień kalorii, woda i waga"], ["Za darmo", "Działa na darmowych planach"]]
   }
 }
