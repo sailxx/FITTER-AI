@@ -197,9 +197,10 @@ assert.match(lastText(s), /📊(<\/tg-emoji>)? <b>Итоги<\/b>/);
 assert.match(lastText(s), /<i>сегодня<\/i>/);
 assert.ok(s.at(-1).body.reply_markup.inline_keyboard.flat().some((b) => b.callback_data === "advice"));
 s = await msg("👤 Профиль");
-assert.match(lastText(s), /💪 Набрать массу<\/blockquote>/);
+assert.match(lastText(s), /💪 Набрать массу\n\n\n/);
+assert.ok(!lastText(s).includes("<blockquote>"));
 assert.match(lastText(s), /🎂 16 лет/);
-assert.match(lastText(s), /💧 Вода — <b>/);
+assert.match(lastText(s), /💧 Вода  <b>/);
 s = await msg("/weight 66.2");
 assert.match(lastText(s), /66.2 кг/);
 s = await msg("⚖️ Вес");
@@ -349,6 +350,14 @@ console.log("✓ Mini App API, итого за день:", Math.round(d.totals.k
   assert.match(_test.APP_HTML, /id="theme"/);
   assert.match(_test.APP_HTML, /data-theme="light"]/);
   assert.match(_test.APP_HTML, /data-theme="dark"]/);
+  // Тема Okto и классический вид по кнопке; вода стаканами в обоих
+  assert.match(_test.APP_HTML, /id="skin"/);
+  assert.match(_test.APP_HTML, /html\[data-skin="okto"\]/);
+  assert.match(_test.APP_HTML, /localStorage\.getItem\("fitter_skin"\) === "classic" \? "classic" : "okto"/);
+  assert.match(_test.APP_HTML, /class="ring/);
+  assert.match(_test.APP_HTML, /"стакан", "стакана", "стаканов"/);
+  assert.match(_test.APP_HTML, /cupCells\(wv, wg, "ocup"\)/);
+  assert.match(_test.APP_HTML, /cupCells\(wv, wg, "cups"\)/);
   console.log("✓ таблетки: дневник, напоминания, кнопки");
 }
 
@@ -361,7 +370,8 @@ console.log("✓ Mini App API, итого за день:", Math.round(d.totals.k
   // Кнопка меню вместо «Вес»
   let r = await msg("/start");
   const kb = r.find((x) => x.body.reply_markup?.keyboard).body.reply_markup.keyboard.flat().map((b) => b.text);
-  assert.ok(kb.some((t) => /Таблетки/.test(t)) && !kb.some((t) => /Вес$/.test(t)));
+  // В меню только «Сегодня», «Неделя», «Профиль», «Помощь»; старые кнопки текстом работают
+  assert.ok(!kb.some((t) => /Таблетки|Вода|Вес$/.test(t)) && kb.length === 4);
   r = await msg("💊 Таблетки");
   assert.match(lastText(r), /Добавь витамины/);
   r = await cb("pl|add");
@@ -444,15 +454,15 @@ console.log("✓ /app и /setup");
   const goalL = String(_test.waterGoal({ weight: W }) / 1000).replace(".", ",") + " л";
   s = await msg("💧 Вода");
   assert.match(lastText(s), /Вода за сегодня/);
-  assert.ok(lastText(s).includes("0 л</b> из " + goalL));
+  assert.ok(lastText(s).includes("0 л</b> / " + goalL));
   const wbtn = s.find((x) => x.method === "sendMessage").body.reply_markup.inline_keyboard[0][0].callback_data;
   s = await cb(wbtn);
-  assert.ok(lastText(s).includes("0,25 л</b> из " + goalL));
+  assert.ok(lastText(s).includes("0,25 л</b> / " + goalL));
   s = await msg("вода 500");
   assert.match(lastText(s), /\+500 мл записал/);
   assert.match(lastText(s), /0,75 л/);
   s = await msg("/today");
-  assert.ok(lastText(s).includes("💧 Вода — <b>0,75 л</b> / " + goalL));
+  assert.ok(lastText(s).includes("💧 Вода  <b>0,75 л</b> / " + goalL));
   d = await (await apiCall("/api/day")).json();
   assert.equal(d.water, 750);
   r = await apiCall("/api/water", "POST", { date: d.date, delta: -250 });
@@ -500,8 +510,14 @@ console.log("✓ /app и /setup");
 
 // Иконки в цитатах не приняты — отправляем с иконками, но без цитат, и запоминаем ошибку
 {
+  // Меню бота без цитат — уходят с первой попытки
   rejectQuote = true;
   s = await msg("/help");
+  assert.equal(s.filter((x) => x.method === "sendMessage").length, 1);
+  // Цитаты остались в статистике владельца
+  env.ADMIN_ID = "42";
+  s = await msg("/stats");
+  delete env.ADMIN_ID;
   const sends = s.filter((x) => x.method === "sendMessage");
   rejectQuote = false;
   assert.equal(sends.length, 2);
@@ -580,7 +596,7 @@ console.log("✓ /app и /setup");
   assert.deepEqual(kb, ["wr|every|30", "wr|every|60", "wr|every|90", "wr|every|120"]);
   s = await cb("wr|every|90");
   assert.match(lastText(s), /Каждые <b>1,5 ч<\/b>/);
-  assert.match(lastText(s), /Начало дня: <b>08:00<\/b>[\s\S]*Конец дня: <b>22:00<\/b>/);
+  assert.match(lastText(s), /С <b>08:00<\/b>[\s\S]*До <b>22:00<\/b>/);
   s = await cb("wr|pick|from");
   assert.match(lastText(s), /Когда начинается твой день/);
   s = await cb("wr|from|7");

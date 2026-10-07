@@ -1,6 +1,6 @@
 {
   "name": "fitter-ai",
-  "version": "2.6.0",
+  "version": "2.8.0",
   "description": "FITTER — твой счётчик калорий: Telegram-бот, который считает калории по фото еды",
   "type": "module",
   "main": "worker.js",

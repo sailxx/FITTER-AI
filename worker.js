@@ -339,7 +339,6 @@ function edit(env, chatId, messageId, text, extra = {}) {
 const MAIN_KEYBOARD = {
   keyboard: [
     [{ text: "📊 Сегодня" }, { text: "📅 Неделя" }],
-    [{ text: "💧 Вода" }, { text: "💊 Таблетки" }],
     [{ text: "👤 Профиль" }, { text: "❓ Помощь" }],
   ],
   resize_keyboard: true,
@@ -618,8 +617,8 @@ function mealText(meal) {
   const lines = meal.items.map((it) => `• ${esc(it.name)} — ${it.grams} г · <b>${round(itemTotals(it).kcal)}</b> ккал`);
   return (
     `🍽 <b>${esc(meal.title)}</b> · ${meal.time}\n` +
-    `<blockquote>${lines.join("\n")}</blockquote>\n` +
-    `🔥 <b>${round(t.kcal)} ккал</b> · 🥩 ${round(t.p)} г · 🧈 ${round(t.f)} г · 🍞 ${round(t.c)} г`
+    `\n${lines.join("\n")}\n\n` +
+    `🔥 <b>${round(t.kcal)} ккал</b>   🥩 ${round(t.p)} г   🧈 ${round(t.f)} г   🍞 ${round(t.c)} г`
   );
 }
 
@@ -628,8 +627,8 @@ function remainingText(u, day, date) {
   const left = u.targets.kcal - t.kcal;
   const label = date === today(u) ? "За сегодня" : `За ${humanDate(date)}`;
   return (
-    `📊 ${label}: <b>${round(t.kcal)}</b> из ${u.targets.kcal} ккал\n${squares(t.kcal, u.targets.kcal)}\n` +
-    (left >= 0 ? `Осталось <b>${round(left)} ккал</b>` : `Больше нормы на <b>${round(-left)} ккал</b>`)
+    `📊 ${label}  <b>${round(t.kcal)}</b> / ${u.targets.kcal} ккал\n${squares(t.kcal, u.targets.kcal)}\n` +
+    (left >= 0 ? `<i>Осталось ${round(left)} ккал</i>` : `<i>Больше нормы на ${round(-left)} ккал</i>`)
   );
 }
 
@@ -650,34 +649,42 @@ function mealKeyboard(env, date, meal) {
   return { inline_keyboard: rows };
 }
 
-const HELP = `🍏 <b>FITTER</b> — твой счётчик калорий 🥦
+const HELP = `🍏 <b>FITTER</b>
 <i>Одно фото. Полный контроль.</i>
 
+
 📸 <b>Как это работает</b>
-<blockquote>1️⃣ Сфотографируй еду и отправь сюда
-2️⃣ Я найду продукты, оценю вес и посчитаю КБЖУ
-3️⃣ Ошибся? Нажми ✏️ под записью и поправь
-4️⃣ Всё сохранится в дневник питания</blockquote>
+
+1️⃣ Сфотографируй еду и отправь сюда
+2️⃣ Я найду продукты и посчитаю КБЖУ
+3️⃣ Ошибся? Нажми ✏️ под записью
+4️⃣ Всё сохранится в дневник
+
 
 ✨ <b>Ещё умею</b>
-<blockquote>📝 «съел 2 яйца и тост» — запишу текстом
+
+📝 «съел 2 яйца и тост» — запишу
 💬 «сколько белка в твороге?» — отвечу
-📦 Фото этикетки или цифры штрихкода — найду КБЖУ
+📦 Этикетка или штрихкод — найду КБЖУ
 💧 «вода 300» — отмечу воду
-⚖️ <code>/weight 72.5</code> — запишу вес</blockquote>
+⚖️ <code>/weight 72.5</code> — запишу вес
+
 
 ⌨️ <b>Команды</b>
-/today — итоги дня · /week — неделя
-/water — вода · /remind — напоминания
-/pills — таблетки · /weight — вес
-/profile — профиль
-/app — дневник
-/advice — что съесть · /analysis — разбор недели
-/awards — достижения
-/reset — пройти анкету заново
-/delete — удалить все мои данные
 
-<i>FITTER считает примерно и не заменяет врача или диетолога</i>`;
+/today  итоги дня
+/week  неделя
+/water  вода  ·  /pills  таблетки
+/weight  вес  ·  /remind  напоминания
+/advice  что съесть
+/analysis  разбор недели
+/awards  достижения
+/profile  профиль  ·  /app  дневник
+/reset  анкета заново
+/delete  удалить мои данные
+
+
+<i>FITTER считает примерно и не заменяет врача</i>`;
 
 // ───────────────────────────── Обработка сообщений ─────────────────────────────
 
@@ -1336,11 +1343,11 @@ function waterText(u, day, date, added) {
   const goal = waterGoal(u);
   const left = goal - ml;
   return (
-    (added ? `💧 ${added > 0 ? "+" : "−"}${Math.abs(added)} мл записал\n\n` : "") +
-    `💧 <b>Вода ${date === today(u) ? "за сегодня" : "за " + humanDate(date)}</b>\n` +
-    `<b>${liters(ml)}</b> из ${liters(goal)} · ${pctOf(ml, goal)}%\n${squares(Math.min(ml, goal), goal, "🟦")}\n\n` +
-    (left > 0 ? `Осталось: <b>${left} мл</b>, это примерно ${Math.ceil(left / 250)} стак.` : "Норма воды выполнена 🎉") +
-    `\n\n<i>Норма: 30 мл на 1 кг веса. Можно написать «вода 300» или «+500»</i>`
+    `💧 <b>Вода ${date === today(u) ? "за сегодня" : "за " + humanDate(date)}</b>` +
+    (added ? ` · ${added > 0 ? "+" : "−"}${Math.abs(added)} мл записал` : "") + `\n\n\n` +
+    `<b>${liters(ml)}</b> / ${liters(goal)}\n${squares(Math.min(ml, goal), goal, "🟦")}\n` +
+    (left > 0 ? `<i>Осталось ${left} мл · ${pctOf(ml, goal)}%</i>` : "<i>Норма воды выполнена</i> 🎉") +
+    `\n\n\n<i>Норма — 30 мл на кг веса. Можно написать «вода 300» или «+500»</i>`
   );
 }
 
@@ -1552,28 +1559,27 @@ async function sendDay(env, u, chatId, date) {
   const wGoal = waterGoal(u);
 
   let text =
-    `📊 <b>${isToday ? "Сегодня" : WEEKDAYS[new Date(date + "T00:00:00Z").getUTCDay()]}, ${humanDate(date)}</b>\n\n` +
-    `🔥 <b>${round(t.kcal)}</b> из ${g.kcal} ккал · ${pctOf(t.kcal, g.kcal)}%\n` +
+    `📊 <b>${isToday ? "Сегодня" : WEEKDAYS[new Date(date + "T00:00:00Z").getUTCDay()]}</b> · ${humanDate(date)}\n\n\n` +
+    `🔥 <b>${round(t.kcal)}</b> / ${g.kcal} ккал\n` +
     `${squares(t.kcal, g.kcal)}\n` +
-    (left >= 0 ? `Осталось <b>${round(left)} ккал</b>` : `Больше нормы на <b>${round(-left)} ккал</b>`) +
+    (left >= 0 ? `<i>Осталось ${round(left)} ккал · ${pctOf(t.kcal, g.kcal)}%</i>` : `<i>Больше нормы на ${round(-left)} ккал</i>`) +
     (isToday && streakNow(u) >= 2 ? `\n🔥 Серия: <b>${streakNow(u)}</b> ${plural(streakNow(u), "день", "дня", "дней")} подряд` : "") + `\n\n` +
-    `<blockquote>🥩 Белки — <b>${round(t.p)}</b> / ${g.p} г · ${pctOf(t.p, g.p)}%\n` +
-    `🧈 Жиры — <b>${round(t.f)}</b> / ${g.f} г · ${pctOf(t.f, g.f)}%\n` +
-    `🍞 Углеводы — <b>${round(t.c)}</b> / ${g.c} г · ${pctOf(t.c, g.c)}%\n` +
-    `💧 Вода — <b>${liters(water)}</b> / ${liters(wGoal)}${water >= wGoal ? " ✓" : ""}</blockquote>\n\n`;
+    `\n🥩 Белки  <b>${round(t.p)}</b> / ${g.p} г\n` +
+    `🧈 Жиры  <b>${round(t.f)}</b> / ${g.f} г\n` +
+    `🍞 Углеводы  <b>${round(t.c)}</b> / ${g.c} г\n` +
+    `💧 Вода  <b>${liters(water)}</b> / ${liters(wGoal)}${water >= wGoal ? " ✓" : ""}\n\n\n`;
 
   if (day.meals.length) {
-    text += `🍽 <b>Приёмы пищи</b>\n<blockquote>` +
-      day.meals.map((m) => `${m.time} · ${esc(m.title)} — <b>${round(sumItems(m.items).kcal)}</b> ккал`).join("\n") +
-      `</blockquote>`;
+    text += `🍽 <b>Приёмы пищи</b>\n\n` +
+      day.meals.map((m) => `${m.time}  ${esc(m.title)}  <b>${round(sumItems(m.items).kcal)}</b>`).join("\n");
     // Подсказка по белку во второй половине дня
     if (isToday && nowTime(u) >= "15:00" && t.p < g.p * 0.5 && left > 0) {
-      text += `\n\n💡 Белка пока мало. Добавь творог, яйца, курицу или рыбу`;
+      text += `\n\n\n💡 <i>Белка пока мало. Добавь творог, яйца, курицу или рыбу</i>`;
     } else if (left < 0) {
-      text += `\n\n💡 Норма на сегодня набрана. Если хочется есть, выбирай овощи и белок`;
+      text += `\n\n\n💡 <i>Норма набрана. Если хочется есть, выбирай овощи и белок</i>`;
     }
   } else {
-    text += isToday ? "📸 Пока ничего не записано. Отправь фото еды, и я всё посчитаю" : "За этот день записей нет";
+    text += isToday ? "📸 <i>Отправь фото еды — я всё посчитаю</i>" : "<i>За этот день записей нет</i>";
   }
   return send(env, chatId, text, {
     reply_markup: {
@@ -1612,7 +1618,7 @@ async function sendWeek(env, u, chatId) {
     const k = round(dayTotals(days[i]).kcal);
     const label = `${wdOf(d)} ${d.slice(8)}`;
     const isToday = d === end;
-    if (!has) return { d, has, k: 0, line: `${isToday ? "<b>" + label + "</b>" : label}  <i>${isToday ? "сегодня пока пусто" : "—"}</i>` };
+    if (!has) return { d, has, k: 0, line: `${isToday ? "<b>" + label + "</b>" : label}  ${isToday ? "<i>сегодня пусто</i>" : "·"}` };
     const pct = k / norm;
     return { d, has, k, pct, line: `${isToday ? "<b>" + label + "</b>" : label}  ${weekBar(pct)}  <b>${k}</b>${isToday ? " · <i>сегодня</i>" : ""}` };
   });
@@ -1628,12 +1634,12 @@ async function sendWeek(env, u, chatId) {
   const avgWater = water.length ? water.reduce((a, b) => a + b, 0) / water.length : 0;
 
   let text =
-    `📅 <b>Неделя</b> · ${shortDate(dates[0])} — ${shortDate(end)}\n\n` +
-    `<blockquote>${rows.map((r) => r.line).join("\n")}</blockquote>\n` +
-    `<i>🟩 норма · 🟦 меньше · 🟥 больше · цель ${norm} ккал</i>\n\n`;
+    `📅 <b>Неделя</b> · ${shortDate(dates[0])} — ${shortDate(end)}\n\n\n` +
+    `${rows.map((r) => r.line).join("\n")}\n\n` +
+    `<i>🟩 норма   🟦 меньше   🟥 больше\nЦель ${norm} ккал</i>\n\n\n`;
 
   if (!recorded) {
-    text += "📸 За неделю пока нет записей. Отправь фото еды, и я начну считать";
+    text += "📸 <i>За неделю пока нет записей. Отправь фото еды, и я начну считать</i>";
   } else {
     const stats = [
       `🔥 В среднем <b>${avg}</b> из ${norm} ккал${done.length ? "" : " (пока только сегодня)"}`,
@@ -1646,8 +1652,8 @@ async function sendWeek(env, u, chatId) {
       const diff = r1(wk[wk.length - 1].kg - wk[0].kg);
       stats.push(`⚖️ Вес <b>${wk[wk.length - 1].kg} кг</b> · ${diff > 0 ? "+" : ""}${diff} кг за неделю`);
     }
-    text += `📊 <b>Итоги</b>\n<blockquote>${stats.join("\n")}</blockquote>\n\n`;
-    text += `💡 <b>Совет</b>\n${weekTip(u, avg, norm)}`;
+    text += `📊 <b>Итоги</b>\n\n${stats.join("\n")}\n\n\n`;
+    text += `💡 <i>${weekTip(u, avg, norm)}</i>`;
   }
   return send(env, chatId, text, {
     reply_markup: {
@@ -1751,10 +1757,10 @@ function adviceText(u, left, intro, options) {
       `${o.items.map((it) => `${esc(it.name)} ${it.grams} г`).join(", ")}\n` +
       `<i>Б ${round(t.p)} · Ж ${round(t.f)} · У ${round(t.c)}${o.why ? " — " + esc(o.why) : ""}</i>`;
   });
-  return `🥗 <b>Что съесть</b>\n${head}\n\n` +
-    (intro ? `💡 ${esc(String(intro).slice(0, 200))}\n\n` : "") +
-    `<blockquote>${list.join("\n\n")}</blockquote>\n\n` +
-    `Съел вариант? Нажми его номер, и я запишу в дневник`;
+  return `🥗 <b>Что съесть</b>\n\n${head}\n\n` +
+    (intro ? `💡 <i>${esc(String(intro).slice(0, 200))}</i>\n\n` : "") +
+    `\n${list.join("\n\n")}\n\n\n` +
+    `<i>Съел вариант? Нажми его номер, и я запишу в дневник</i>`;
 }
 
 function adviceKeyboard(options) {
@@ -1770,18 +1776,18 @@ async function sendProfile(env, u, chatId) {
   const t = u.targets;
   const yrs = `${u.age} ${plural(u.age, "год", "года", "лет")}`;
   const text =
-    `👤 <b>${esc(u.name || "Профиль")}</b>\n\n` +
-    `<blockquote>${u.sex === "m" ? "👨 Мужской" : "👩 Женский"} · 🎂 ${yrs}\n` +
+    `👤 <b>${esc(u.name || "Профиль")}</b>\n\n\n` +
+    `${u.sex === "m" ? "👨 Мужской" : "👩 Женский"} · 🎂 ${yrs}\n` +
     `📏 ${u.height} см · ⚖️ ${u.weight} кг\n` +
     `${ACTIVITY[u.activity]}\n` +
-    `${GOALS[u.goal]}</blockquote>\n\n` +
-    `🎯 <b>Дневная норма</b>\n` +
-    `🔥 <b>${t.kcal} ккал</b>\n` +
-    `<blockquote>🥩 Белки — <b>${t.p} г</b>\n` +
-    `🧈 Жиры — <b>${t.f} г</b>\n` +
-    `🍞 Углеводы — <b>${t.c} г</b>\n` +
-    `💧 Вода — <b>${liters(waterGoal(u))}</b></blockquote>\n` +
-    `<i>Норма пересчитывается, когда ты записываешь новый вес</i>`;
+    `${GOALS[u.goal]}\n\n\n` +
+    `🎯 <b>Норма на день</b>\n\n` +
+    `🔥 <b>${t.kcal}</b> ккал\n` +
+    `🥩 Белки  <b>${t.p}</b> г\n` +
+    `🧈 Жиры  <b>${t.f}</b> г\n` +
+    `🍞 Углеводы  <b>${t.c}</b> г\n` +
+    `💧 Вода  <b>${liters(waterGoal(u))}</b>\n\n` +
+    `<i>Норма пересчитается, когда запишешь новый вес</i>`;
   return send(env, chatId, text, {
     reply_markup: {
       inline_keyboard: [
@@ -1930,17 +1936,17 @@ async function sendAwards(env, u, chatId) {
   const left = ACHIEVEMENTS.filter((a) => !u.ach[a[0]]);
   const n = streakNow(u);
   let text =
-    `🏆 <b>Достижения</b> · ${got.length} из ${ACHIEVEMENTS.length}\n` +
-    `🔥 Серия: <b>${n}</b> ${plural(n, "день", "дня", "дней")} подряд · рекорд ${u.streak?.best || 0}\n\n`;
+    `🏆 <b>Достижения</b> · ${got.length} из ${ACHIEVEMENTS.length}\n\n` +
+    `🔥 Серия: <b>${n}</b> ${plural(n, "день", "дня", "дней")} подряд · рекорд ${u.streak?.best || 0}\n\n\n`;
   if (got.length) {
-    text += `<b>Получено</b>\n<blockquote>${got.map((a) => `${a[1]} <b>${a[2]}</b> · ${a[3]}`).join("\n")}</blockquote>\n\n`;
+    text += `<b>Получено</b>\n\n${got.map((a) => `${a[1]} <b>${a[2]}</b> · ${a[3]}`).join("\n")}\n\n\n`;
   }
   if (left.length) {
     // Ближайшие награды — те, к которым ты ближе всего
     const near = [...left].sort((x, y) => statValue(u, y[4]) / y[5] - statValue(u, x[4]) / x[5]);
     const show = near.slice(0, 4);
-    text += `<b>Ближайшие</b>\n<blockquote>${show.map((a) => `🔒 ${a[2]} · ${a[3]} · <i>${Math.min(statValue(u, a[4]), a[5])}/${a[5]}</i>`).join("\n")}</blockquote>` +
-      (near.length > show.length ? `\n<i>И ещё ${near.length - show.length} впереди</i>` : "");
+    text += `<b>Ближайшие</b>\n\n${show.map((a) => `🔒 ${a[2]} · ${a[3]} · <i>${Math.min(statValue(u, a[4]), a[5])}/${a[5]}</i>`).join("\n")}` +
+      (near.length > show.length ? `\n\n<i>И ещё ${near.length - show.length} впереди</i>` : "");
   } else {
     text += "Ты собрал все награды! 🎉";
   }
@@ -2014,10 +2020,10 @@ function analysisText(a) {
   return (
     `🧠 <b>Разбор недели</b>\n<i>${humanDate(a.from)} — ${humanDate(a.end)} · ${a.recorded} ${plural(a.recorded, "день", "дня", "дней")} с записями</i>\n\n` +
     `🎯 Оценка: <b>${a.score}</b> из 10\n${squares(a.score, 10)}\n\n` +
-    (a.summary ? `<blockquote>${esc(a.summary)}</blockquote>\n\n` : "") +
-    (a.good.length ? `✅ <b>Что получилось</b>\n${a.good.map((s) => `• ${esc(s)}`).join("\n")}\n\n` : "") +
-    (a.improve.length ? `🔍 <b>Что улучшить</b>\n${a.improve.map((s) => `• ${esc(s)}`).join("\n")}\n\n` : "") +
-    (a.tips.length ? `💡 <b>Советы на неделю</b>\n<blockquote>${a.tips.map((s, i) => `${nums[i]} ${esc(s)}`).join("\n")}</blockquote>\n\n` : "") +
+    (a.summary ? `<i>${esc(a.summary)}</i>\n\n\n` : "") +
+    (a.good.length ? `✅ <b>Что получилось</b>\n\n${a.good.map((s) => `• ${esc(s)}`).join("\n")}\n\n\n` : "") +
+    (a.improve.length ? `🔍 <b>Что улучшить</b>\n\n${a.improve.map((s) => `• ${esc(s)}`).join("\n")}\n\n\n` : "") +
+    (a.tips.length ? `💡 <b>Советы на неделю</b>\n\n${a.tips.map((s, i) => `${nums[i]} ${esc(s)}`).join("\n")}\n\n\n` : "") +
     `<i>FITTER считает примерно и не заменяет врача или диетолога</i>`
   );
 }
@@ -2081,9 +2087,9 @@ function remindText(u, note = "") {
     (note ? `${note}\n\n` : "") +
     `⏰ <b>Напоминания о воде</b>\n\n` +
     (on
-      ? `<blockquote>🔔 Каждые <b>${everyLabel(w.every)}</b>\n🌅 Начало дня: <b>${hh(w.from)}</b>\n🌙 Конец дня: <b>${hh(w.to)}</b></blockquote>\n` +
-        `Ночью я молчу. Когда норма воды выполнена, напоминания на сегодня заканчиваются.`
-      : `Сейчас выключены. Выбери, как часто напоминать, и я буду писать в течение дня, пока не наберётся норма.`)
+      ? `🔔 Каждые <b>${everyLabel(w.every)}</b>\n🌅 С <b>${hh(w.from)}</b>\n🌙 До <b>${hh(w.to)}</b>\n\n` +
+        `<i>Ночью молчу. Когда норма воды выполнена, напоминания на сегодня заканчиваются</i>`
+      : `<i>Сейчас выключены. Выбери, как часто напоминать, и я буду писать днём, пока не наберётся норма</i>`)
   );
 }
 
@@ -2308,13 +2314,13 @@ function pillsView(env, u, day, date, mode) {
   const list = u.pills || [];
   if (!list.length) {
     return {
-      text: "💊 <b>Таблетки</b>\n\nДобавь витамины или лекарства, и я напомню в чате, когда их принять ⏰",
+      text: "💊 <b>Таблетки</b>\n\n<i>Добавь витамины или лекарства, и я напомню в чате, когда их принять</i> ⏰",
       kb: [[{ text: "➕ Добавить препарат", callback_data: "pl|add" }], [appButton(env)]],
     };
   }
   if (mode === "edit") {
     return {
-      text: "💊 <b>Мои препараты</b>\n\n<blockquote>" + list.map((p) => `${pillLine(p)}\n⏰ ${p.times.join(", ")}`).join("\n\n") + "</blockquote>\n\nНажми 🗑, чтобы удалить препарат и его напоминания",
+      text: "💊 <b>Мои препараты</b>\n\n\n" + list.map((p) => `${pillLine(p)}\n⏰ ${p.times.join(", ")}`).join("\n\n") + "\n\n\n<i>Нажми 🗑, чтобы удалить препарат и его напоминания</i>",
       kb: [
         ...list.map((p) => [{ text: `🗑 ${p.name}`.slice(0, 60), callback_data: `pl|x|${p.id}` }]),
         list.length < PILL_MAX ? [{ text: "➕ Добавить", callback_data: "pl|add" }, { text: "↩️ Назад", callback_data: "pl|back" }] : [{ text: "↩️ Назад", callback_data: "pl|back" }],
@@ -2328,7 +2334,7 @@ function pillsView(env, u, day, date, mode) {
     return `${PILL_ICON[x.s] || "⬜"} ${x.time} <b>${esc(x.name)}</b>${x.dose ? " · " + esc(x.dose) : ""}${tail}`;
   });
   return {
-    text: `💊 <b>Таблетки на сегодня</b> · ${taken} из ${doses.length} принято\n\n<blockquote>${lines.join("\n")}</blockquote>\n\n<i>Нажми на приём, чтобы отметить. Напомню в чате в нужное время</i>`,
+    text: `💊 <b>Таблетки на сегодня</b> · ${taken} из ${doses.length} принято\n\n\n${lines.join("\n")}\n\n\n<i>Нажми на приём, чтобы отметить. Напомню в нужное время</i>`,
     kb: [
       ...doses.map((x) => [{ text: `${x.s === "taken" ? "✅" : "⬜"} ${x.time} ${x.name}`.slice(0, 60), callback_data: `pl|m|${date}|${x.id}|${x.time}` }]),
       [{ text: "➕ Добавить", callback_data: "pl|add" }, { text: "✏️ Изменить", callback_data: "pl|edit" }],
@@ -2828,6 +2834,9 @@ const APP_HTML = `<!doctype html>
   .wt .lb{font-size:12px;font-weight:600;color:rgba(255,255,255,.85)}
   .wt b{font-size:24px;font-weight:800;letter-spacing:-.02em}
   .wt small{font-size:12px;font-weight:600;color:rgba(255,255,255,.85)}
+  .cups{display:flex;flex-wrap:wrap;gap:4px;margin-top:7px}
+  .cups i{width:9px;height:12px;border-radius:1px 1px 3px 3px;background:rgba(255,255,255,.28);transition:background .3s}
+  .cups i.on{background:#fff}
   .wbtn{display:flex;flex-direction:column;gap:6px;position:relative;z-index:1}
   .wbtn button{height:36px;border-radius:12px;padding:0 14px;font-weight:700;font-size:14px;background:rgba(255,255,255,.22);color:#fff}
   .wbtn button.add{background:#fff;color:var(--w2)}
@@ -2951,6 +2960,167 @@ const APP_HTML = `<!doctype html>
   @keyframes fup{to{transform:translateY(-46px);opacity:0}}
   .fx{position:fixed;z-index:40;pointer-events:none;font-size:20px;line-height:1;will-change:transform,opacity}
   @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+
+  /* ══════ Эксклюзивная тема Okto в честь запуска приложения Okto: монохромный прибор — корпус, клавиши, утопленные дисплеи, моноширинные цифры ══════ */
+  html[data-skin="okto"]{--o-bg:#ffffff;--o-ink:#141414;--o-muted:#5f5f5c;--o-line:#e4e4e1;--o-soft:#f3f3f1;--o-key:#ffffff;--o-key-edge:#cfcfcc;--o-key-hi:#ffffff;
+    --o-well:#f4f4f2;--o-well-ink:#111111;--o-well-dim:#6a6a66;--o-well-edge:rgba(0,0,0,.07);--o-red:#d33a3f;
+    --o-ghost:rgba(17,17,17,.07);--o-rest:rgba(17,17,17,.28);--o-dim:rgba(20,20,20,.35);--o-ink55:rgba(20,20,20,.55);--o-ink25:rgba(20,20,20,.25);
+    --o-mono:ui-monospace,"SF Mono","Cascadia Mono","Roboto Mono",Menlo,Consolas,monospace;--o-ease:cubic-bezier(.16,1,.3,1);
+    --bg:var(--o-bg);--card:var(--o-bg);--text:var(--o-ink);--hint:var(--o-muted);--line:var(--o-line);--danger:var(--o-red)}
+  html[data-skin="okto"][data-theme="dark"]{--o-bg:#141414;--o-ink:#ededed;--o-muted:#8e8e8e;--o-line:#2a2a2a;--o-soft:#1d1d1d;--o-key:#262626;--o-key-edge:#070707;--o-key-hi:rgba(255,255,255,.07);
+    --o-well:#0a0a0a;--o-well-ink:#f2f2f2;--o-well-dim:#8a8a8a;--o-well-edge:rgba(0,0,0,.7);--o-red:#ef5a5f;
+    --o-ghost:rgba(242,242,242,.08);--o-rest:rgba(242,242,242,.28);--o-dim:rgba(237,237,237,.35);--o-ink55:rgba(237,237,237,.55);--o-ink25:rgba(237,237,237,.25)}
+  html[data-skin="okto"] body{font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+  html[data-skin="okto"] button:active{transform:translateY(1px);filter:none}
+  /* Клавиши: светлая грань сверху, 1px «ход» снизу, при нажатии утапливаются */
+  html[data-skin="okto"] .nav button,html[data-skin="okto"] .av,html[data-skin="okto"] .wd,html[data-skin="okto"] .wbtn button,html[data-skin="okto"] .pbtn,
+  html[data-skin="okto"] .dose .ck,html[data-skin="okto"] .wcard .wed,html[data-skin="okto"] .plist .x,html[data-skin="okto"] .ptimes .chip{
+    background:var(--o-key);color:var(--o-ink);border:0;border-radius:10px;box-shadow:inset 0 1px 0 var(--o-key-hi),0 1px 0 var(--o-key-edge),0 2px 3px -1px rgba(0,0,0,.22);
+    transition:transform 90ms var(--o-ease),box-shadow 90ms var(--o-ease)}
+  html[data-skin="okto"] .nav button:active,html[data-skin="okto"] .wd:active,html[data-skin="okto"] .wbtn button:active,html[data-skin="okto"] .pbtn:active,html[data-skin="okto"] .wcard .wed:active,html[data-skin="okto"] .plist .x:active{
+    transform:translateY(1px);box-shadow:inset 0 1px 2px rgba(0,0,0,.18)}
+  /* Дисплеи: всё, что показывает показания, утоплено в корпус */
+  html[data-skin="okto"] .kw,html[data-skin="okto"] .mc,html[data-skin="okto"] .water.ow,html[data-skin="okto"] .pills,html[data-skin="okto"] .wkc,html[data-skin="okto"] .wcard,html[data-skin="okto"] .empty,html[data-skin="okto"] .addm,html[data-skin="okto"] .it .gr{
+    background:var(--o-well);color:var(--o-well-ink);border:0;border-radius:12px;box-shadow:inset 0 1px 2px var(--o-well-edge),inset 0 0 0 1px var(--o-well-edge)}
+  /* Цифры с погашенными «восьмёрками» под ними и сегментные шкалы */
+  html[data-skin="okto"] .dg{display:inline-grid;font-family:var(--o-mono);font-weight:700;font-variant-numeric:tabular-nums;line-height:.92;letter-spacing:-.045em;white-space:nowrap}
+  html[data-skin="okto"] .dg > span{grid-area:1/1;text-align:right}
+  html[data-skin="okto"] .dg .lv.r{color:var(--o-red)}
+  html[data-skin="okto"] .oseg{display:flex;gap:3px;height:6px}
+  html[data-skin="okto"] .oseg i{flex:1;border-radius:1.5px;background:var(--o-ghost);transition:background .3s}
+  html[data-skin="okto"] .oseg i.on{background:var(--o-well-ink)}
+  html[data-skin="okto"] .oseg i.r{background:var(--o-red)}
+  html[data-skin="okto"] .olr{display:flex;align-items:center;justify-content:space-between;gap:8px}
+  html[data-skin="okto"] .olg{font:500 11px var(--o-mono);letter-spacing:.12em;text-transform:uppercase;color:var(--o-well-dim)}
+  html[data-skin="okto"] .ord{font:500 12px var(--o-mono);color:var(--o-well-dim);font-variant-numeric:tabular-nums}
+
+  /* Шапка — это корпус: без градиента, дни — ряд клавиш с LED */
+  html[data-skin="okto"] .hero{background:var(--o-bg);color:var(--o-ink);box-shadow:none;border-radius:0;padding:12px 14px 4px;overflow:visible}
+  html[data-skin="okto"] .hero:before{display:none}
+  html[data-skin="okto"] .ttl b{font-size:30px;font-weight:700;letter-spacing:-.03em}
+  html[data-skin="okto"] .ttl small{margin-top:4px;font:500 12px var(--o-mono);letter-spacing:.02em;color:var(--o-muted)}
+  html[data-skin="okto"] .nav button{width:38px;height:38px}
+  html[data-skin="okto"] .av{width:38px;height:38px;margin-left:0;font:700 15px var(--o-mono)}
+  html[data-skin="okto"] .week{gap:4px;margin:18px 0 14px}
+  html[data-skin="okto"] .wd{height:56px;padding:0;justify-content:center;gap:3px;background:transparent;box-shadow:none}
+  html[data-skin="okto"] .wd small{font:500 10px var(--o-mono);letter-spacing:.08em;text-transform:uppercase;color:var(--o-muted)}
+  html[data-skin="okto"] .wd b{font:700 16px var(--o-mono);letter-spacing:-.02em}
+  html[data-skin="okto"] .wd i{width:5px;height:5px;margin-top:1px}
+  html[data-skin="okto"] .wd i.ok,html[data-skin="okto"] .wd.sel i.ok{background:var(--o-ink)}
+  html[data-skin="okto"] .wd i.lo,html[data-skin="okto"] .wd.sel i.lo{background:var(--o-dim)}
+  html[data-skin="okto"] .wd i.ov,html[data-skin="okto"] .wd.sel i.ov{background:var(--o-red)}
+  html[data-skin="okto"] .wd.sel{background:var(--o-key);color:var(--o-ink);box-shadow:inset 0 1px 0 var(--o-key-hi),0 1px 0 var(--o-key-edge),0 2px 4px -1px rgba(0,0,0,.18)}
+  html[data-skin="okto"] .wd.sel small,html[data-skin="okto"] .wd.today small{color:var(--o-ink)}
+  html[data-skin="okto"] .wd.today:not(.sel) b{text-decoration:none}
+  html[data-skin="okto"] .wd[disabled]{opacity:.35}
+  /* Калории: крупная цифра «осталось» и линейка из 20 сегментов вместо кольца */
+  html[data-skin="okto"] .kw{padding:16px}
+  html[data-skin="okto"] .kr{display:flex;align-items:stretch;justify-content:space-between;gap:12px;margin-bottom:16px}
+  html[data-skin="okto"] .kl,html[data-skin="okto"] .kw .ro{display:flex;flex-direction:column;justify-content:space-between;gap:10px;min-width:0}
+  html[data-skin="okto"] .kl b{line-height:1;margin-bottom:2px}
+  html[data-skin="okto"] .kw .ro{align-items:flex-end;text-align:right}
+  html[data-skin="okto"] .kw .ro .dg{font-size:clamp(44px,15vw,64px)}
+  html[data-skin="okto"] .kw .oseg{height:8px}
+  html[data-skin="okto"] .kl b{font:700 28px var(--o-mono);letter-spacing:-.04em;font-variant-numeric:tabular-nums;color:var(--o-well-ink);white-space:nowrap}
+  html[data-skin="okto"] .kl b small{margin-left:5px;font:500 12px var(--o-mono);letter-spacing:0;color:var(--o-well-dim)}
+  html[data-skin="okto"] .kl.over b,html[data-skin="okto"] .kl.over .olg{color:var(--o-red)}
+  html[data-skin="okto"] .wrap{padding:0 14px}
+  /* БЖУ: три дисплея, нутриенты различаются подписью, а не цветом */
+  html[data-skin="okto"] .macros{margin-top:12px;gap:8px}
+  html[data-skin="okto"] .mc{padding:12px 12px 11px}
+  html[data-skin="okto"] .mc .ib{display:none}
+  html[data-skin="okto"] .mc .lb{font:500 11px var(--o-mono);letter-spacing:.1em;text-transform:uppercase;color:var(--o-well-dim)}
+  html[data-skin="okto"] .mc .vl{margin:10px 0;white-space:nowrap}
+  html[data-skin="okto"] .mc .vl .dg{font-size:24px}
+  html[data-skin="okto"] .mc .vl small{font:500 12px var(--o-mono);color:var(--o-well-dim)}
+  html[data-skin="okto"] .mc .st{margin-top:8px;font:500 11.5px var(--o-mono);color:var(--o-well-dim)}
+  html[data-skin="okto"] .mc .st .ok{color:var(--o-well-ink)}
+  html[data-skin="okto"] .mc .st .ov{color:var(--o-red)}
+  html[data-skin="okto"] .hint{background:transparent;border:0;box-shadow:none;padding:6px 4px 2px 20px;margin-top:10px;font-size:14px;color:var(--o-muted)}
+  html[data-skin="okto"] .hint b{color:var(--o-ink);font-weight:600}
+  html[data-skin="okto"] .hint:before,html[data-skin="okto"] .hint.good:before{left:4px;top:11px;width:6px;height:6px;background:var(--o-ink)}
+  html[data-skin="okto"] .hint.warn:before{background:var(--o-red)}
+  /* Вода: стаканы — ячейки, которые загораются по одной */
+  html[data-skin="okto"] .water.ow{display:block;margin-top:12px;padding:16px;color:var(--o-well-ink)}
+  html[data-skin="okto"] .water.ow:after{display:none}
+  html[data-skin="okto"] .water.ow .vl{margin:10px 0;display:flex;align-items:baseline;gap:6px}
+  html[data-skin="okto"] .water.ow .vl .dg{font-size:28px}
+  html[data-skin="okto"] .water.ow .vl small{font:500 12px var(--o-mono);color:var(--o-well-dim)}
+  html[data-skin="okto"] .ocup{display:grid;grid-template-columns:repeat(var(--n),1fr);gap:4px;height:14px}
+  html[data-skin="okto"] .ocup i{border-radius:2px;background:var(--o-ghost);transition:background .3s}
+  html[data-skin="okto"] .ocup i.on{background:var(--o-well-ink)}
+  html[data-skin="okto"] .water.ow .wbtn{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:14px}
+  html[data-skin="okto"] .water.ow .wbtn button{height:40px;font:500 12px var(--o-mono);letter-spacing:.08em;text-transform:uppercase}
+  /* Таблетки */
+  html[data-skin="okto"] .pills{margin-top:12px;padding:14px 16px}
+  html[data-skin="okto"] .pills .ib{display:none}
+  html[data-skin="okto"] .pills .t{font:500 11px var(--o-mono);letter-spacing:.12em;text-transform:uppercase;color:var(--o-well-dim)}
+  html[data-skin="okto"] .pills .t small{margin-top:3px;font:500 12px var(--o-mono);letter-spacing:0;text-transform:none;color:var(--o-well-dim)}
+  html[data-skin="okto"] .pbtn{height:32px;font:500 11px var(--o-mono);letter-spacing:.08em;text-transform:uppercase}
+  html[data-skin="okto"] .pbar{height:4px;border-radius:1.5px;background:var(--o-ghost)}
+  html[data-skin="okto"] .pbar i{border-radius:1.5px;background:var(--o-well-ink)}
+  html[data-skin="okto"] .dose{color:var(--o-well-ink);border-top-color:rgba(127,127,127,.18)}
+  html[data-skin="okto"] .dose .tm{font:500 12px var(--o-mono);color:var(--o-well-dim)}
+  html[data-skin="okto"] .dose .nm small,html[data-skin="okto"] .dose.taken .pn{color:var(--o-well-dim)}
+  html[data-skin="okto"] .dose .ck{width:30px;height:30px;font-size:14px;color:var(--o-ink)}
+  html[data-skin="okto"] .dose.taken .ck{background:var(--o-key);color:var(--o-ink);transform:translateY(1px);box-shadow:inset 0 1px 2px rgba(0,0,0,.18)}
+  html[data-skin="okto"] .dose.skip .ck{opacity:.5}
+  html[data-skin="okto"] .pform input,html[data-skin="okto"] .pform select{background:var(--o-key);color:var(--o-ink);border:1px solid var(--o-line);border-radius:8px}
+  html[data-skin="okto"] .pform input:focus,html[data-skin="okto"] .pform select:focus{border-color:var(--o-ink)}
+  html[data-skin="okto"] .ptimes .chip b{color:var(--o-muted)}
+  html[data-skin="okto"] .psave{background:var(--o-ink);color:var(--o-bg);border-radius:10px;font-weight:600}
+  html[data-skin="okto"] .plist .row{border-top-color:rgba(127,127,127,.18)}
+  html[data-skin="okto"] .plist .row small,html[data-skin="okto"] .phint{color:var(--o-well-dim)}
+  html[data-skin="okto"] .plist .x{color:var(--o-red)}
+  /* Еда: не карточки, а строки на корпусе с тонкими линиями */
+  html[data-skin="okto"] h3{margin:24px 2px 8px;font-size:20px;font-weight:700;letter-spacing:-.02em}
+  html[data-skin="okto"] h3 small{font:500 12px var(--o-mono);color:var(--o-muted)}
+  html[data-skin="okto"] .meal{background:transparent;border:0;border-top:1px solid var(--o-line);border-radius:0;box-shadow:none;padding:14px 2px 4px;margin:0}
+  html[data-skin="okto"] .meal .ib,html[data-skin="okto"] .empty .ib,html[data-skin="okto"] .wcard .ib,html[data-skin="okto"] .it .dot{display:none}
+  html[data-skin="okto"] .meal .t{font-size:16px;font-weight:600}
+  html[data-skin="okto"] .meal .t small,html[data-skin="okto"] .it .n small{margin-top:2px;font:500 11.5px var(--o-mono);color:var(--o-muted)}
+  html[data-skin="okto"] .meal .k{background:transparent;padding:0;font:700 15px var(--o-mono)}
+  html[data-skin="okto"] .mbar{height:3px;gap:2px;margin:8px 0 6px}
+  html[data-skin="okto"] .mbar i{border-radius:1px}
+  html[data-skin="okto"] .mbar .p{background:var(--o-ink)}
+  html[data-skin="okto"] .mbar .f{background:var(--o-ink55)}
+  html[data-skin="okto"] .mbar .c{background:var(--o-ink25)}
+  html[data-skin="okto"] .it{border-top:0;padding:8px 0}
+  html[data-skin="okto"] .it input{font-family:var(--o-mono);color:var(--o-well-ink)}
+  html[data-skin="okto"] .it .g{font-family:var(--o-mono);color:var(--o-well-dim)}
+  html[data-skin="okto"] .it .ren{border-color:var(--o-ink);border-radius:8px;background:var(--o-well)}
+  html[data-skin="okto"] .del{text-align:left;font:500 13px system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;color:var(--o-muted);border-top:0;padding:4px 0 10px;opacity:1}
+  html[data-skin="okto"] .addm{border-radius:10px;padding:6px 6px 6px 14px}
+  html[data-skin="okto"] .addm:focus-within{box-shadow:inset 0 0 0 2px var(--o-ink)}
+  html[data-skin="okto"] .addm textarea{color:var(--o-well-ink)}
+  html[data-skin="okto"] .addm textarea::placeholder{color:var(--o-well-dim)}
+  html[data-skin="okto"] .addb{background:var(--o-ink);color:var(--o-bg);border-radius:10px;font-weight:500;box-shadow:inset 0 1px 0 rgba(255,255,255,.35),0 2px 0 var(--o-key-edge),0 8px 18px -8px rgba(0,0,0,.4)}
+  html[data-skin="okto"] .addm.busy .addb:after{border-color:rgba(127,127,127,.4);border-top-color:var(--o-bg)}
+  html[data-skin="okto"] .addh{font:500 11px var(--o-mono);color:var(--o-muted)}
+  html[data-skin="okto"] .empty{color:var(--o-well-dim)}
+  html[data-skin="okto"] .empty b{color:var(--o-well-ink)}
+  /* Неделя: норма — сплошной столбик, недобор — бледный, перебор — красный */
+  html[data-skin="okto"] .wkc .nl{border-top:1px dashed var(--o-well-dim)}
+  html[data-skin="okto"] .wkc .nl span{background:var(--o-well);color:var(--o-well-dim);font:500 10px var(--o-mono)}
+  html[data-skin="okto"] .wb .col i{max-width:22px;border-radius:2px 2px 0 0;background:var(--o-ghost)}
+  html[data-skin="okto"] .wb .col i.ok,html[data-skin="okto"] .wsum .lg i.ok{background:var(--o-well-ink)}
+  html[data-skin="okto"] .wb .col i.lo,html[data-skin="okto"] .wsum .lg i.lo{background:var(--o-rest)}
+  html[data-skin="okto"] .wb .col i.ov,html[data-skin="okto"] .wsum .lg i.ov{background:var(--o-red)}
+  html[data-skin="okto"] .wb small,html[data-skin="okto"] .wb em{font-family:var(--o-mono);color:var(--o-well-dim)}
+  html[data-skin="okto"] .wb.sel small,html[data-skin="okto"] .wb.sel em{color:var(--o-well-ink)}
+  html[data-skin="okto"] .wb.sel .col i{box-shadow:none;outline:1px solid var(--o-well-ink);outline-offset:2px}
+  html[data-skin="okto"] .wsum{border-top-color:rgba(127,127,127,.2);color:var(--o-well-dim)}
+  html[data-skin="okto"] .wsum b{color:var(--o-well-ink)}
+  html[data-skin="okto"] .wsum .lg i{border-radius:1.5px}
+  /* Вес */
+  html[data-skin="okto"] .wcard{padding:14px}
+  html[data-skin="okto"] .wcard .v b{font:700 30px var(--o-mono);letter-spacing:-.04em;color:var(--o-well-ink)}
+  html[data-skin="okto"] .wcard .v small{font:500 12px var(--o-mono);color:var(--o-well-dim)}
+  html[data-skin="okto"] .wcard polyline{stroke:var(--o-well-ink)}
+  html[data-skin="okto"] .wcard polygon{fill:var(--o-ghost)}
+  html[data-skin="okto"] .wcard .wed{font-size:14px}
+  html[data-skin="okto"] .wcard .win{border-color:var(--o-ink);background:var(--o-key);font-family:var(--o-mono)}
+  html[data-skin="okto"] .fl{color:var(--o-ink);text-shadow:none;font-family:var(--o-mono)}
 </style>
 </head>
 <body>
@@ -2958,7 +3128,7 @@ const APP_HTML = `<!doctype html>
 <div class="hero">
   <div class="top">
     <div class="ttl"><b id="dl">Дневник</b><small id="ds">FITTER</small></div>
-    <div class="nav"><button id="prev" aria-label="Предыдущий день"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg></button><button id="next" aria-label="Следующий день"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5l7 7-7 7"/></svg></button><button id="theme" aria-label="Сменить тему"></button><span class="av" id="av"></span></div>
+    <div class="nav"><button id="prev" aria-label="Предыдущий день"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg></button><button id="next" aria-label="Следующий день"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5l7 7-7 7"/></svg></button><button id="skin"></button><button id="theme" aria-label="Сменить тему"></button><span class="av" id="av"></span></div>
   </div>
   <div id="hero"><div class="load">Загрузка…</div></div>
 </div>
@@ -2972,12 +3142,33 @@ const APP_HTML = `<!doctype html>
   var themeBtn = document.getElementById("theme");
   var SUN = '<svg class="ic" style="width:19px;height:19px" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v2M12 19.5v2M2.5 12h2M19.5 12h2M5.3 5.3l1.4 1.4M17.3 17.3l1.4 1.4M5.3 18.7l1.4-1.4M17.3 6.7l1.4-1.4"/></svg>';
   var MOON = '<svg class="ic" style="width:18px;height:18px" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z"/></svg>';
+  // Тема Okto — эксклюзивная тема в честь запуска приложения Okto; классический вид с зелёной шапкой — по кнопке. Выбор хранится на устройстве
+  var skinBtn = document.getElementById("skin");
+  var KEYS = '<svg class="ic" style="width:18px;height:18px" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="3.5" y="3.5" width="7" height="7" rx="1.6"/><rect x="13.5" y="3.5" width="7" height="7" rx="1.6"/><rect x="3.5" y="13.5" width="7" height="7" rx="1.6"/><rect x="13.5" y="13.5" width="7" height="7" rx="1.6"/></svg>';
+  var RING = '<svg class="ic" style="width:18px;height:18px" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><circle cx="12" cy="12" r="8" opacity=".35"/><path d="M12 4a8 8 0 0 1 7.6 10.5"/></svg>';
+  function OK(){ return document.documentElement.getAttribute("data-skin") === "okto"; }
+  function setSkin(s, save){
+    document.documentElement.setAttribute("data-skin", s);
+    skinBtn.innerHTML = s === "okto" ? RING : KEYS;
+    skinBtn.setAttribute("aria-label", s === "okto" ? "Классический вид" : "Тема Okto");
+    if (save) try { localStorage.setItem("fitter_skin", s); } catch(e){}
+  }
+  try { setSkin(localStorage.getItem("fitter_skin") === "classic" ? "classic" : "okto", false); } catch(e){ setSkin("okto", false); }
+
   function savedTheme(){ try { return localStorage.getItem("fitter_theme"); } catch(e){ return null; } }
   function setTheme(t, save){
     document.documentElement.setAttribute("data-theme", t);
     themeBtn.innerHTML = t === "dark" ? SUN : MOON;
-    try { tg.setBackgroundColor(t === "dark" ? "#0c100e" : "#f3f5f2"); tg.setHeaderColor("#5dffad"); } catch(e){}
+    chrome();
     if (save) try { localStorage.setItem("fitter_theme", t); } catch(e){}
+  }
+  // Цвет шапки и фона Telegram под оформление и тему
+  function chrome(){
+    var dark = document.documentElement.getAttribute("data-theme") === "dark";
+    try {
+      if (OK()) { tg.setBackgroundColor(dark ? "#141414" : "#ffffff"); tg.setHeaderColor(dark ? "#141414" : "#ffffff"); }
+      else { tg.setBackgroundColor(dark ? "#0c100e" : "#f3f5f2"); tg.setHeaderColor("#5dffad"); }
+    } catch(e){}
   }
   var sysTheme = (tg && tg.colorScheme) || (window.matchMedia && matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
   setTheme(savedTheme() || sysTheme, false);
@@ -2987,6 +3178,11 @@ const APP_HTML = `<!doctype html>
     setTheme(el.getAttribute("data-theme") === "dark" ? "light" : "dark", true);
     tick();
     setTimeout(function(){ el.classList.remove("tt"); }, 350);
+  };
+  skinBtn.onclick = function(){
+    setSkin(OK() ? "classic" : "okto", true);
+    chrome(); tick();
+    if (state.data) render();
   };
 
   var initData = tg ? tg.initData : "";
@@ -3005,6 +3201,27 @@ const APP_HTML = `<!doctype html>
   function human(date){ var d = new Date(date + "T00:00:00Z"); return d.getUTCDate() + " " + MONTHS[d.getUTCMonth()]; }
   function L(ml){ return String(Math.round(ml / 10) / 100).replace(".", ",") + " л"; }
   function icon(name, style){ return '<svg class="ic"' + (style ? ' style="' + style + '"' : '') + '><use href="#i-' + name + '"/></svg>'; }
+  function plural(x, a, b, c){ var m = x % 10, h = x % 100; return m === 1 && h !== 11 ? a : m >= 2 && m <= 4 && (h < 12 || h > 14) ? b : c; }
+
+  // ── Детали темы Okto ──
+  // Цифры дисплея: моноширинные, с отсчётом от нуля при открытии
+  function dg(s, cls, to){ return '<span class="dg"><span class="lv' + (cls ? ' ' + cls : '') + '"' + (to !== undefined ? ' data-to="' + to + '">0' : '>' + s) + '</span></span>'; }
+  // Шкала из сегментов; при перерасходе горит красным целиком
+  function seg(cnt, frac, red){
+    var lit = Math.round(Math.min(1, frac || 0) * cnt), h = '<div class="oseg">';
+    for (var i = 0; i < cnt; i++) h += '<i class="' + (i < lit ? (red ? "r" : "on") : "") + '"></i>';
+    return h + '</div>';
+  }
+  // Вода считается стаканами по 250 мл
+  var CUP = 250;
+  function cupsOf(ml){ return Math.floor(ml / CUP); }
+  function cupsGoal(ml){ return Math.max(1, Math.ceil(ml / CUP)); }
+  function cupWord(x){ return plural(x, "стакан", "стакана", "стаканов"); }
+  function cupCells(wv, wg, cls){
+    var all = cupsGoal(wg), on = cupsOf(wv), h = '<div class="' + cls + '" style="--n:' + all + '">';
+    for (var i = 0; i < all; i++) h += '<i class="' + (i < on ? "on" : "") + '"></i>';
+    return h + '</div>';
+  }
 
   function haptic(style){ try { tg.HapticFeedback.impactOccurred(style || "light"); } catch(e){} }
   function notify(type){ try { tg.HapticFeedback.notificationOccurred(type); } catch(e){} }
@@ -3084,6 +3301,8 @@ const APP_HTML = `<!doctype html>
     var pct = max ? Math.min(100, val / max * 100) : 0;
     var left = max - val, ok = max && val >= max * 0.9 && val <= max * 1.1;
     var st = !max ? '' : ok ? '<span class="ok">в норме</span>' : left > 0 ? 'ещё ' + r(left) + ' г' : '<span class="ov">+' + r(-left) + ' г</span>';
+    if (OK()) return '<div class="mc ' + cls + ' rise"><div class="lb">' + label + '</div>' +
+      '<div class="vl">' + dg(r(val), max && val > max * 1.1 ? "r" : "") + '<small> / ' + max + '</small></div>' + seg(10, max ? val / max : 0, max && val > max * 1.1) + '<div class="st">' + st + '</div></div>';
     return '<div class="mc ' + cls + ' rise"><div class="ib">' + icon(ic) + '</div><div class="lb">' + label + '</div>' +
       '<div class="vl">' + r(val) + '<small> / ' + max + ' г</small></div><div class="bar"><div data-pct="' + pct + '"></div></div><div class="st">' + st + '</div></div>';
   }
@@ -3294,24 +3513,36 @@ const APP_HTML = `<!doctype html>
     }).join("") + '</div>';
 
     var left = g.kcal - t.kcal;
-    var streak = d.date === d.today && d.streak >= 2 ? '<div class="chip">🔥 ' + d.streak + ' ' + (d.streak % 10 === 1 && d.streak % 100 !== 11 ? 'день' : [2,3,4].indexOf(d.streak % 10) >= 0 && (d.streak % 100 < 12 || d.streak % 100 > 14) ? 'дня' : 'дней') + ' подряд</div>' : '';
-    hero.innerHTML = week + '<div class="main">' + ring(t.kcal, g.kcal) +
+    var days = d.date === d.today && d.streak >= 2 ? d.streak + ' ' + plural(d.streak, 'день', 'дня', 'дней') : '';
+    var streak = days ? '<div class="chip">🔥 ' + days + ' подряд</div>' : '';
+    if (OK()) {
+      // Дисплей калорий: слева — сколько осталось (перебор — красным), справа крупно — сколько съедено
+      if (days) document.getElementById("ds").textContent += " · 🔥 " + days;
+      hero.innerHTML = week + '<div class="kw rise"><div class="kr">' +
+        '<div class="kl' + (left < 0 ? ' over' : '') + '"><span class="olg">' + (left >= 0 ? 'Осталось' : 'Перебор') + '</span><b>' + n(Math.abs(left)) + '<small>ккал</small></b></div>' +
+        '<div class="ro"><span class="olg">Съедено · из ' + n(g.kcal) + '</span>' + dg(n(t.kcal), "", r(t.kcal)) + '</div></div>' + seg(20, g.kcal ? t.kcal / g.kcal : 0, left < 0) + '</div>';
+    } else hero.innerHTML = week + '<div class="main">' + ring(t.kcal, g.kcal) +
       '<div class="chips"><div class="chip' + (left < 0 ? ' over' : '') + '">' + (left >= 0 ? 'Осталось ' + n(left) + ' ккал' : 'Больше нормы на ' + n(-left) + ' ккал') + '</div>' + streak + '</div></div>';
 
     var macros = '<div class="macros">' + macro("p", "protein", "Белки", t.p, g.p) + macro("f", "fat", "Жиры", t.f, g.f) + macro("c", "carbs", "Углеводы", t.c, g.c) + '</div>';
 
     var wg = d.waterGoal || 2000, wv = d.water || 0;
-    var water = '<div class="water rise' + (wv >= wg ? ' done' : '') + '">' + glass(wv / wg) +
-      '<div class="wt"><div class="lb">Вода</div><b class="wv">' + L(wv) + '</b><br><small>из ' + L(wg) + '<span class="wn">' + (wv >= wg ? ' · норма ✓' : '') + '</span></small></div>' +
-      '<div class="wbtn"><button class="add" data-w="250">+250 мл</button><button data-w="-250">− 250</button></div></div>';
+    var water = OK() ?
+      '<div class="water ow rise' + (wv >= wg ? ' done' : '') + '"><div class="olr"><span class="olg">Вода</span><span class="ord wl">' + L(wv) + ' из ' + L(wg) + '</span></div>' +
+        '<div class="vl">' + dg(String(cupsOf(wv)), "wv") + '<small class="wc">из ' + cupsGoal(wg) + ' ' + cupWord(cupsGoal(wg)) + '<span class="wn">' + (wv >= wg ? ' · норма ✓' : '') + '</span></small></div>' +
+        cupCells(wv, wg, "ocup") + '<div class="wbtn"><button data-w="-250">− стакан</button><button class="add" data-w="250">+ стакан</button></div></div>' :
+      '<div class="water rise' + (wv >= wg ? ' done' : '') + '">' + glass(wv / wg) +
+      '<div class="wt"><div class="lb">Вода</div><b class="wv">' + cupsOf(wv) + ' из ' + cupsGoal(wg) + '</b> <small class="wc">' + cupWord(cupsGoal(wg)) + '</small><br><small class="wl">' + L(wv) + ' из ' + L(wg) + '</small><small class="wn">' + (wv >= wg ? ' · норма ✓' : '') + '</small>' +
+        cupCells(wv, wg, "cups") + '</div>' +
+      '<div class="wbtn"><button class="add" data-w="250">+ стакан</button><button data-w="-250">− стакан</button></div></div>';
 
     var total = d.meals.reduce(function(a, m){ return a + m.totals.kcal; }, 0);
     var add = d.date <= d.today ? '<div class="addm rise"><textarea id="addt" rows="1" maxlength="500" enterkeyhint="send" placeholder="Что съел? Например: 2 яйца и тост"></textarea><button class="addb" id="addb" aria-label="Добавить еду">+</button></div>' +
       '<div class="addh">ИИ посчитает калории и БЖУ' + (d.date !== d.today ? ' · запишу на ' + human(d.date) : '') + '</div>' : '';
     var meals = (d.meals.length ? '<h3>Приёмы пищи <small>' + d.meals.length + ' · ' + n(total) + ' ккал</small></h3>' : '<h3>Приёмы пищи</h3>') + add + (d.meals.length ? d.meals.map(function(m, mi){
-      return '<div class="meal rise" data-id="' + m.id + '" style="animation-delay:' + (0.05 * mi + 0.1) + 's"><div class="hd"><div class="ib">' + icon("plate") + '</div><div class="t">' + esc(m.title) + '<small>' + esc(m.time) + (total ? ' · ' + r(m.totals.kcal / total * 100) + '% дня' : '') + ' · Б ' + r(m.totals.p) + ' · Ж ' + r(m.totals.f) + ' · У ' + r(m.totals.c) + '</small></div><div class="k">' + r(m.totals.kcal) + ' ккал</div></div>' + mbar(m.totals) +
+      return '<div class="meal rise" data-id="' + m.id + '" style="animation-delay:' + (0.05 * mi + 0.1) + 's"><div class="hd"><div class="ib">' + icon("plate") + '</div><div class="t">' + esc(m.title) + '<small>' + esc(m.time) + (total && !OK() ? ' · ' + r(m.totals.kcal / total * 100) + '% дня' : '') + ' · Б ' + r(m.totals.p) + ' · Ж ' + r(m.totals.f) + ' · У ' + r(m.totals.c) + '</small></div><div class="k">' + r(m.totals.kcal) + ' ккал</div></div>' + mbar(m.totals) +
         m.items.map(function(it, i){
-          return '<div class="it"><i class="dot" style="background:' + DOTS[i % DOTS.length] + '"></i><div class="n"><div class="nm" data-meal="' + m.id + '" data-idx="' + i + '">' + esc(it.name) + '</div><small>' + r(it.totals.kcal) + ' ккал · Б ' + r(it.totals.p) + ' · Ж ' + r(it.totals.f) + ' · У ' + r(it.totals.c) + '</small></div>' +
+          return '<div class="it"><i class="dot" style="background:' + DOTS[i % DOTS.length] + '"></i><div class="n"><div class="nm" data-meal="' + m.id + '" data-idx="' + i + '">' + esc(it.name) + '</div><small>' + r(it.totals.kcal) + ' ккал' + (OK() ? '' : ' · Б ' + r(it.totals.p) + ' · Ж ' + r(it.totals.f) + ' · У ' + r(it.totals.c)) + '</small></div>' +
             '<div class="gr"><input type="number" inputmode="numeric" min="1" max="3000" value="' + it.grams + '" data-meal="' + m.id + '" data-idx="' + i + '"><span class="g">г</span></div></div>';
         }).join("") +
         '<button class="del" data-del="' + m.id + '">Удалить приём пищи</button></div>';
@@ -3336,16 +3567,19 @@ const APP_HTML = `<!doctype html>
       state.flash = null;
     }
     if (d.date === d.today && d.meals.length && t.kcal >= g.kcal * 0.9 && t.kcal <= g.kcal * 1.1 && once("fx-kcal-" + d.date)) {
-      setTimeout(function(){ celebrate(hero.querySelector(".ring"), ["✨", "🥦", "🍏"]); notify("success"); }, 1100);
+      setTimeout(function(){ celebrate(hero.querySelector(".ring, .kw"),["✨", "🥦", "🍏"]); notify("success"); }, 1100);
     }
   }
 
   function waterUI(){
     var d = state.data, wg = d.waterGoal || 2000, wv = d.water || 0, card = root.querySelector(".water");
     if (!card) return;
-    card.querySelector(".wv").textContent = L(wv);
+    var c = cupsOf(wv), lvl = card.querySelector(".lvl");
+    if (OK()) card.querySelector(".wv").textContent = c; else card.querySelector(".wv").textContent = c + " из " + cupsGoal(wg);
+    card.querySelector(".wl").textContent = L(wv) + " из " + L(wg);
     card.querySelector(".wn").textContent = wv >= wg ? " · норма ✓" : "";
-    card.querySelector(".lvl").style.transform = "translateY(" + (74 - 66 * Math.min(1, wv / wg)) + "px)";
+    card.querySelectorAll(".cups i, .ocup i").forEach(function(el, i){ el.className = i < c ? "on" : ""; });
+    if (lvl) lvl.style.transform = "translateY(" + (74 - 66 * Math.min(1, wv / wg)) + "px)";
     card.classList.toggle("done", wv >= wg);
   }
 
