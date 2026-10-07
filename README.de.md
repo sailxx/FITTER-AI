@@ -194,7 +194,7 @@ Mehr dazu: [Datenschutzerklärung](https://sailxx.github.io/FITTER-AI/privacy.ht
 - [x] **v1** Bot auf Cloudflare, Fragebogen, Tagesziel, Foto-Erfassung, Tagebuch, Gewicht, Wasser, Etiketten und Barcodes
 - [x] **v2** Assistent „Was essen“, Tabletten mit Erinnerungen, Statistiken, helles und dunkles Design
 - [x] **v2.6** Neues Tagebuch-Design, Makro-Tipps, Wochendiagramm; Wasser und Tabletten im Bot überarbeitet
-- [ ] **v3.0** Produkt: Abo und eigenständige App
+- [ ] **v3.0** Produkt: eigenständige App
 
 Vollständiger Verlauf: [CHANGELOG.md](CHANGELOG.md) (auf Russisch).
 

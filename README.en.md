@@ -194,7 +194,7 @@ More: [privacy policy](https://sailxx.github.io/FITTER-AI/privacy.html) (in Russ
 - [x] **v1** Cloudflare bot, survey, target, photo logging, diary, weight, water, labels and barcodes
 - [x] **v2** “What to eat” assistant, pills with reminders, analytics, light and dark theme
 - [x] **v2.6** New diary look, macro hints, week chart; redesigned water and pills in the bot
-- [ ] **v3.0** Product: subscription and a standalone app
+- [ ] **v3.0** Product: a standalone app
 
 Full history: [CHANGELOG.md](CHANGELOG.md) (in Russian).
 
