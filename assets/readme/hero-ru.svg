@@ -5,11 +5,11 @@ text{font-family:"JBM",ui-monospace,Consolas,monospace}
 .lb{font-size:11px;font-weight:600;letter-spacing:2.4px;fill:#8d9488}
 .st{font-size:13px;font-weight:700;fill:#eef1ea}
 .sb{font-size:12px;fill:#a5ac9e}
-.r{animation:in .8s cubic-bezier(.2,.8,.2,1) backwards}
+.r{animation:in .7s ease-out backwards}
 .d1{animation-delay:.1s}.d2{animation-delay:.25s}.d3{animation-delay:.4s}.d4{animation-delay:.55s}.d5{animation-delay:.75s}.d6{animation-delay:.95s}.d7{animation-delay:1.15s}
 .arc{stroke-dasharray:440;stroke-dashoffset:150;animation:fill 1.8s cubic-bezier(.2,.8,.2,1) .4s backwards}
 
-@keyframes in{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+@keyframes in{from{opacity:0}}
 @keyframes fill{from{stroke-dashoffset:440}}
 
 @media (prefers-reduced-motion:reduce){.r,.arc{animation:none}}

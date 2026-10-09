@@ -65,8 +65,8 @@ ${face}
 text{font-family:"JBM",ui-monospace,Consolas,monospace}
 .tt{font-size:14px;font-weight:700;fill:#eef1ea}
 .td{font-size:12px;fill:#a5ac9e}
-.r{animation:in .8s cubic-bezier(.2,.8,.2,1) backwards}
-@keyframes in{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+.r{animation:in .7s ease-out backwards}
+@keyframes in{from{opacity:0}}
 @media (prefers-reduced-motion:reduce){.r{animation:none}}
 </style>
 <defs><pattern id="dots" width="22" height="22" patternUnits="userSpaceOnUse"><circle cx="1.5" cy="1.5" r="1.1" fill="#c9f36b" fill-opacity=".07"/></pattern>
