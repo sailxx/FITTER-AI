@@ -4,10 +4,10 @@
 text{font-family:"JBM",ui-monospace,Consolas,monospace}
 .w{fill:#ffffff}.m{fill:#8fa1b3}.b{font-weight:700}
 .ink{fill:#03301a}.sub{fill:#2f5c43}.g{fill:#6b7570}
-.r{animation:in .8s cubic-bezier(.2,.8,.2,1) backwards}
+.r{animation:in .7s ease-out backwards}
 .d1{animation-delay:.1s}.d2{animation-delay:.3s}
 .arc{stroke-dasharray:352;stroke-dashoffset:238;animation:fill 1.6s cubic-bezier(.2,.8,.2,1) .6s backwards}
-@keyframes in{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
+@keyframes in{from{opacity:0}}
 @keyframes fill{from{stroke-dashoffset:352}}
 @media (prefers-reduced-motion:reduce){.r,.arc{animation:none}}
 </style>
