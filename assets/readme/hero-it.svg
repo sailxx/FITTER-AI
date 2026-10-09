@@ -36,7 +36,7 @@ text{font-family:"JBM",ui-monospace,Consolas,monospace}
 <text x="44" y="202" class="r d3" font-size="30" font-weight="800" letter-spacing="-.9" fill="#c9f36b">L’IA conta le calorie.</text>
 <text x="44" y="236" class="r d4" font-size="14" fill="#a5ac9e">Contacalorie e macro direttamente in Telegram. Niente da installare.</text>
 
-<g class="r d2" transform="translate(770 150)">
+<g transform="translate(770 150)"><g class="r d2">
   <circle r="70" fill="none" stroke="#2a2e27" stroke-width="14"/>
   <g transform="rotate(-90)">
     <circle class="arc" r="70" fill="none" stroke="#c9f36b" stroke-width="14" stroke-linecap="round"/>
@@ -44,7 +44,7 @@ text{font-family:"JBM",ui-monospace,Consolas,monospace}
   <circle r="46" fill="#ffffff"/>
   <text y="-4" text-anchor="middle" font-size="22" font-weight="800" letter-spacing="-.8" fill="#171916">1 240</text>
   <text y="14" text-anchor="middle" font-size="10" font-weight="700" letter-spacing="1.6" fill="#5c6656">KCAL</text>
-</g>
+</g></g>
 
 <g class="r d5">
   <rect x="44" y="270" width="246" height="76" rx="14" fill="#ffffff" fill-opacity=".04" stroke="#ffffff" stroke-opacity=".08"/>
