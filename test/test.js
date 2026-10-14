@@ -736,6 +736,13 @@ console.log("✓ /app и /setup");
   s = await msg("/makeemoji");
   assert.ok(!s.some((x) => x.method === "createNewStickerSet" || x.method === "addStickerToSet"), "второй раз ничего не добавляем");
   assert.deepEqual(JSON.parse(await env.DB.get("cfg:emoji")), map);
+  // Набор уже был с яблоком — логотип FITTER заменяет его на месте
+  await env.DB.put("cfg:emojiver", "{}");
+  s = await msg("/makeemoji");
+  const rp = s.filter((x) => x.method === "replaceStickerInSet");
+  assert.equal(rp.length, 1, "заменён только логотип");
+  assert.equal(rp[0].body.old_sticker, "f5");
+  assert.match(rp[0].body.sticker.sticker, /icons\/fun\/logo\.png\?v=2$/);
   // Кастомные эмодзи от обычного пользователя не перехватываются служебной командой
   const ent = [{ type: "custom_emoji", offset: 0, length: 2, custom_emoji_id: "1" }];
   s = await call({ message: { message_id: 1, from, chat, text: "🍏", entities: ent } });
