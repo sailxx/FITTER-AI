@@ -40,6 +40,7 @@ export function createKit({ golos, mono, accent }) {
     let hi = false;
     for (const para of String(s).split('\n')) {
       let cur = [];
+      const start = lines.length;
       const flat = (arr) => arr.map((w) => w.text).join(' ');
       for (const raw of para.split(' ').filter(Boolean)) {
         // разбить слово на куски по звёздочкам
@@ -53,6 +54,9 @@ export function createKit({ golos, mono, accent }) {
         if (cur.length && width(flat([...cur, word]), size, weight, opts) > maxW) { lines.push(cur); cur = [word]; } else cur.push(word);
       }
       if (cur.length) lines.push(cur);
+      // не оставлять короткое слово («7», «и») одно на последней строке
+      const n = lines.length;
+      if (n - 1 > start && lines[n - 1].length === 1 && [...lines[n - 1][0].text].length <= 3 && lines[n - 2].length > 2) lines[n - 1].unshift(lines[n - 2].pop());
     }
     // склеить слова строки в куски [текст, акцент]
     return lines.map((words) => {
