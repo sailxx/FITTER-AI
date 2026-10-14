@@ -40,7 +40,7 @@ globalThis.fetch = async (url, opts = {}) => {
       const tg = { "🏃": "🏃‍♂️", "🚶": "🚶‍♂️", "💪": "💪🏻", "⚖️": "⚖" };
       return Response.json({ ok: true, result: { title: "FITTER", stickers: em.map((e, i) => ({ emoji: tg[e] || e, file_id: "f" + i, custom_emoji_id: String(7000 + i) })) } });
     }
-    if (method === "sendMessage" && rejectQuote && /<blockquote>[\s\S]*<tg-emoji/.test(body.text || "")) {
+    if (method === "sendMessage" && rejectQuote && /<blockquote[^>]*>(?:(?!<\/blockquote>)[\s\S])*<tg-emoji/.test(body.text || "")) {
       return Response.json({ ok: false, description: "Bad Request: test reject" });
     }
     if (method === "sendMessage") return Response.json({ ok: true, result: { message_id: ++msgId } });
@@ -198,10 +198,11 @@ assert.match(lastText(s), /<i>сегодня<\/i>/);
 assert.ok(s.at(-1).body.reply_markup.inline_keyboard.flat().some((b) => b.callback_data === "advice"));
 s = await msg("👤 Профиль");
 assert.match(lastText(s), /💪 Набрать массу\n\n\n/);
-assert.ok(!lastText(s).includes("<blockquote>"));
+assert.match(lastText(s), /<blockquote>Считаю по формуле <b>Миффлина — Сан-Жеора<\/b>/);
+assert.doesNotMatch(lastText(s), /<blockquote>(?:(?!<\/blockquote>)[\s\S])*<tg-emoji/, "в цитате нет иконок");
 assert.match(lastText(s), /🎂 16 лет/);
-assert.match(lastText(s), /💧 Вода  <b>[\d,]+ л<\/b> · \d+ стакан/);
-assert.match(lastText(s), /🥩 Белки  <b>\d+<\/b> г · \d+%/);
+assert.match(lastText(s), /💧 Вода  <b>[\d,]+ л<\/b> · <i>\d+ стакан/);
+assert.match(lastText(s), /🥩 Белки  <b>\d+<\/b> г · <i>\d+%<\/i>/);
 s = await msg("/weight 66.2");
 assert.match(lastText(s), /66.2 кг/);
 s = await msg("⚖️ Вес");
@@ -511,7 +512,8 @@ console.log("✓ /app и /setup");
 
 // Иконки в цитатах не приняты — отправляем с иконками, но без цитат, и запоминаем ошибку
 {
-  // Меню бота без цитат — уходят с первой попытки
+  // В меню цитаты без иконок — уходят с первой попытки
+  assert.match(_test.HELP || "", /<tg-spoiler>/);
   rejectQuote = true;
   s = await msg("/help");
   assert.equal(s.filter((x) => x.method === "sendMessage").length, 1);
@@ -749,7 +751,7 @@ console.log("✓ /app и /setup");
   assert.match(prof, /<tg-emoji emoji-id="7011">🏃<\/tg-emoji> 3–5 тренировок/);
   assert.match(prof, /<tg-emoji emoji-id="7012">💪<\/tg-emoji> Набрать массу/);
   s = await msg("/help");
-  assert.match(s.find((x) => x.method === "sendMessage").body.text, /<tg-emoji emoji-id="7064">1️⃣<\/tg-emoji> Сфоткай еду/);
+  assert.match(s.find((x) => x.method === "sendMessage").body.text, /<tg-emoji emoji-id="7064">1️⃣<\/tg-emoji> <b>Сфоткай<\/b> еду/);
   assert.match(s.find((x) => x.method === "sendMessage").body.text, /<tg-emoji emoji-id="7024">📊<\/tg-emoji> \/today — итоги дня/, "у команд свои иконки");
   console.log("✓ набор иконок FITTER: 72 цветные иконки, старые наборы удаляются");
 }
