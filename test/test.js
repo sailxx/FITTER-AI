@@ -200,7 +200,8 @@ s = await msg("👤 Профиль");
 assert.match(lastText(s), /💪 Набрать массу\n\n\n/);
 assert.ok(!lastText(s).includes("<blockquote>"));
 assert.match(lastText(s), /🎂 16 лет/);
-assert.match(lastText(s), /💧 Вода  <b>/);
+assert.match(lastText(s), /💧 Вода  <b>[\d,]+ л<\/b> · \d+ стакан/);
+assert.match(lastText(s), /🥩 Белки  <b>\d+<\/b> г · \d+%/);
 s = await msg("/weight 66.2");
 assert.match(lastText(s), /66.2 кг/);
 s = await msg("⚖️ Вес");
@@ -748,7 +749,8 @@ console.log("✓ /app и /setup");
   assert.match(prof, /<tg-emoji emoji-id="7011">🏃<\/tg-emoji> 3–5 тренировок/);
   assert.match(prof, /<tg-emoji emoji-id="7012">💪<\/tg-emoji> Набрать массу/);
   s = await msg("/help");
-  assert.match(s.find((x) => x.method === "sendMessage").body.text, /<tg-emoji emoji-id="7064">1️⃣<\/tg-emoji> Сфотографируй/);
+  assert.match(s.find((x) => x.method === "sendMessage").body.text, /<tg-emoji emoji-id="7064">1️⃣<\/tg-emoji> Сфоткай еду/);
+  assert.match(s.find((x) => x.method === "sendMessage").body.text, /<tg-emoji emoji-id="7024">📊<\/tg-emoji> \/today — итоги дня/, "у команд свои иконки");
   console.log("✓ набор иконок FITTER: 72 цветные иконки, старые наборы удаляются");
 }
 
