@@ -660,44 +660,52 @@ function mealKeyboard(env, date, meal) {
   return { inline_keyboard: rows };
 }
 
+// Цитаты — без иконок внутри: так Telegram принимает сообщение с первой попытки
 const HELP = `🍏 <b>FITTER</b>
-<i>Считаю калории по фото — быстро и без весов</i>
+<blockquote><i>Считаю калории по фото — быстро, весело и без кухонных весов</i></blockquote>
 
 
 📸 <b>Как это работает</b>
 
-1️⃣ Сфоткай еду и пришли мне
-2️⃣ Узнаю блюда и посчитаю КБЖУ
-3️⃣ Что-то не так? Нажми ✏️ — поправлю
-4️⃣ Всё ляжет в дневник 📱
+1️⃣ <b>Сфоткай</b> еду и пришли мне
+2️⃣ Узнаю блюда и посчитаю <b>КБЖУ</b>
+3️⃣ Что-то не так? Нажми ✏️ — <u>поправлю</u>
+4️⃣ Всё ляжет в <b>дневник</b> 📱
 
 
-✨ <b>Ещё умею</b>
+✨ <b>Ещё умею</b> — <i>просто напиши</i>
 
-📝 «съел 2 яйца и тост» — запишу без фото
-💬 «сколько белка в твороге?» — отвечу
-📦 Этикетка или штрихкод — найду КБЖУ
-💧 «вода 300» — отмечу воду
+📝 <code>съел 2 яйца и тост</code> — запишу без фото
+💬 <code>сколько белка в твороге?</code> — отвечу
+💧 <code>вода 300</code> — отмечу воду
 ⚖️ <code>/weight 72.5</code> — запишу вес и обновлю норму
+📦 Фото <b>этикетки</b> или <b>штрихкода</b> — найду КБЖУ
+
+💡 <b>Лайфхак:</b> <tg-spoiler>пиши «+500» — сразу запишу пол-литра воды</tg-spoiler>
 
 
 ⌨️ <b>Команды</b>
 
+<u>Каждый день</u>
 📊 /today — итоги дня
-📅 /week — неделя
 🥗 /advice — что съесть
-🧠 /analysis — разбор недели
 💧 /water — вода
 💊 /pills — таблетки
-⏰ /remind — напоминания
+
+<u>Итоги</u>
+📅 /week — неделя
+🧠 /analysis — разбор недели
 🏆 /awards — достижения
+
+<u>Профиль</u>
 👤 /profile — профиль и норма
 📱 /app — дневник
+⏰ /remind — напоминания
 🔄 /reset — пройти анкету заново
 🗑 /delete — удалить мои данные
 
 
-<i>FITTER считает примерно и не заменяет врача</i>`;
+<blockquote><i>FITTER считает примерно и не заменяет врача или диетолога</i></blockquote>`;
 
 // ───────────────────────────── Обработка сообщений ─────────────────────────────
 
@@ -1800,11 +1808,13 @@ async function sendProfile(env, u, chatId) {
     `${GOALS[u.goal]}\n\n\n` +
     `🎯 <b>Норма на день</b>\n\n` +
     `🔥 <b>${t.kcal}</b> ккал\n` +
-    `🥩 Белки  <b>${t.p}</b> г · ${share(t.p, 4)}\n` +
-    `🧈 Жиры  <b>${t.f}</b> г · ${share(t.f, 9)}\n` +
-    `🍞 Углеводы  <b>${t.c}</b> г · ${share(t.c, 4)}\n` +
-    `💧 Вода  <b>${liters(waterGoal(u))}</b> · ${glasses} ${plural(glasses, "стакан", "стакана", "стаканов")}\n\n\n` +
-    `<i>Норма пересчитается сама, когда запишешь новый вес</i>`;
+    `🥩 Белки  <b>${t.p}</b> г · <i>${share(t.p, 4)}</i>\n` +
+    `🧈 Жиры  <b>${t.f}</b> г · <i>${share(t.f, 9)}</i>\n` +
+    `🍞 Углеводы  <b>${t.c}</b> г · <i>${share(t.c, 4)}</i>\n` +
+    `💧 Вода  <b>${liters(waterGoal(u))}</b> · <i>${glasses} ${plural(glasses, "стакан", "стакана", "стаканов")}</i>\n\n` +
+    // Цитата без иконок: так Telegram принимает сообщение с первой попытки
+    `<blockquote>Считаю по формуле <b>Миффлина — Сан-Жеора</b> с учётом активности и цели.\n` +
+    `Норма пересчитается сама, когда запишешь новый вес</blockquote>`;
   return send(env, chatId, text, {
     reply_markup: {
       inline_keyboard: [
@@ -3720,4 +3730,4 @@ const APP_HTML = `<!doctype html>
 </html>`;
 
 // Для тестов
-export const _test = { checkAiLimit, appHeaders, waterTick, pillTick, parsePill, nextSlot, slotOf, adviceText, weekTip, startSource, statsText, spark, ACHIEVEMENTS, baseEmoji, calcTargets, verifyInitData, cleanItems, sumItems, parseFix, parseWater, cleanBarcode, waterGoal, APP_HTML };
+export const _test = { checkAiLimit, appHeaders, waterTick, pillTick, parsePill, nextSlot, slotOf, adviceText, weekTip, startSource, statsText, spark, ACHIEVEMENTS, baseEmoji, calcTargets, verifyInitData, cleanItems, sumItems, parseFix, parseWater, cleanBarcode, waterGoal, HELP, APP_HTML };
