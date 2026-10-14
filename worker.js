@@ -661,38 +661,40 @@ function mealKeyboard(env, date, meal) {
 }
 
 const HELP = `🍏 <b>FITTER</b>
-<i>Одно фото. Полный контроль.</i>
+<i>Считаю калории по фото — быстро и без весов</i>
 
 
 📸 <b>Как это работает</b>
 
-1️⃣ Сфотографируй еду и отправь сюда
-2️⃣ Я найду продукты и посчитаю КБЖУ
-3️⃣ Ошибся? Нажми ✏️ под записью
-4️⃣ Всё сохранится в дневник
+1️⃣ Сфоткай еду и пришли мне
+2️⃣ Узнаю блюда и посчитаю КБЖУ
+3️⃣ Что-то не так? Нажми ✏️ — поправлю
+4️⃣ Всё ляжет в дневник 📱
 
 
 ✨ <b>Ещё умею</b>
 
-📝 «съел 2 яйца и тост» — запишу
+📝 «съел 2 яйца и тост» — запишу без фото
 💬 «сколько белка в твороге?» — отвечу
 📦 Этикетка или штрихкод — найду КБЖУ
 💧 «вода 300» — отмечу воду
-⚖️ <code>/weight 72.5</code> — запишу вес
+⚖️ <code>/weight 72.5</code> — запишу вес и обновлю норму
 
 
 ⌨️ <b>Команды</b>
 
-/today  итоги дня
-/week  неделя
-/water  вода  ·  /pills  таблетки
-/weight  вес  ·  /remind  напоминания
-/advice  что съесть
-/analysis  разбор недели
-/awards  достижения
-/profile  профиль  ·  /app  дневник
-/reset  анкета заново
-/delete  удалить мои данные
+📊 /today — итоги дня
+📅 /week — неделя
+🥗 /advice — что съесть
+🧠 /analysis — разбор недели
+💧 /water — вода
+💊 /pills — таблетки
+⏰ /remind — напоминания
+🏆 /awards — достижения
+👤 /profile — профиль и норма
+📱 /app — дневник
+🔄 /reset — пройти анкету заново
+🗑 /delete — удалить мои данные
 
 
 <i>FITTER считает примерно и не заменяет врача</i>`;
@@ -1786,25 +1788,28 @@ function adviceKeyboard(options) {
 async function sendProfile(env, u, chatId) {
   const t = u.targets;
   const yrs = `${u.age} ${plural(u.age, "год", "года", "лет")}`;
+  // Доля калорий из белков, жиров и углеводов
+  const share = (g, k) => `${Math.round((g * k * 100) / t.kcal)}%`;
+  const glasses = Math.round(waterGoal(u) / 250);
   const text =
-    `👤 <b>${esc(u.name || "Профиль")}</b>\n\n\n` +
-    `${u.sex === "m" ? "👨 Мужской" : "👩 Женский"} · 🎂 ${yrs}\n` +
-    `📏 ${u.height} см · ⚖️ ${u.weight} кг\n` +
+    `👤 <b>${esc(u.name || "Профиль")}</b>\n<i>Твои данные и норма на день</i>\n\n\n` +
+    `${u.sex === "m" ? "👨 Мужчина" : "👩 Женщина"} · 🎂 ${yrs}\n` +
+    `📏 Рост  <b>${u.height}</b> см\n` +
+    `⚖️ Вес  <b>${u.weight}</b> кг\n` +
     `${ACTIVITY[u.activity]}\n` +
     `${GOALS[u.goal]}\n\n\n` +
     `🎯 <b>Норма на день</b>\n\n` +
     `🔥 <b>${t.kcal}</b> ккал\n` +
-    `🥩 Белки  <b>${t.p}</b> г\n` +
-    `🧈 Жиры  <b>${t.f}</b> г\n` +
-    `🍞 Углеводы  <b>${t.c}</b> г\n` +
-    `💧 Вода  <b>${liters(waterGoal(u))}</b>\n\n` +
-    `<i>Норма пересчитается, когда запишешь новый вес</i>`;
+    `🥩 Белки  <b>${t.p}</b> г · ${share(t.p, 4)}\n` +
+    `🧈 Жиры  <b>${t.f}</b> г · ${share(t.f, 9)}\n` +
+    `🍞 Углеводы  <b>${t.c}</b> г · ${share(t.c, 4)}\n` +
+    `💧 Вода  <b>${liters(waterGoal(u))}</b> · ${glasses} ${plural(glasses, "стакан", "стакана", "стаканов")}\n\n\n` +
+    `<i>Норма пересчитается сама, когда запишешь новый вес</i>`;
   return send(env, chatId, text, {
     reply_markup: {
       inline_keyboard: [
-        [{ text: "⚖️ Записать вес", callback_data: "askw" }, { text: "📅 Неделя", callback_data: "week" }],
-        [{ text: "🏆 Достижения", callback_data: "awards" }],
-        [{ text: "✏️ Изменить анкету", callback_data: "reset" }],
+        [{ text: "⚖️ Записать вес", callback_data: "askw" }, { text: "🏆 Достижения", callback_data: "awards" }],
+        [{ text: "📅 Неделя", callback_data: "week" }, { text: "✏️ Изменить анкету", callback_data: "reset" }],
       ],
     },
   });
