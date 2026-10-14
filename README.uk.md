@@ -6,7 +6,7 @@
 
 <img src="assets/readme/hero-uk.svg" width="100%" alt="FITTER — Сфотографуй їжу. ШІ порахує калорії. Лічильник калорій і БЖВ просто в Telegram.">
 
-<a href="https://t.me/FitterFoodBot?start=github"><img src="assets/readme/cta-bot.svg" height="44" alt="Відкрити @FitterFoodBot у Telegram"></a>&nbsp;&nbsp;<a href="https://sailxx.github.io/FITTER-AI/"><img src="assets/readme/cta-site.svg" height="44" alt="Сайт FITTER"></a>
+<a href="https://t.me/FitterFoodBot?start=github"><img src="assets/readme/cta-bot.svg" height="52" alt="Відкрити @FitterFoodBot у Telegram"></a>&nbsp;&nbsp;<a href="https://sailxx.github.io/FITTER-AI/"><img src="assets/readme/cta-site.svg" height="52" alt="Сайт FITTER"></a>
 
 <sub><a href="#-можливості">Можливості</a> · <a href="#-як-це-працює">Як працює</a> · <a href="#-скриншоти">Скриншоти</a> · <a href="https://t.me/arkhitkovv">Зв’язок</a></sub>
 

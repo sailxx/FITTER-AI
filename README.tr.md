@@ -6,7 +6,7 @@
 
 <img src="assets/readme/hero-tr.svg" width="100%" alt="FITTER — Yemeğinin fotoğrafını çek. Kalorileri YZ saysın. Telegram içinde kalori ve makro takibi.">
 
-<a href="https://t.me/FitterFoodBot?start=github"><img src="assets/readme/cta-bot.svg" height="44" alt="Telegram'da @FitterFoodBot'u aç"></a>&nbsp;&nbsp;<a href="https://sailxx.github.io/FITTER-AI/"><img src="assets/readme/cta-site.svg" height="44" alt="FITTER web sitesi"></a>
+<a href="https://t.me/FitterFoodBot?start=github"><img src="assets/readme/cta-bot.svg" height="52" alt="Telegram'da @FitterFoodBot'u aç"></a>&nbsp;&nbsp;<a href="https://sailxx.github.io/FITTER-AI/"><img src="assets/readme/cta-site.svg" height="52" alt="FITTER web sitesi"></a>
 
 <sub><a href="#-özellikler">Özellikler</a> · <a href="#-nasıl-çalışır">Nasıl çalışır</a> · <a href="#-ekran-görüntüleri">Ekran görüntüleri</a> · <a href="https://t.me/arkhitkovv">İletişim</a></sub>
 

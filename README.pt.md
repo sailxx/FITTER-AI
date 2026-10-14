@@ -6,7 +6,7 @@
 
 <img src="assets/readme/hero-pt.svg" width="100%" alt="FITTER — Fotografe sua refeição. A IA conta as calorias. Contador de calorias e macros dentro do Telegram.">
 
-<a href="https://t.me/FitterFoodBot?start=github"><img src="assets/readme/cta-bot.svg" height="44" alt="Abrir @FitterFoodBot no Telegram"></a>&nbsp;&nbsp;<a href="https://sailxx.github.io/FITTER-AI/"><img src="assets/readme/cta-site.svg" height="44" alt="Site do FITTER"></a>
+<a href="https://t.me/FitterFoodBot?start=github"><img src="assets/readme/cta-bot.svg" height="52" alt="Abrir @FitterFoodBot no Telegram"></a>&nbsp;&nbsp;<a href="https://sailxx.github.io/FITTER-AI/"><img src="assets/readme/cta-site.svg" height="52" alt="Site do FITTER"></a>
 
 <sub><a href="#-recursos">Recursos</a> · <a href="#-como-funciona">Como funciona</a> · <a href="#-capturas-de-tela">Capturas</a> · <a href="https://t.me/arkhitkovv">Contato</a></sub>
 

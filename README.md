@@ -6,7 +6,7 @@
 
 <img src="assets/readme/hero-ru.svg" width="100%" alt="FITTER — Сфоткай еду. ИИ посчитает калории. Счётчик калорий и БЖУ прямо в Telegram.">
 
-<a href="https://t.me/FitterFoodBot?start=github"><img src="assets/readme/cta-bot.svg" height="44" alt="Открыть @FitterFoodBot в Telegram"></a>&nbsp;&nbsp;<a href="https://sailxx.github.io/FITTER-AI/"><img src="assets/readme/cta-site.svg" height="44" alt="Сайт FITTER"></a>
+<a href="https://t.me/FitterFoodBot?start=github"><img src="assets/readme/cta-bot.svg" height="52" alt="Открыть @FitterFoodBot в Telegram"></a>&nbsp;&nbsp;<a href="https://sailxx.github.io/FITTER-AI/"><img src="assets/readme/cta-site.svg" height="52" alt="Сайт FITTER"></a>
 
 <sub><a href="#-возможности">Возможности</a> · <a href="#-как-это-работает">Как работает</a> · <a href="#-скриншоты">Скриншоты</a> · <a href="https://t.me/arkhitkovv">Связь</a></sub>
 
@@ -231,7 +231,7 @@ sequenceDiagram
 <div align="center">
 
 [![Бот](https://img.shields.io/badge/Telegram-@FitterFoodBot-2CA5E0?style=for-the-badge&logo=telegram&logoColor=white)](https://t.me/FitterFoodBot?start=github)
-[![Автор](https://img.shields.io/badge/Автор-@arkhitkovv-c9f36b?style=for-the-badge&labelColor=171916&logo=telegram&logoColor=white)](https://t.me/arkhitkovv)
+[![Автор](https://img.shields.io/badge/Автор-@arkhitkovv-30D158?style=for-the-badge&labelColor=000000&logo=telegram&logoColor=white)](https://t.me/arkhitkovv)
 
 </div>
 

@@ -6,7 +6,7 @@
 
 <img src="assets/readme/hero-pl.svg" width="100%" alt="FITTER — Zrób zdjęcie posiłku. AI policzy kalorie. Licznik kalorii i makro prosto w Telegramie.">
 
-<a href="https://t.me/FitterFoodBot?start=github"><img src="assets/readme/cta-bot.svg" height="44" alt="Otwórz @FitterFoodBot w Telegramie"></a>&nbsp;&nbsp;<a href="https://sailxx.github.io/FITTER-AI/"><img src="assets/readme/cta-site.svg" height="44" alt="Strona FITTER"></a>
+<a href="https://t.me/FitterFoodBot?start=github"><img src="assets/readme/cta-bot.svg" height="52" alt="Otwórz @FitterFoodBot w Telegramie"></a>&nbsp;&nbsp;<a href="https://sailxx.github.io/FITTER-AI/"><img src="assets/readme/cta-site.svg" height="52" alt="Strona FITTER"></a>
 
 <sub><a href="#-funkcje">Funkcje</a> · <a href="#-jak-to-działa">Jak to działa</a> · <a href="#-zrzuty-ekranu">Zrzuty ekranu</a> · <a href="https://t.me/arkhitkovv">Kontakt</a></sub>
 

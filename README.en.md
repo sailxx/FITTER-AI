@@ -6,7 +6,7 @@
 
 <img src="assets/readme/hero-en.svg" width="100%" alt="FITTER — Snap your meal. AI counts the calories. A calorie and macro tracker that lives in Telegram.">
 
-<a href="https://t.me/FitterFoodBot?start=github"><img src="assets/readme/cta-bot.svg" height="44" alt="Open @FitterFoodBot in Telegram"></a>&nbsp;&nbsp;<a href="https://sailxx.github.io/FITTER-AI/"><img src="assets/readme/cta-site.svg" height="44" alt="FITTER website"></a>
+<a href="https://t.me/FitterFoodBot?start=github"><img src="assets/readme/cta-bot.svg" height="52" alt="Open @FitterFoodBot in Telegram"></a>&nbsp;&nbsp;<a href="https://sailxx.github.io/FITTER-AI/"><img src="assets/readme/cta-site.svg" height="52" alt="FITTER website"></a>
 
 <sub><a href="#-features">Features</a> · <a href="#-how-it-works">How it works</a> · <a href="#-screenshots">Screenshots</a> · <a href="https://t.me/arkhitkovv">Contact</a></sub>
 
