@@ -2765,12 +2765,8 @@ const APP_HTML = `<!doctype html>
     --h-ink:#03301a;--h-sub:rgba(3,48,26,.75);--h-btn:rgba(255,255,255,.42);--h-chip:rgba(255,255,255,.5);--h-track:rgba(3,48,26,.12);--h-arc:#ffffff;--h-arc2:#e6fff1;
     --h-sel:#03301a;--h-sel-ink:#5dffad;--h-sel-sub:rgba(93,255,173,.7);--h-dot-ok:#03301a;--h-dot-lo:rgba(3,48,26,.3);--h-dot-ov:#d93a2f;--h-shadow:0 12px 30px rgba(31,236,132,.3)}
   html[data-theme="dark"]{--h-shadow:0 12px 30px rgba(31,236,132,.18)}
-  /* Светлая тема: воздушная мятная шапка вместо кислотно-зелёной, зелёная дуга на белом кольце */
-  html[data-theme="light"]{--h-bg:radial-gradient(80% 90% at 92% -10%,rgba(255,255,255,.95),rgba(255,255,255,0) 62%),linear-gradient(170deg,#e6fff1,#c4f8dc 55%,#9ef0c4);
-    --h-btn:rgba(255,255,255,.7);--h-chip:rgba(255,255,255,.78);--h-track:rgba(22,184,106,.16);--h-arc:#16b86a;--h-arc2:#2ee59d;--h-shadow:0 14px 32px rgba(31,200,120,.16)}
-  html[data-theme="light"] .hero:before{background:rgba(255,255,255,.6)}
-  html[data-theme="light"] .ring .arc{filter:drop-shadow(0 3px 8px rgba(22,184,106,.3))}
-  html[data-theme="light"] .ring.ok .arc{filter:drop-shadow(0 0 8px rgba(46,229,157,.7))}
+  /* Светлая тема: яркая шапка, воздух вокруг белого кольца */
+  html[data-theme="light"]{--h-bg:radial-gradient(90% 70% at 90% -12%,rgba(230,255,240,.85),rgba(230,255,240,0) 60%),linear-gradient(165deg,#62ffb0,#2ef88f 50%,#12e97c);--h-shadow:0 14px 32px rgba(18,233,124,.32)}
   html[data-theme="light"] .ring .in{box-shadow:0 8px 24px rgba(22,184,106,.18)}
   html.tt,html.tt *{transition:background-color .3s,color .3s,border-color .3s!important}
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
@@ -2790,8 +2786,6 @@ const APP_HTML = `<!doctype html>
   .nav{display:flex;align-items:center;gap:6px;flex:none}
   .nav button{width:36px;height:36px;border-radius:12px;background:var(--h-btn);color:var(--h-ink);display:flex;align-items:center;justify-content:center}
   .nav button svg{width:18px;height:18px}
-  .av{width:40px;height:40px;border-radius:50%;background:#fff;color:#0a7a43;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:17px;margin-left:2px;box-shadow:0 4px 12px rgba(5,46,28,.14)}
-  .av:empty{display:none}
   .week{position:relative;z-index:1;display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin:16px 0 8px}
   .wd{background:transparent;color:var(--h-ink);border-radius:14px;padding:7px 0;display:flex;flex-direction:column;align-items:center;gap:2px}
   .wd small{font-size:12px;font-weight:600;color:var(--h-sub)}
@@ -2826,10 +2820,10 @@ const APP_HTML = `<!doctype html>
   .chip.over{background:#d93a2f;color:#fff}
   .chips{display:flex;gap:8px;flex-wrap:wrap;justify-content:center}
 
-  .wrap{padding:0 12px}
+  .wrap{padding:0 16px}
   /* ── БЖУ ── */
-  .macros{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:-14px;position:relative;z-index:2}
-  .mc{background:var(--card);border:1px solid var(--edge);border-radius:var(--r);padding:12px;box-shadow:var(--shadow);position:relative;overflow:hidden}
+  .macros{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:-14px;position:relative;z-index:2}
+  .mc{background:var(--card);border:1px solid var(--edge);border-radius:var(--r);padding:16px 14px;box-shadow:var(--shadow);position:relative;overflow:hidden}
   .mc .ib{width:30px;height:30px;border-radius:10px;display:flex;align-items:center;justify-content:center;margin-bottom:10px}
   .mc .ib .ic{width:20px;height:20px}
   .mc .lb{font-size:12px;color:var(--hint);font-weight:600}
@@ -2845,14 +2839,14 @@ const APP_HTML = `<!doctype html>
   html[data-theme="dark"] .mc .st .ok{color:var(--g1)}
   .mc .vl,.meal .k,.wt b,.ring .in b,.wb em{font-variant-numeric:tabular-nums}
   /* Подсказка по БЖУ */
-  .hint{margin-top:8px;background:var(--card);border:1px solid var(--edge);border-radius:var(--r);padding:12px 14px 12px 32px;font-size:14px;line-height:1.4;box-shadow:var(--shadow);position:relative;text-wrap:pretty}
+  .hint{margin-top:12px;background:var(--card);border:1px solid var(--edge);border-radius:var(--r);padding:15px 16px 15px 34px;font-size:14px;line-height:1.4;box-shadow:var(--shadow);position:relative;text-wrap:pretty}
   .hint:before{content:"";position:absolute;left:14px;top:18px;width:8px;height:8px;border-radius:50%;background:var(--p)}
   .hint b{font-weight:800}
   .hint.good:before{background:var(--c)}
   .hint.warn:before{background:var(--danger)}
 
   /* ── Вода ── */
-  .water{margin-top:8px;border-radius:var(--r);padding:14px;color:#fff;display:flex;align-items:center;gap:14px;position:relative;overflow:hidden;
+  .water{margin-top:12px;border-radius:var(--r);padding:18px;color:#fff;display:flex;align-items:center;gap:14px;position:relative;overflow:hidden;
     background:linear-gradient(135deg,var(--w1),var(--w2));box-shadow:0 8px 22px rgba(42,123,240,.24);transition:box-shadow .4s}
   .water:after{content:"";position:absolute;width:160px;height:160px;border-radius:50%;right:-50px;top:-70px;background:rgba(255,255,255,.12)}
   .water.done{box-shadow:0 0 0 2px rgba(255,255,255,.7) inset,0 8px 26px rgba(42,123,240,.4)}
@@ -2874,7 +2868,7 @@ const APP_HTML = `<!doctype html>
   .wbtn button{height:36px;border-radius:12px;padding:0 14px;font-weight:700;font-size:14px;background:rgba(255,255,255,.22);color:#fff}
   .wbtn button.add{background:#fff;color:var(--w2)}
   /* ── Таблетки ── */
-  .pills{background:var(--card);border:1px solid var(--edge);border-radius:var(--r);padding:12px 14px;margin-top:8px;box-shadow:var(--shadow)}
+  .pills{background:var(--card);border:1px solid var(--edge);border-radius:var(--r);padding:16px 18px;margin-top:12px;box-shadow:var(--shadow)}
   .pills .ph{display:flex;align-items:center;gap:10px}
   .pills .ib{width:36px;height:36px;border-radius:12px;background:rgba(143,91,255,.1);display:flex;align-items:center;justify-content:center;flex:none;font-size:18px}
   .pills .t{flex:1;min-width:0;font-weight:800}
@@ -2910,7 +2904,7 @@ const APP_HTML = `<!doctype html>
   /* ── Приёмы пищи ── */
   h3{margin:24px 4px 10px;font-size:17px;font-weight:800;display:flex;align-items:center;justify-content:space-between}
   h3 small{font-size:13px;color:var(--hint);font-weight:600}
-  .meal{background:var(--card);border:1px solid var(--edge);border-radius:var(--r);padding:12px 14px 4px;margin-bottom:8px;box-shadow:var(--shadow)}
+  .meal{background:var(--card);border:1px solid var(--edge);border-radius:var(--r);padding:16px 18px 8px;margin-bottom:12px;box-shadow:var(--shadow)}
   .meal .hd{display:flex;align-items:center;gap:10px;margin-bottom:4px}
   .meal .ib{width:36px;height:36px;border-radius:12px;background:var(--c-bg);display:flex;align-items:center;justify-content:center;flex:none}
   .meal .ib .ic{width:24px;height:24px}
@@ -2929,7 +2923,7 @@ const APP_HTML = `<!doctype html>
   .it .g{color:var(--hint);font-size:13px}
   .it .ren{width:100%;padding:5px 8px;border-radius:9px;border:2px solid var(--g2);background:var(--bg);color:var(--text);font:inherit;outline:none}
   .del{display:block;width:100%;background:transparent;color:var(--danger);font-size:13px;font-weight:600;padding:10px 0;border-top:1px solid var(--line);opacity:.85}
-  .addm{display:flex;align-items:flex-end;gap:8px;background:var(--card);border-radius:var(--r);padding:6px 6px 6px 15px;box-shadow:var(--shadow);border:1px solid var(--edge);transition:border-color .2s,box-shadow .2s}
+  .addm{display:flex;align-items:flex-end;gap:8px;background:var(--card);border-radius:var(--r);padding:8px 8px 8px 18px;box-shadow:var(--shadow);border:1px solid var(--edge);transition:border-color .2s,box-shadow .2s}
   .addm:focus-within{border-color:var(--g2);box-shadow:0 0 0 3px var(--c-bg)}
   .addm textarea{flex:1;min-width:0;border:0;background:transparent;color:var(--text);font:inherit;font-size:15px;line-height:1.4;padding:10px 0;resize:none;outline:none;max-height:120px}
   .addm textarea::placeholder{color:var(--hint)}
@@ -2950,7 +2944,7 @@ const APP_HTML = `<!doctype html>
   .mbar .p{background:var(--p)} .mbar .f{background:var(--f)} .mbar .c{background:var(--c)}
 
   /* ── Неделя ── */
-  .wkc{background:var(--card);border:1px solid var(--edge);border-radius:var(--r);padding:22px 10px 12px;box-shadow:var(--shadow)}
+  .wkc{background:var(--card);border:1px solid var(--edge);border-radius:var(--r);padding:24px 14px 16px;box-shadow:var(--shadow)}
   .wkc .bars{position:relative;display:grid;grid-template-columns:repeat(7,1fr);gap:4px;height:156px}
   .wkc .nl{position:absolute;left:4px;right:4px;height:0;border-top:1.5px dashed var(--hint);opacity:.6;pointer-events:none;z-index:1}
   .wkc .nl span{position:absolute;right:0;top:-18px;font-size:11px;font-weight:700;color:var(--hint);background:var(--card);padding:0 4px}
@@ -2974,7 +2968,7 @@ const APP_HTML = `<!doctype html>
   .wsum .lg i.ok{background:var(--g2)} .wsum .lg i.lo{background:#9fe3bf} .wsum .lg i.ov{background:var(--p)}
 
   /* ── Вес ── */
-  .wcard{background:var(--card);border:1px solid var(--edge);border-radius:var(--r);padding:12px 14px;box-shadow:var(--shadow);display:flex;align-items:center;gap:12px}
+  .wcard{background:var(--card);border:1px solid var(--edge);border-radius:var(--r);padding:16px 18px;box-shadow:var(--shadow);display:flex;align-items:center;gap:14px}
   .wcard .ib{width:36px;height:36px;border-radius:12px;background:rgba(127,140,155,.14);display:flex;align-items:center;justify-content:center;flex:none;color:#8e9aa6}
   .wcard .v{flex:1}
   .wcard .v b{font-size:22px;font-weight:800}
@@ -3000,7 +2994,7 @@ const APP_HTML = `<!doctype html>
 <div class="hero">
   <div class="top">
     <div class="ttl"><b id="dl">Дневник</b><small id="ds">FITTER</small></div>
-    <div class="nav"><button id="prev" aria-label="Предыдущий день"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg></button><button id="next" aria-label="Следующий день"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5l7 7-7 7"/></svg></button><button id="theme" aria-label="Сменить тему"></button><span class="av" id="av"></span></div>
+    <div class="nav"><button id="prev" aria-label="Предыдущий день"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg></button><button id="next" aria-label="Следующий день"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5l7 7-7 7"/></svg></button><button id="theme" aria-label="Сменить тему"></button></div>
   </div>
   <div id="hero"><div class="load">Загрузка…</div></div>
 </div>
@@ -3344,7 +3338,6 @@ const APP_HTML = `<!doctype html>
     var wdi = (new Date(d.date + "T00:00:00Z").getUTCDay() + 6) % 7;
     document.getElementById("dl").textContent = d.date === d.today ? "Сегодня" : d.date === shift(d.today, -1) ? "Вчера" : human(d.date);
     document.getElementById("ds").textContent = d.date === d.today ? WDF[wdi] + ", " + human(d.date) : WDF[wdi];
-    document.getElementById("av").textContent = d.name ? String(d.name).trim().charAt(0).toUpperCase() : "";
     document.getElementById("next").style.visibility = d.date >= d.today ? "hidden" : "visible";
 
     var week = '<div class="week">' + d.week.map(function(w, i){
