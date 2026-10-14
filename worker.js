@@ -1338,42 +1338,24 @@ function parseWater(text) {
   return ml >= 30 && ml <= 3000 ? Math.round(ml) : null;
 }
 
-// Прогресс воды: «1 л из 2,05 л · 49%», полоска и сколько осталось стаканами
-function waterProgress(ml, goal) {
-  const left = goal - ml;
-  const glasses = Math.ceil(left / 250);
-  return `<b>${liters(ml)}</b> из ${liters(goal)} · ${pctOf(ml, goal)}%\n${squares(Math.min(ml, goal), goal, "🟦")}\n` +
-    (left > 0 ? `Ещё ${liters(left)} — это ${glasses} ${plural(glasses, "стакан", "стакана", "стаканов")} 🥛` : "🎉 <b>Норма выполнена!</b> Ты молодец");
-}
-
-// Подбадривание по прогрессу
-function waterCheer(ml, goal) {
-  const p = goal ? ml / goal : 0;
-  if (p >= 1) return "";
-  if (p === 0) return "Начни со стакана воды — это проще всего 💦";
-  if (p < 0.5) return "Хорошее начало, продолжай 💪";
-  if (p < 0.8) return "Больше половины — так держать! 🔥";
-  return "Почти у цели, ещё чуть-чуть 🏁";
-}
-
 function waterText(u, day, date, added) {
   const ml = day.water || 0;
   const goal = waterGoal(u);
-  const cheer = waterCheer(ml, goal);
+  const left = goal - ml;
   return (
-    `💧 <b>Вода · ${date === today(u) ? "сегодня" : humanDate(date)}</b>\n` +
-    (added ? (added > 0 ? `✅ +${added} мл — записал!\n` : `↩️ −${-added} мл — убрал\n`) : "") +
-    `\n${waterProgress(ml, goal)}\n` +
-    (cheer ? `<i>${cheer}</i>\n` : "") +
-    `\n<i>Норма — 30 мл на кг веса. Пиши «вода 300» или «+500» — запишу сам</i>`
+    `💧 <b>Вода ${date === today(u) ? "за сегодня" : "за " + humanDate(date)}</b>` +
+    (added ? ` · ${added > 0 ? "+" : "−"}${Math.abs(added)} мл записал` : "") + `\n\n\n` +
+    `<b>${liters(ml)}</b> / ${liters(goal)}\n${squares(Math.min(ml, goal), goal, "🟦")}\n` +
+    (left > 0 ? `<i>Осталось ${left} мл · ${pctOf(ml, goal)}%</i>` : "<i>Норма воды выполнена</i> 🎉") +
+    `\n\n\n<i>Норма — 30 мл на кг веса. Можно написать «вода 300» или «+500»</i>`
   );
 }
 
 function waterKeyboard(date) {
   return {
     inline_keyboard: [
-      [{ text: "💧 Стакан +250", callback_data: `w|${date}|250` }, { text: "💧 Бутылка +500", callback_data: `w|${date}|500` }],
-      [{ text: "↩️ Убрать 250", callback_data: `w|${date}|-250` }, { text: "⏰ Напоминания", callback_data: "wr|menu" }],
+      [{ text: "💧 +250 мл", callback_data: `w|${date}|250` }, { text: "💧 +500 мл", callback_data: `w|${date}|500` }],
+      [{ text: "↩️ −250 мл", callback_data: `w|${date}|-250` }, { text: "⏰ Напоминания", callback_data: "wr|menu" }],
     ],
   };
 }
@@ -2188,13 +2170,15 @@ async function waterTick(env, now = Date.now()) {
     if (ml >= goal) continue; // норма уже выполнена
     w.last = now;
     await saveUser(env, u);
+    const left = goal - ml;
     await send(env, u.id,
-      `💧 <b>Пора попить воды!</b>\n<i>${waterCheer(ml, goal)}</i>\n\n${waterProgress(ml, goal)}`,
+      `💧 <b>Время попить воды!</b>\n\n<b>${liters(ml)}</b> из ${liters(goal)} · ${pctOf(ml, goal)}%\n${squares(ml, goal, "🟦")}\n` +
+      `Осталось ${left} мл, это примерно ${Math.ceil(left / 250)} стак.`,
       {
         disable_notification: false,
         reply_markup: {
           inline_keyboard: [
-            [{ text: "💧 Стакан +250", callback_data: `w|${date}|250` }, { text: "💧 Бутылка +500", callback_data: `w|${date}|500` }],
+            [{ text: "💧 +250 мл", callback_data: `w|${date}|250` }, { text: "💧 +500 мл", callback_data: `w|${date}|500` }],
             [{ text: "⏰ Настроить напоминания", callback_data: "wr|menu" }],
           ],
         },
