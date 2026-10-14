@@ -197,34 +197,44 @@ async function sendEmojiIds(env, chatId, msg) {
   return tgRaw(env, "sendMessage", { chat_id: chatId, parse_mode: "HTML", text: "🔢 Номера иконок:\n\n" + lines.join("\n") });
 }
 
-// Свои иконки FITTER: бот создаёт один набор «FITTER ICONS» в аккаунте того, кто отправил /makeemoji
-// Еда, весы, таблетки и квадратики шкал — цветные, дневник — серый, логотип — чёрно-белая плашка
-// Картинки 100×100 лежат в репозитории в папке icons/pack/
+// Свои иконки FITTER: бот создаёт набор «FITTER» в аккаунте того, кто отправил /makeemoji
+// Все иконки цветные и весёлые, в одном стиле: объёмный градиент, белый блик, мягкая тень
+// Картинки 100×100 рисует tools/emoji/build.mjs, они лежат в репозитории в папке icons/fun/
 const ICON_BASE = "https://raw.githubusercontent.com/sailxx/fitter-ai/main/icons/";
 const ICON_SETS = [
   {
-    suffix: "", title: "FITTER ICONS", repaint: false, folder: "pack/",
+    suffix: "fun", title: "FITTER", repaint: false, folder: "fun/",
     // файл, эмодзи для набора, какой эмодзи в боте заменить, версия картинки (если её перерисовали)
     icons: [
-      ["plate", "🍽", "🍽"], ["protein", "🍗", "🥩"], ["fat", "💧", "🧈"], ["carbs", "🌾", "🍞"], ["kcal", "🔥", "🔥"],
-      ["scales", "⚖️", "⚖", 2], ["diary", "📔", "📱"], ["fitter", "🍏", "🍏"],
-      ["sofa", "🛋", "🛋"], ["walk", "🚶", "🚶"], ["run", "🏃", "🏃"], ["muscle", "💪", "💪"], ["lose", "📉", "📉"],
-      ["water", "🥤", "💧"], ["barcode", "📦", "📦"],
-      ["ruler", "📏", "📏"], ["cake", "🎂", "🎂"], ["trophy", "🏆", "🏆"],
+      // еда и БЖУ
+      ["plate", "🍽", "🍽"], ["protein", "🍗", "🥩"], ["fat", "🧈", "🧈"], ["carbs", "🍞", "🍞"], ["kcal", "🔥", "🔥"],
+      ["apple", "🍏", "🍏"], ["salad", "🥗", "🥗"], ["broccoli", "🥦", "🥦"],
+      // тело и активность
+      ["scales", "⚖️", "⚖"], ["sofa", "🛋", "🛋"], ["walk", "🚶", "🚶"], ["run", "🏃", "🏃"], ["muscle", "💪", "💪"], ["lose", "📉", "📉"],
+      ["ruler", "📏", "📏"], ["cake", "🎂", "🎂"], ["man", "👨", "👨"], ["woman", "👩", "👩"],
+      // вода, таблетки, напоминания
+      ["water", "💧", "💧"], ["pill", "💊", "💊"], ["alarm", "⏰", "⏰"], ["bell", "🔔", "🔔"], ["bellOff", "🔕", "🔕"], ["timer", "⏱️", "⏱"],
+      // итоги, время, награды
+      ["chart", "📊", "📊"], ["calendar", "📅", "📅"], ["sunrise", "🌅", "🌅"], ["moon", "🌙", "🌙"], ["hundred", "💯", "💯"],
+      ["trophy", "🏆", "🏆"], ["star", "⭐", "⭐"], ["goal", "🎯", "🎯"],
+      // интерфейс
+      ["barcode", "📦", "📦"], ["diary", "📱", "📱"], ["book", "📓", "📓"], ["note", "📝", "📝"], ["brain", "🧠", "🧠"], ["ask", "💬", "💬"],
+      ["lock", "🔒", "🔒"], ["photo", "📷", "📷"], ["camera", "📸", "📸"], ["search", "🔍", "🔍"], ["write", "✍️", "✍"], ["edit", "✏️", "✏"],
+      ["trash", "🗑", "🗑"], ["tip", "💡", "💡"], ["check", "✅", "✅"], ["cross", "❌", "❌"], ["plus", "➕", "➕"], ["refresh", "🔄", "🔄"],
+      ["undo", "↩️", "↩"], ["skip", "⏭", "⏭"], ["sparkles", "✨", "✨"], ["keyboard", "⌨️", "⌨"], ["party", "🎉", "🎉"],
+      ["profile", "👤", "👤"], ["help", "❓", "❓"], ["down", "👇", "👇"],
+      // смайлики
+      ["hello", "👋", "👋"], ["think", "🤔", "🤔"], ["sad", "😔", "😔"], ["shrug", "🤷", "🤷"], ["ok", "👌", "👌"], ["heart", "🙏", "🙏"],
+      // цифры и квадратики шкал
       ["num1", "1️⃣", "1️⃣"], ["num2", "2️⃣", "2️⃣"], ["num3", "3️⃣", "3️⃣"], ["num4", "4️⃣", "4️⃣"],
-      ["pill", "💊", "💊"], ["alarm", "⏰", "⏰"], ["brain", "🧠", "🧠"], ["goal", "🎯", "🎯"], ["note", "📝", "📝"], ["ask", "💬", "💬"],
       ["sq_green", "🟩", "🟩"], ["sq_blue", "🟦", "🟦"], ["sq_red", "🟥", "🟥"], ["sq_empty", "⬜", "⬜"],
-      ["calendar", "📅", "📅"], ["lock", "🔒", "🔒"], ["photo", "📷", "📷"], ["book", "📓", "📓"], ["hundred", "💯", "💯"], ["chart", "📊", "📊"],
     ],
   },
-  {
-    // Монохромные иконки интерфейса: Telegram перекрашивает их под цвет текста (белые в тёмной теме, чёрные в светлой)
-    suffix: "ui", title: "FITTER UI", repaint: true, folder: "ui/",
-    icons: [["profile", "👤", "👤"], ["help", "❓", "❓"], ["edit", "✏️", "✏"], ["trash", "🗑", "🗑"], ["tip", "💡", "💡"], ["check", "✅", "✅"], ["camera", "📸", "📸"], ["search", "🔍", "🔍"], ["write", "✍️", "✍"], ["hello", "👋", "👋"], ["think", "🤔", "🤔"], ["sad", "😔", "😔"], ["refresh", "🔄", "🔄"], ["party", "🎉", "🎉"], ["diary", "📱", "📱"], ["undo", "↩️", "↩"], ["sparkles", "✨", "✨"], ["keyboard", "⌨️", "⌨"]],
-  },
 ];
-// Старые наборы из прошлых версий — удаляются, чтобы остался один
-const OLD_SETS = ["icons", "food"];
+// Наборы прошлых версий — удаляются после того, как новый набор готов
+const OLD_SETS = ["fitter", "fitter_ui", "fitter_icons", "fitter_food"];
+// createNewStickerSet принимает не больше 50 иконок, остальные добавляются по одной
+const SET_FIRST = 50;
 
 async function ensureEmojiSet(env, from, botName, cfg) {
   const name = `fitter${cfg.suffix ? "_" + cfg.suffix : ""}_by_${botName}`;
@@ -236,7 +246,7 @@ async function ensureEmojiSet(env, from, botName, cfg) {
   if (fresh) {
     const res = await tgRaw(env, "createNewStickerSet", {
       user_id: from.id, name, title: cfg.title, sticker_type: "custom_emoji",
-      needs_repainting: cfg.repaint, stickers: cfg.icons.map(sticker),
+      needs_repainting: cfg.repaint, stickers: cfg.icons.slice(0, SET_FIRST).map(sticker),
     });
     if (!res.ok) throw new Error(`${cfg.title}: ${res.description || "ошибка"}`);
     set = await tgRaw(env, "getStickerSet", { name });
@@ -285,8 +295,7 @@ async function ensureEmojiSet(env, from, botName, cfg) {
 async function makeEmojiPack(env, chatId, from) {
   if (!isAdmin(env, from)) return send(env, chatId, "Эта команда только для владельца бота");
   const me = await tgRaw(env, "getMe", {});
-  await send(env, chatId, "🔄 Создаю набор FITTER ICONS…");
-  for (const o of OLD_SETS) await tgRaw(env, "deleteStickerSet", { name: `fitter_${o}_by_${me.result.username}` });
+  await send(env, chatId, "🔄 Создаю набор иконок FITTER…");
   const map = {};
   const links = [];
   for (const cfg of ICON_SETS) {
@@ -300,6 +309,8 @@ async function makeEmojiPack(env, chatId, from) {
   }
   await env.DB.put("cfg:emoji", JSON.stringify(map));
   emojiLoadedAt = 0;
+  // Новый набор подключён — наборы прошлых версий больше не нужны
+  for (const o of OLD_SETS) await tgRaw(env, "deleteStickerSet", { name: `${o}_by_${me.result.username}` });
   const list = ICON_SETS.flatMap((c) => c.icons).map(([file, , key]) =>
     map[key] ? `<tg-emoji emoji-id="${map[key]}">${key}</tg-emoji> ${file}` : `${key} ${file} — не найдена`
   ).join("\n");

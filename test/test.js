@@ -19,6 +19,7 @@ class FakeKV {
 }
 
 let msgId = 100;
+const stickerSets = {};
 globalThis.fetch = async (url, opts = {}) => {
   url = String(url);
   if (url.startsWith(`https://api.telegram.org/file/bot${TOKEN}/`)) {
@@ -30,15 +31,14 @@ globalThis.fetch = async (url, opts = {}) => {
     sent.push({ method, body });
     if (method === "getFile") return Response.json({ ok: true, result: { file_path: "photos/file_1.jpg" } });
     if (method === "getMe") return Response.json({ ok: true, result: { username: "fitter_test_bot" } });
+    // Наборы иконок: что бот создал и добавил, то и возвращаем. Эмодзи храним так, как может Telegram: с полом, оттенком кожи и без FE0F
+    if (method === "createNewStickerSet") { stickerSets[body.name] = body.stickers.map((x) => x.emoji_list[0]); return Response.json({ ok: true, result: true }); }
+    if (method === "addStickerToSet") { stickerSets[body.name].push(body.sticker.emoji_list[0]); return Response.json({ ok: true, result: true }); }
     if (method === "getStickerSet") {
-      if (body.name === "fitter_ui_by_fitter_test_bot") {
-        const ui = ["👤", "❓", "✏️", "🗑", "💡", "✅", "📸", "🔍", "✍️", "👋", "🤔", "😔", "🔄", "🎉", "📱", "↩️", "✨", "⌨️"];
-        return Response.json({ ok: true, result: { title: "FITTER UI", stickers: ui.map((e, i) => ({ emoji: e, custom_emoji_id: String(8000 + i) })) } });
-      }
-      if (body.name !== "fitter_by_fitter_test_bot") return Response.json({ ok: false, description: "STICKERSET_INVALID" });
-      // Так Telegram может хранить эмодзи: с полом, оттенком кожи и без FE0F
-      const em = ["🍽", "🍗", "💧", "🌾", "🔥", "⚖", "📔", "🍏", "🛋", "🚶‍♂️", "🏃‍♂️", "💪🏻", "📉", "🥤", "📦", "📏", "🎂", "🏆", "1️⃣", "2️⃣", "3️⃣", "4️⃣", "💊", "⏰", "🧠", "🎯", "📝", "💬", "🟩", "🟦", "🟥", "⬜", "📅", "🔒", "📷", "📓", "💯", "📊"];
-      return Response.json({ ok: true, result: { title: "FITTER ICONS", stickers: em.map((e, i) => ({ emoji: e, file_id: "f" + i, custom_emoji_id: String(9000 + i) })) } });
+      const em = stickerSets[body.name];
+      if (!em) return Response.json({ ok: false, description: "STICKERSET_INVALID" });
+      const tg = { "🏃": "🏃‍♂️", "🚶": "🚶‍♂️", "💪": "💪🏻", "⚖️": "⚖" };
+      return Response.json({ ok: true, result: { title: "FITTER", stickers: em.map((e, i) => ({ emoji: tg[e] || e, file_id: "f" + i, custom_emoji_id: String(7000 + i) })) } });
     }
     if (method === "sendMessage" && rejectQuote && /<blockquote>[\s\S]*<tg-emoji/.test(body.text || "")) {
       return Response.json({ ok: false, description: "Bad Request: test reject" });
@@ -708,29 +708,31 @@ console.log("✓ /app и /setup");
   env.ADMIN_ID = "42";
   s = await msg("/makeemoji");
   const map = JSON.parse(await env.DB.get("cfg:emoji"));
-  assert.equal(map["🏃"], "9010", "бег");
-  assert.equal(map["💪"], "9011", "бицепс");
-  assert.equal(map["🚶"], "9009");
-  assert.equal(map["💧"], "9013", "вода — стакан");
-  assert.equal(map["🧈"], "9002", "жиры — капля");
-  assert.equal(map["📊"], "9037", "цветная иконка «Сегодня»");
-  assert.equal(map["👤"], "8000", "монохромный профиль");
-  assert.equal(map["⚖"], "9005", "цветные весы из FITTER ICONS");
-  assert.equal(map["🎯"], "9025", "цветная мишень");
-  assert.equal(map["💊"], "9022");
-  assert.equal(map["🟩"], "9028");
-  assert.equal(map["↩"], "8015");
-  assert.equal(map["📅"], "9032", "цветной календарь");
-  assert.equal(map["🔒"], "9033", "замок в достижениях");
-  assert.equal(Object.keys(map).length, 38 + 17);
-  assert.equal(map["1️⃣"], "9018");
-  assert.ok(!s.some((x) => x.method === "addStickerToSet"), "ничего не добавляем заново");
-  const rp = s.filter((x) => x.method === "replaceStickerInSet");
-  assert.equal(rp.length, 1, "перерисованные весы заменяются");
-  assert.equal(rp[0].body.old_sticker, "f5");
-  assert.match(rp[0].body.sticker.sticker, /pack\/scales\.png\?v=2$/);
+  const created = s.find((x) => x.method === "createNewStickerSet").body;
+  assert.equal(created.name, "fitter_fun_by_fitter_test_bot");
+  assert.equal(created.needs_repainting, false, "все иконки цветные");
+  assert.equal(created.stickers.length, 50, "в createNewStickerSet не больше 50");
+  assert.equal(s.filter((x) => x.method === "addStickerToSet").length, 22, "остальные добавлены по одной");
+  assert.match(created.stickers[0].sticker, /icons\/fun\/plate\.png$/);
+  assert.equal(map["🍽"], "7000");
+  assert.equal(map["🔥"], "7004");
+  assert.equal(map["⚖"], "7008", "весы находятся без FE0F");
+  assert.equal(map["🚶"], "7010", "эмодзи с полом");
+  assert.equal(map["🏃"], "7011", "бег");
+  assert.equal(map["💪"], "7012", "бицепс с оттенком кожи");
+  assert.equal(map["💧"], "7018", "вода");
+  assert.equal(map["👤"], "7055", "профиль теперь цветной");
+  assert.equal(map["↩"], "7050");
+  assert.equal(map["1️⃣"], "7064");
+  assert.equal(map["⬜"], "7071");
+  assert.equal(Object.keys(map).length, 72);
+  // Старые наборы удаляются только после того, как новый подключён
+  const del = s.filter((x) => x.method === "deleteStickerSet").map((x) => x.body.name);
+  assert.deepEqual(del, ["fitter", "fitter_ui", "fitter_icons", "fitter_food"].map((o) => o + "_by_fitter_test_bot"));
+  assert.ok(s.findIndex((x) => x.method === "deleteStickerSet") > s.findIndex((x) => x.method === "createNewStickerSet"));
   s = await msg("/makeemoji");
-  assert.ok(!s.some((x) => x.method === "replaceStickerInSet"), "второй раз не заменяем");
+  assert.ok(!s.some((x) => x.method === "createNewStickerSet" || x.method === "addStickerToSet"), "второй раз ничего не добавляем");
+  assert.deepEqual(JSON.parse(await env.DB.get("cfg:emoji")), map);
   // Кастомные эмодзи от обычного пользователя не перехватываются служебной командой
   const ent = [{ type: "custom_emoji", offset: 0, length: 2, custom_emoji_id: "1" }];
   s = await call({ message: { message_id: 1, from, chat, text: "🍏", entities: ent } });
@@ -743,11 +745,11 @@ console.log("✓ /app и /setup");
   delete env.ADMIN_ID;
   s = await msg("/profile");
   const prof = s.find((x) => x.method === "sendMessage").body.text;
-  assert.match(prof, /<tg-emoji emoji-id="9010">🏃<\/tg-emoji> 3–5 тренировок/);
-  assert.match(prof, /<tg-emoji emoji-id="9011">💪<\/tg-emoji> Набрать массу/);
+  assert.match(prof, /<tg-emoji emoji-id="7011">🏃<\/tg-emoji> 3–5 тренировок/);
+  assert.match(prof, /<tg-emoji emoji-id="7012">💪<\/tg-emoji> Набрать массу/);
   s = await msg("/help");
-  assert.match(s.find((x) => x.method === "sendMessage").body.text, /<tg-emoji emoji-id="9018">1️⃣<\/tg-emoji> Сфотографируй/);
-  console.log("✓ FITTER ICONS: бег, бицепс и цифры");
+  assert.match(s.find((x) => x.method === "sendMessage").body.text, /<tg-emoji emoji-id="7064">1️⃣<\/tg-emoji> Сфотографируй/);
+  console.log("✓ набор иконок FITTER: 72 цветные иконки, старые наборы удаляются");
 }
 
 // 13. Картинка файлом больше 5 МБ не уходит в нейросеть
