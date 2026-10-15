@@ -34,89 +34,7 @@
 
 ## ✨ Features
 
-<div align="center">
-<table>
-  <tr>
-    <td width="50%" valign="top"><div align="left">
-      <h3>📷 Logging food</h3>
-      <ul>
-        <li>Dish recognition from a photo: foods, grams and macros per 100 g</li>
-        <li>A photo caption works as a hint: “this is 200 g of rice”</li>
-        <li>Log by text: “ate 2 eggs and toast”</li>
-        <li>Edit the name or grams and the AI recalculates macros</li>
-        <li>Delete entries in one tap</li>
-      </ul>
-    </div></td>
-    <td width="50%" valign="top"><div align="left">
-      <h3>🏷️ Packaged food</h3>
-      <ul>
-        <li>Photo of a nutrition label: the bot copies the values exactly</li>
-        <li>Barcode reading and lookup in <a href="https://world.openfoodfacts.org">Open Food Facts</a></li>
-        <li>Or just send the barcode digits</li>
-      </ul>
-    </div></td>
-  </tr>
-  <tr>
-    <td width="50%" valign="top"><div align="left">
-      <h3>🎯 Goals and progress</h3>
-      <ul>
-        <li>A 6-question survey and a daily target by the Mifflin–St Jeor formula</li>
-        <li>Goals: lose weight, maintain or gain muscle</li>
-        <li>Daily and weekly summaries: eaten, left, where you went over</li>
-        <li>Weight tracking with a chart and automatic target updates</li>
-      </ul>
-    </div></td>
-    <td width="50%" valign="top"><div align="left">
-      <h3>💧 Water and pills</h3>
-      <ul>
-        <li>Water target of 30 ml per kg of body weight, +250 and +500 ml buttons</li>
-        <li>Reminders every 30 minutes to 2 hours, quiet at night</li>
-        <li>Vitamins and medicines by time of intake</li>
-        <li>“Taken”, “In 30 min” and “Skip” buttons</li>
-      </ul>
-    </div></td>
-  </tr>
-  <tr>
-    <td width="50%" valign="top"><div align="left">
-      <h3>🧠 AI assistant</h3>
-      <ul>
-        <li>“What to eat”: 3 options that fit your remaining calories and protein</li>
-        <li>Any option goes into the diary with one button</li>
-        <li>Weekly review with a score, praise and 3 tips</li>
-        <li>Answers to nutrition questions that take your target into account</li>
-      </ul>
-    </div></td>
-    <td width="50%" valign="top"><div align="left">
-      <h3>🏆 Habits</h3>
-      <ul>
-        <li>A daily streak you won’t want to break</li>
-        <li>13 achievements: streaks, days on target, water, labels, weight</li>
-        <li>Celebration animations when you hit your target</li>
-      </ul>
-    </div></td>
-  </tr>
-  <tr>
-    <td width="50%" valign="top"><div align="left">
-      <h3>📱 Diary (Mini App)</h3>
-      <ul>
-        <li>Calorie ring, week calendar and week chart, macro cards with hints</li>
-        <li>Water glass with a wave and ±250 ml buttons</li>
-        <li>Log food by text, including past days</li>
-        <li>Light and dark theme</li>
-      </ul>
-    </div></td>
-    <td width="50%" valign="top"><div align="left">
-      <h3>🎨 Design and reliability</h3>
-      <ul>
-        <li>Its own icon set, <a href="icons/">FITTER Icons</a></li>
-        <li>Automatic fallback to a backup Gemini model</li>
-        <li>24-second AI timeout: a clear reply instead of endless loading</li>
-        <li>A daily request limit protects the free quota</li>
-      </ul>
-    </div></td>
-  </tr>
-</table>
-</div>
+<p align="center"><img src="assets/readme/features-en.svg" width="100%" alt="FITTER"></p>
 
 ---
 
@@ -216,5 +134,4 @@ FITTER is released under the **MIT** license, see [LICENSE](LICENSE). It is an i
   <br />
   <sub><b>FITTER</b> · One photo. Full control.</sub>
   <br />
-  <sub>Made by <a href="https://t.me/arkhitkovv">Vlad</a>. If the project helped you, give the repo a ⭐</sub>
 </div>
