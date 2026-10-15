@@ -1,0 +1,732 @@
+{
+ "ru": [
+  [
+   "Запись еды",
+   [
+    "Распознавание блюд по фото: продукты, вес и КБЖУ на 100 г",
+    "Подпись к фото работает как подсказка: «это 200 г риса»",
+    "Запись текстом: «съел 2 яйца и тост»",
+    "Правка названия и граммов, нейросеть пересчитывает КБЖУ",
+    "Удаление записей в один клик"
+   ]
+  ],
+  [
+   "Упаковки",
+   [
+    "Фото этикетки: бот перепишет КБЖУ точно с неё",
+    "Чтение штрихкода и поиск в базе Open Food Facts",
+    "Можно просто прислать цифры штрихкода"
+   ]
+  ],
+  [
+   "Цели и прогресс",
+   [
+    "Анкета из 6 вопросов и норма по формуле Миффлина — Сан-Жеора",
+    "Цели: похудеть, держать вес или набрать массу",
+    "Итоги дня и недели: съедено, осталось, где перебор",
+    "Учёт веса с графиком и автопересчётом нормы"
+   ]
+  ],
+  [
+   "Вода и таблетки",
+   [
+    "Норма воды 30 мл на 1 кг веса, кнопки +250 и +500 мл",
+    "Напоминания каждые 30 минут — 2 часа, ночью тишина",
+    "Витамины и лекарства по времени приёма",
+    "Кнопки «Принял», «Через 30 мин» и «Пропустить»"
+   ]
+  ],
+  [
+   "ИИ-ассистент",
+   [
+    "«Что съесть»: 3 варианта под остаток калорий и белка",
+    "Любой вариант попадает в дневник одной кнопкой",
+    "Разбор недели с оценкой, похвалой и 3 советами",
+    "Ответы на вопросы о питании с учётом твоей нормы"
+   ]
+  ],
+  [
+   "Привычки",
+   [
+    "Серия дней подряд, которую жалко прерывать",
+    "13 достижений: серии, дни в норме, вода, этикетки, вес",
+    "Анимации-праздники при выполнении нормы"
+   ]
+  ],
+  [
+   "Дневник (Mini App)",
+   [
+    "Кольцо калорий, календарь недели, карточки БЖУ",
+    "Стакан воды с волной и кнопками ±250 мл",
+    "Запись еды текстом и дописывание за прошлые дни",
+    "Светлая и тёмная тема Telegram"
+   ]
+  ],
+  [
+   "Дизайн и надёжность",
+   [
+    "Собственный набор иконок FITTER Icons",
+    "Автопереход на запасную модель Gemini при сбое",
+    "Таймаут ИИ 24 секунды: понятный ответ вместо вечной загрузки",
+    "Дневной лимит запросов защищает бесплатную квоту"
+   ]
+  ]
+ ],
+ "en": [
+  [
+   "Logging food",
+   [
+    "Dish recognition from a photo: foods, grams and macros per 100 g",
+    "A photo caption works as a hint: “this is 200 g of rice”",
+    "Log by text: “ate 2 eggs and toast”",
+    "Edit the name or grams and the AI recalculates macros",
+    "Delete entries in one tap"
+   ]
+  ],
+  [
+   "Packaged food",
+   [
+    "Photo of a nutrition label: the bot copies the values exactly",
+    "Barcode reading and lookup in Open Food Facts",
+    "Or just send the barcode digits"
+   ]
+  ],
+  [
+   "Goals and progress",
+   [
+    "A 6-question survey and a daily target by the Mifflin–St Jeor formula",
+    "Goals: lose weight, maintain or gain muscle",
+    "Daily and weekly summaries: eaten, left, where you went over",
+    "Weight tracking with a chart and automatic target updates"
+   ]
+  ],
+  [
+   "Water and pills",
+   [
+    "Water target of 30 ml per kg of body weight, +250 and +500 ml buttons",
+    "Reminders every 30 minutes to 2 hours, quiet at night",
+    "Vitamins and medicines by time of intake",
+    "“Taken”, “In 30 min” and “Skip” buttons"
+   ]
+  ],
+  [
+   "AI assistant",
+   [
+    "“What to eat”: 3 options that fit your remaining calories and protein",
+    "Any option goes into the diary with one button",
+    "Weekly review with a score, praise and 3 tips",
+    "Answers to nutrition questions that take your target into account"
+   ]
+  ],
+  [
+   "Habits",
+   [
+    "A daily streak you won’t want to break",
+    "13 achievements: streaks, days on target, water, labels, weight",
+    "Celebration animations when you hit your target"
+   ]
+  ],
+  [
+   "Diary (Mini App)",
+   [
+    "Calorie ring, week calendar and week chart, macro cards with hints",
+    "Water glass with a wave and ±250 ml buttons",
+    "Log food by text, including past days",
+    "Light and dark theme"
+   ]
+  ],
+  [
+   "Design and reliability",
+   [
+    "Its own icon set, FITTER Icons",
+    "Automatic fallback to a backup Gemini model",
+    "24-second AI timeout: a clear reply instead of endless loading",
+    "A daily request limit protects the free quota"
+   ]
+  ]
+ ],
+ "es": [
+  [
+   "Registro de comidas",
+   [
+    "Reconocimiento de platos por foto: alimentos, gramos y macros por 100 g",
+    "El pie de foto sirve de pista: «son 200 g de arroz»",
+    "Registro por texto: «comí 2 huevos y una tostada»",
+    "Corrige el nombre o los gramos y la IA recalcula los macros",
+    "Borra registros con un toque"
+   ]
+  ],
+  [
+   "Productos envasados",
+   [
+    "Foto de la etiqueta nutricional: el bot copia los valores tal cual",
+    "Lectura del código de barras y búsqueda en Open Food Facts",
+    "O simplemente envía los dígitos del código"
+   ]
+  ],
+  [
+   "Objetivos y progreso",
+   [
+    "Encuesta de 6 preguntas y objetivo diario según la fórmula de Mifflin–St Jeor",
+    "Objetivos: perder peso, mantenerlo o ganar masa",
+    "Resumen del día y de la semana: comido, restante y excesos",
+    "Registro de peso con gráfico y recálculo automático del objetivo"
+   ]
+  ],
+  [
+   "Agua y pastillas",
+   [
+    "Objetivo de agua de 30 ml por kg de peso, botones +250 y +500 ml",
+    "Recordatorios cada 30 minutos a 2 horas, silencio por la noche",
+    "Vitaminas y medicamentos por hora de toma",
+    "Botones «Tomado», «En 30 min» y «Omitir»"
+   ]
+  ],
+  [
+   "Asistente con IA",
+   [
+    "«Qué comer»: 3 opciones según las calorías y proteínas que te quedan",
+    "Cualquier opción va al diario con un botón",
+    "Resumen semanal con nota, elogios y 3 consejos",
+    "Respuestas sobre nutrición que tienen en cuenta tu objetivo"
+   ]
+  ],
+  [
+   "Hábitos",
+   [
+    "Una racha de días seguidos que no querrás romper",
+    "13 logros: rachas, días en objetivo, agua, etiquetas, peso",
+    "Animaciones de celebración al cumplir el objetivo"
+   ]
+  ],
+  [
+   "Diario (Mini App)",
+   [
+    "Anillo de calorías, calendario y gráfico semanal, tarjetas de macros con consejos",
+    "Vaso de agua con ola y botones ±250 ml",
+    "Registro por texto, también de días anteriores",
+    "Tema claro y oscuro"
+   ]
+  ],
+  [
+   "Diseño y fiabilidad",
+   [
+    "Set de iconos propio, FITTER Icons",
+    "Cambio automático a un modelo Gemini de reserva",
+    "Límite de 24 s para la IA: respuesta clara en lugar de carga infinita",
+    "Un límite diario de solicitudes protege la cuota gratuita"
+   ]
+  ]
+ ],
+ "pt": [
+  [
+   "Registro de refeições",
+   [
+    "Reconhecimento de pratos por foto: alimentos, gramas e macros por 100 g",
+    "A legenda da foto funciona como dica: “são 200 g de arroz”",
+    "Registro por texto: “comi 2 ovos e uma torrada”",
+    "Corrija o nome ou os gramas e a IA recalcula os macros",
+    "Apague registros com um toque"
+   ]
+  ],
+  [
+   "Embalagens",
+   [
+    "Foto do rótulo nutricional: o bot copia os valores exatamente",
+    "Leitura do código de barras e busca no Open Food Facts",
+    "Ou simplesmente envie os números do código"
+   ]
+  ],
+  [
+   "Metas e progresso",
+   [
+    "Questionário de 6 perguntas e meta diária pela fórmula de Mifflin–St Jeor",
+    "Metas: emagrecer, manter o peso ou ganhar massa",
+    "Resumo do dia e da semana: consumido, restante e excessos",
+    "Registro de peso com gráfico e recálculo automático da meta"
+   ]
+  ],
+  [
+   "Água e remédios",
+   [
+    "Meta de água de 30 ml por kg de peso, botões +250 e +500 ml",
+    "Lembretes a cada 30 minutos a 2 horas, silêncio à noite",
+    "Vitaminas e remédios por horário",
+    "Botões “Tomei”, “Em 30 min” e “Pular”"
+   ]
+  ],
+  [
+   "Assistente com IA",
+   [
+    "“O que comer”: 3 opções de acordo com as calorias e proteínas restantes",
+    "Qualquer opção vai para o diário com um botão",
+    "Análise semanal com nota, elogios e 3 dicas",
+    "Respostas sobre nutrição que consideram a sua meta"
+   ]
+  ],
+  [
+   "Hábitos",
+   [
+    "Uma sequência de dias que você não vai querer quebrar",
+    "13 conquistas: sequências, dias na meta, água, rótulos, peso",
+    "Animações de comemoração ao bater a meta"
+   ]
+  ],
+  [
+   "Diário (Mini App)",
+   [
+    "Anel de calorias, calendário e gráfico da semana, cartões de macros com dicas",
+    "Copo de água com onda e botões ±250 ml",
+    "Registro por texto, inclusive de dias anteriores",
+    "Tema claro e escuro"
+   ]
+  ],
+  [
+   "Design e confiabilidade",
+   [
+    "Conjunto de ícones próprio, FITTER Icons",
+    "Troca automática para um modelo Gemini reserva",
+    "Limite de 24 s para a IA: resposta clara em vez de carregamento infinito",
+    "Um limite diário de pedidos protege a cota gratuita"
+   ]
+  ]
+ ],
+ "de": [
+  [
+   "Essen erfassen",
+   [
+    "Gerichterkennung per Foto: Lebensmittel, Gramm und Makros pro 100 g",
+    "Die Bildunterschrift dient als Hinweis: „das sind 200 g Reis“",
+    "Erfassen per Text: „2 Eier und Toast gegessen“",
+    "Name oder Gramm ändern, die KI berechnet die Makros neu",
+    "Einträge mit einem Tipp löschen"
+   ]
+  ],
+  [
+   "Verpackte Lebensmittel",
+   [
+    "Foto der Nährwerttabelle: der Bot übernimmt die Werte exakt",
+    "Barcode lesen und in Open Food Facts suchen",
+    "Oder einfach die Ziffern des Barcodes senden"
+   ]
+  ],
+  [
+   "Ziele und Fortschritt",
+   [
+    "Fragebogen mit 6 Fragen und Tagesziel nach der Mifflin-St-Jeor-Formel",
+    "Ziele: abnehmen, Gewicht halten oder Muskeln aufbauen",
+    "Tages- und Wochenbilanz: gegessen, übrig, wo es zu viel war",
+    "Gewichtsverlauf mit Diagramm und automatischer Zielanpassung"
+   ]
+  ],
+  [
+   "Wasser und Tabletten",
+   [
+    "Wasserziel von 30 ml pro kg Körpergewicht, Tasten +250 und +500 ml",
+    "Erinnerungen alle 30 Minuten bis 2 Stunden, nachts Ruhe",
+    "Vitamine und Medikamente nach Einnahmezeit",
+    "Tasten „Genommen“, „In 30 Min“ und „Überspringen“"
+   ]
+  ],
+  [
+   "KI-Assistent",
+   [
+    "„Was essen“: 3 Vorschläge passend zu den restlichen Kalorien und Eiweiß",
+    "Jeder Vorschlag landet mit einer Taste im Tagebuch",
+    "Wochenrückblick mit Note, Lob und 3 Tipps",
+    "Antworten auf Ernährungsfragen, die dein Ziel berücksichtigen"
+   ]
+  ],
+  [
+   "Gewohnheiten",
+   [
+    "Eine Tagesserie, die du nicht abreißen lassen willst",
+    "13 Erfolge: Serien, Tage im Ziel, Wasser, Etiketten, Gewicht",
+    "Feier-Animationen, wenn du dein Ziel erreichst"
+   ]
+  ],
+  [
+   "Tagebuch (Mini App)",
+   [
+    "Kalorienring, Wochenkalender und Wochendiagramm, Makrokarten mit Tipps",
+    "Wasserglas mit Welle und ±250-ml-Tasten",
+    "Erfassen per Text, auch für vergangene Tage",
+    "Helles und dunkles Design"
+   ]
+  ],
+  [
+   "Design und Zuverlässigkeit",
+   [
+    "Eigenes Iconset, FITTER Icons",
+    "Automatischer Wechsel auf ein Ersatzmodell von Gemini",
+    "24 s KI-Timeout: klare Antwort statt endlosem Laden",
+    "Ein Tageslimit für Anfragen schützt das kostenlose Kontingent"
+   ]
+  ]
+ ],
+ "fr": [
+  [
+   "Noter ses repas",
+   [
+    "Reconnaissance des plats par photo : aliments, grammes et macros pour 100 g",
+    "La légende de la photo sert d’indice : « c’est 200 g de riz »",
+    "Saisie par texte : « j’ai mangé 2 œufs et un toast »",
+    "Modifie le nom ou les grammes, l’IA recalcule les macros",
+    "Supprime une entrée d’un seul geste"
+   ]
+  ],
+  [
+   "Produits emballés",
+   [
+    "Photo de l’étiquette nutritionnelle : le bot recopie les valeurs exactes",
+    "Lecture du code-barres et recherche dans Open Food Facts",
+    "Ou envoie simplement les chiffres du code-barres"
+   ]
+  ],
+  [
+   "Objectifs et progrès",
+   [
+    "Questionnaire de 6 questions et objectif quotidien selon la formule de Mifflin–St Jeor",
+    "Objectifs : perdre du poids, le maintenir ou prendre du muscle",
+    "Bilan du jour et de la semaine : mangé, restant, dépassements",
+    "Suivi du poids avec graphique et ajustement automatique de l’objectif"
+   ]
+  ],
+  [
+   "Eau et médicaments",
+   [
+    "Objectif d’eau de 30 ml par kg de poids, boutons +250 et +500 ml",
+    "Rappels toutes les 30 minutes à 2 heures, silence la nuit",
+    "Vitamines et médicaments selon l’heure de prise",
+    "Boutons « Pris », « Dans 30 min » et « Passer »"
+   ]
+  ],
+  [
+   "Assistant IA",
+   [
+    "« Quoi manger » : 3 idées adaptées aux calories et protéines restantes",
+    "Chaque idée va dans le journal d’un seul bouton",
+    "Bilan de la semaine avec note, encouragements et 3 conseils",
+    "Réponses aux questions de nutrition qui tiennent compte de ton objectif"
+   ]
+  ],
+  [
+   "Habitudes",
+   [
+    "Une série de jours d’affilée que tu n’auras pas envie de casser",
+    "13 succès : séries, jours dans l’objectif, eau, étiquettes, poids",
+    "Animations de fête quand tu atteins ton objectif"
+   ]
+  ],
+  [
+   "Journal (Mini App)",
+   [
+    "Anneau de calories, calendrier et graphique de la semaine, cartes de macros avec conseils",
+    "Verre d’eau avec vague et boutons ±250 ml",
+    "Saisie par texte, y compris pour les jours passés",
+    "Thème clair et sombre"
+   ]
+  ],
+  [
+   "Design et fiabilité",
+   [
+    "Jeu d’icônes maison, FITTER Icons",
+    "Bascule automatique vers un modèle Gemini de secours",
+    "Délai de 24 s pour l’IA : une réponse claire au lieu d’un chargement sans fin",
+    "Une limite quotidienne de requêtes protège le quota gratuit"
+   ]
+  ]
+ ],
+ "it": [
+  [
+   "Registrare il cibo",
+   [
+    "Riconoscimento del piatto da foto: alimenti, grammi e macro per 100 g",
+    "La didascalia della foto fa da suggerimento: «sono 200 g di riso»",
+    "Registrazione a testo: «ho mangiato 2 uova e un toast»",
+    "Modifica il nome o i grammi e l’IA ricalcola le macro",
+    "Elimina le voci con un tocco"
+   ]
+  ],
+  [
+   "Prodotti confezionati",
+   [
+    "Foto dell’etichetta nutrizionale: il bot copia i valori esattamente",
+    "Lettura del codice a barre e ricerca su Open Food Facts",
+    "Oppure invia solo le cifre del codice a barre"
+   ]
+  ],
+  [
+   "Obiettivi e progressi",
+   [
+    "Un questionario di 6 domande e un fabbisogno giornaliero con la formula di Mifflin–St Jeor",
+    "Obiettivi: dimagrire, mantenere il peso o aumentare la massa",
+    "Riepiloghi del giorno e della settimana: mangiato, rimasto, dove hai sforato",
+    "Monitoraggio del peso con grafico e aggiornamento automatico del fabbisogno"
+   ]
+  ],
+  [
+   "Acqua e integratori",
+   [
+    "Obiettivo d’acqua di 30 ml per kg di peso, pulsanti +250 e +500 ml",
+    "Promemoria da ogni 30 minuti a ogni 2 ore, silenzio di notte",
+    "Vitamine e farmaci in base all’orario di assunzione",
+    "Pulsanti «Preso», «Tra 30 min» e «Salta»"
+   ]
+  ],
+  [
+   "Assistente IA",
+   [
+    "«Cosa mangiare»: 3 opzioni adatte alle calorie e alle proteine rimaste",
+    "Ogni opzione finisce nel diario con un pulsante",
+    "Analisi settimanale con voto, complimenti e 3 consigli",
+    "Risposte a domande sull’alimentazione che tengono conto del tuo fabbisogno"
+   ]
+  ],
+  [
+   "Abitudini",
+   [
+    "Una serie di giorni che non vorrai interrompere",
+    "13 traguardi: serie, giorni nell’obiettivo, acqua, etichette, peso",
+    "Animazioni di festa quando raggiungi l’obiettivo"
+   ]
+  ],
+  [
+   "Diario (Mini App)",
+   [
+    "Anello delle calorie, calendario e grafico della settimana, schede delle macro con suggerimenti",
+    "Bicchiere d’acqua con l’onda e pulsanti ±250 ml",
+    "Registrazione del cibo a testo, anche per i giorni passati",
+    "Tema chiaro e scuro"
+   ]
+  ],
+  [
+   "Design e affidabilità",
+   [
+    "Un set di icone proprio, FITTER Icons",
+    "Passaggio automatico a un modello Gemini di riserva",
+    "Timeout dell’IA di 24 secondi: una risposta chiara invece di un caricamento infinito",
+    "Un limite giornaliero di richieste protegge la quota gratuita"
+   ]
+  ]
+ ],
+ "tr": [
+  [
+   "Yemek kaydı",
+   [
+    "Fotoğraftan yemek tanıma: yiyecekler, gramlar ve 100 g başına makrolar",
+    "Fotoğraf açıklaması ipucu olur: “bu 200 g pirinç”",
+    "Metinle kayıt: “2 yumurta ve tost yedim”",
+    "Adı veya gramı düzelt, YZ makroları yeniden hesaplar",
+    "Kayıtları tek dokunuşla sil"
+   ]
+  ],
+  [
+   "Paketli ürünler",
+   [
+    "Besin değeri etiketinin fotoğrafı: bot değerleri birebir aktarır",
+    "Barkod okuma ve Open Food Facts üzerinde arama",
+    "Ya da sadece barkod rakamlarını gönder"
+   ]
+  ],
+  [
+   "Hedefler ve ilerleme",
+   [
+    "6 soruluk anket ve Mifflin–St Jeor formülüyle günlük hedef",
+    "Hedefler: kilo vermek, kiloyu korumak veya kas kazanmak",
+    "Günlük ve haftalık özetler: yenen, kalan, nerede aşıldığı",
+    "Grafikli kilo takibi ve hedefin otomatik güncellenmesi"
+   ]
+  ],
+  [
+   "Su ve ilaçlar",
+   [
+    "Kilogram başına 30 ml su hedefi, +250 ve +500 ml düğmeleri",
+    "30 dakikadan 2 saate kadar hatırlatmalar, gece sessiz",
+    "Alım saatine göre vitaminler ve ilaçlar",
+    "“Alındı”, “30 dk sonra” ve “Atla” düğmeleri"
+   ]
+  ],
+  [
+   "YZ asistanı",
+   [
+    "“Ne yesem”: kalan kalori ve proteine uyan 3 seçenek",
+    "Her seçenek tek düğmeyle günlüğe eklenir",
+    "Puan, övgü ve 3 tavsiyeyle haftalık değerlendirme",
+    "Hedefini dikkate alan beslenme sorularına yanıtlar"
+   ]
+  ],
+  [
+   "Alışkanlıklar",
+   [
+    "Bozmak istemeyeceğin bir günlük seri",
+    "13 başarı: seriler, hedefte geçen günler, su, etiketler, kilo",
+    "Hedefe ulaştığında kutlama animasyonları"
+   ]
+  ],
+  [
+   "Günlük (Mini App)",
+   [
+    "Kalori halkası, hafta takvimi ve haftalık grafik, ipuçlu makro kartları",
+    "Dalgalı su bardağı ve ±250 ml düğmeleri",
+    "Geçmiş günler dahil metinle yemek kaydı",
+    "Açık ve koyu tema"
+   ]
+  ],
+  [
+   "Tasarım ve güvenilirlik",
+   [
+    "Kendi simge seti, FITTER Icons",
+    "Yedek Gemini modeline otomatik geçiş",
+    "24 saniyelik YZ zaman aşımı: bitmeyen yükleme yerine net bir yanıt",
+    "Günlük istek sınırı ücretsiz kotayı korur"
+   ]
+  ]
+ ],
+ "uk": [
+  [
+   "Облік їжі",
+   [
+    "Розпізнавання страви за фото: продукти, грами й КБЖВ на 100 г",
+    "Підпис до фото працює як підказка: «це 200 г рису»",
+    "Запис текстом: «з’їв 2 яйця і тост»",
+    "Зміни назву або грами — ШІ перерахує КБЖВ",
+    "Видалення записів одним дотиком"
+   ]
+  ],
+  [
+   "Продукти в упаковці",
+   [
+    "Фото етикетки зі складом: бот точно переносить значення",
+    "Зчитування штрихкоду й пошук в Open Food Facts",
+    "Або просто надішли цифри штрихкоду"
+   ]
+  ],
+  [
+   "Цілі та прогрес",
+   [
+    "Анкета з 6 питань і денна норма за формулою Міффліна — Сан-Жеора",
+    "Цілі: схуднути, тримати вагу або набрати масу",
+    "Підсумки дня й тижня: з’їдено, залишилось, де був перебір",
+    "Облік ваги з графіком і автоматичним оновленням норми"
+   ]
+  ],
+  [
+   "Вода й таблетки",
+   [
+    "Норма води 30 мл на кг ваги, кнопки +250 і +500 мл",
+    "Нагадування кожні 30 хвилин — 2 години, вночі тиша",
+    "Вітаміни й ліки за часом прийому",
+    "Кнопки «Прийняв», «Через 30 хв» і «Пропустити»"
+   ]
+  ],
+  [
+   "ШІ-помічник",
+   [
+    "«Що з’їсти»: 3 варіанти під залишок калорій і білка",
+    "Будь-який варіант додається в щоденник однією кнопкою",
+    "Тижневий розбір з оцінкою, похвалою і 3 порадами",
+    "Відповіді на питання про харчування з урахуванням твоєї норми"
+   ]
+  ],
+  [
+   "Звички",
+   [
+    "Серія днів поспіль, яку не хочеться переривати",
+    "13 досягнень: серії, дні в нормі, вода, етикетки, вага",
+    "Святкова анімація, коли досягаєш норми"
+   ]
+  ],
+  [
+   "Щоденник (Mini App)",
+   [
+    "Кільце калорій, календар і графік тижня, картки БЖВ із підказками",
+    "Склянка води з хвилею і кнопки ±250 мл",
+    "Запис їжі текстом, зокрема за минулі дні",
+    "Світла й темна тема"
+   ]
+  ],
+  [
+   "Дизайн і надійність",
+   [
+    "Власний набір іконок FITTER Icons",
+    "Автоматичний перехід на резервну модель Gemini",
+    "Тайм-аут ШІ 24 секунди: зрозуміла відповідь замість нескінченного завантаження",
+    "Денний ліміт запитів захищає безкоштовну квоту"
+   ]
+  ]
+ ],
+ "pl": [
+  [
+   "Zapisywanie posiłków",
+   [
+    "Rozpoznawanie dania ze zdjęcia: produkty, gramy i makro na 100 g",
+    "Podpis pod zdjęciem działa jak podpowiedź: „to 200 g ryżu”",
+    "Zapis tekstem: „zjadłem 2 jajka i tost”",
+    "Popraw nazwę lub gramy, a AI przeliczy makro",
+    "Usuwanie wpisów jednym dotknięciem"
+   ]
+  ],
+  [
+   "Produkty pakowane",
+   [
+    "Zdjęcie etykiety z wartościami odżywczymi: bot przepisuje je dokładnie",
+    "Odczyt kodu kreskowego i wyszukiwanie w Open Food Facts",
+    "Albo po prostu wyślij cyfry kodu kreskowego"
+   ]
+  ],
+  [
+   "Cele i postępy",
+   [
+    "Ankieta z 6 pytań i dzienne zapotrzebowanie według wzoru Mifflina–St Jeora",
+    "Cele: schudnąć, utrzymać wagę albo zbudować masę",
+    "Podsumowania dnia i tygodnia: zjedzone, zostało, gdzie był nadmiar",
+    "Śledzenie wagi z wykresem i automatyczną aktualizacją zapotrzebowania"
+   ]
+  ],
+  [
+   "Woda i tabletki",
+   [
+    "Cel wody: 30 ml na kg masy ciała, przyciski +250 i +500 ml",
+    "Przypomnienia co 30 minut do co 2 godziny, w nocy cisza",
+    "Witaminy i leki według pory przyjmowania",
+    "Przyciski „Wzięte”, „Za 30 min” i „Pomiń”"
+   ]
+  ],
+  [
+   "Asystent AI",
+   [
+    "„Co zjeść”: 3 propozycje dopasowane do pozostałych kalorii i białka",
+    "Każda propozycja trafia do dziennika jednym przyciskiem",
+    "Tygodniowe podsumowanie z oceną, pochwałą i 3 radami",
+    "Odpowiedzi na pytania o żywienie z uwzględnieniem twojego zapotrzebowania"
+   ]
+  ],
+  [
+   "Nawyki",
+   [
+    "Seria dni z rzędu, której nie zechcesz przerwać",
+    "13 osiągnięć: serie, dni w normie, woda, etykiety, waga",
+    "Świąteczne animacje, gdy osiągniesz cel"
+   ]
+  ],
+  [
+   "Dziennik (Mini App)",
+   [
+    "Pierścień kalorii, kalendarz i wykres tygodnia, karty makro z podpowiedziami",
+    "Szklanka wody z falą i przyciski ±250 ml",
+    "Zapis jedzenia tekstem, także za minione dni",
+    "Jasny i ciemny motyw"
+   ]
+  ],
+  [
+   "Wygląd i niezawodność",
+   [
+    "Własny zestaw ikon, FITTER Icons",
+    "Automatyczne przejście na zapasowy model Gemini",
+    "Limit czasu AI 24 sekundy: jasna odpowiedź zamiast niekończącego się ładowania",
+    "Dzienny limit zapytań chroni darmowy przydział"
+   ]
+  ]
+ ]
+}

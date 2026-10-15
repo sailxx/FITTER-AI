@@ -11,6 +11,7 @@ const DIR = path.dirname(fileURLToPath(import.meta.url));
 const OUT = path.resolve(DIR, '../../assets/readme');
 const STR = JSON.parse(fs.readFileSync(path.join(DIR, 'strings.json'), 'utf8'));
 const ABOUT = JSON.parse(fs.readFileSync(path.join(DIR, 'about.json'), 'utf8'));
+const FEAT = JSON.parse(fs.readFileSync(path.join(DIR, 'features.json'), 'utf8'));
 
 const G = '#30D158';
 const K = createKit({
@@ -81,6 +82,47 @@ ${lines(X + 16, ty + 86 + x.t.length * 20 + 6, x.d, { size: 13, weight: 500, lh:
   return svg(W, ty + th + 36, a.text, b);
 }
 
+// ---------- ВОЗМОЖНОСТИ ----------
+// Восемь карточек 2×4: иконка, заголовок и список. Тексты — features.json (порядок: еда, упаковки, цели, вода, ИИ, привычки, дневник, дизайн).
+const FEAT_ICONS = [
+  '<path d="M2 7h4l2-3h8l2 3h4v13H2z"/><circle cx="12" cy="13" r="4"/>',
+  '<path d="M3 12V4h8l10 10-8 8z"/><circle cx="7.5" cy="8.5" r="1.3"/>',
+  '<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.2"/>',
+  '<path d="M12 3c3 4 6 7 6 11a6 6 0 0 1-12 0c0-4 3-7 6-11z"/>',
+  '<path d="M12 3l1.8 4.7L18.5 9.5l-4.7 1.8L12 16l-1.8-4.7L5.5 9.5l4.7-1.8z"/><path d="M19 15l.8 2.2 2.2.8-2.2.8L19 21l-.8-2.2-2.2-.8 2.2-.8z"/>',
+  '<path d="M7 4h10v4a5 5 0 0 1-10 0z"/><path d="M7 6H4v1a3 3 0 0 0 3 3M17 6h3v1a3 3 0 0 1-3 3M12 13v4M8 20h8M10 17h4"/>',
+  '<rect x="7" y="2" width="10" height="20" rx="3"/><path d="M11 18h2"/>',
+  '<path d="M12 3a9 9 0 1 0 0 18c1.5 0 2-1 1.5-2-.6-1.2.2-2.5 1.6-2.5H17a4 4 0 0 0 4-4c0-5-4-9.5-9-9.5z"/><circle cx="7.5" cy="11" r="1"/><circle cx="10" cy="7" r="1"/><circle cx="15" cy="7.5" r="1"/>',
+];
+function features(items) {
+  const W = 880, CW = 404, GAP = 12, PAD = 20, TXT = CW - PAD * 2 - 16;
+  const cards = items.map(([t, bullets]) => {
+    const title = wrap(t, CW - 40 - PAD * 2 - 12, 17, 700);
+    const bl = bullets.map((x) => wrap(x, TXT, 14, 500));
+    const head = Math.max(40, title.length * 22);
+    const h = PAD + head + 14 + bl.reduce((a, l) => a + l.length * 20 + 6, 0) + PAD - 6;
+    return { title, bl, head, h };
+  });
+  let b = '', y = 24;
+  for (let r = 0; r < cards.length; r += 2) {
+    const rh = Math.max(cards[r].h, cards[r + 1]?.h ?? 0);
+    for (const c of [cards[r], cards[r + 1]]) {
+      if (!c) continue;
+      const i = cards.indexOf(c), x = 40 + (i % 2) * (CW + GAP);
+      b += `<g class="r" ${delay(Math.min(i, 8))}>${card(x, y, CW, rh)}${iconBox(x + PAD, y + PAD, FEAT_ICONS[i])}`;
+      b += lines(x + PAD + 40 + 12, y + PAD + (c.head - c.title.length * 22) / 2 + 17, c.title, { size: 17, weight: 700, lh: 22 });
+      let by = y + PAD + c.head + 14;
+      for (const l of c.bl) {
+        b += `<circle cx="${x + PAD + 3}" cy="${by + 6}" r="2.6" fill="${G}"/>` + lines(x + PAD + 16, by + 11, l, { size: 14, weight: 500, lh: 20, fill: P.muted });
+        by += l.length * 20 + 6;
+      }
+      b += '</g>';
+    }
+    y += rh + GAP;
+  }
+  return svg(W, y - GAP + 24, items.map((x) => x[0]).join(', '), b);
+}
+
 // ---------- ЭКРАНЫ ----------
 // Сами телефоны — из screens.svg (интерфейс бота на русском), подписи — из about.json.
 const SCREENS = fs.readFileSync(path.join(DIR, 'screens.svg'), 'utf8');
@@ -109,6 +151,7 @@ for (const [lang, s] of Object.entries(STR)) {
     [`hero-${lang}.svg`]: hero(s),
     [`about-${lang}.svg`]: about(ABOUT[lang]),
     [`screens-${lang}.svg`]: screens(ABOUT[lang]),
+    [`features-${lang}.svg`]: features(FEAT[lang]),
     // кнопки одни на все языки — собираются вместе с русским набором
     ...(lang === 'ru' ? {
       'cta-bot.svg': K.button('@FitterFoodBot', ICONS.send, true),
