@@ -4,5 +4,17 @@
     <string name="calories_widget_name">Калории</string>
     <string name="calories_widget_description">Сколько калорий осталось на сегодня</string>
     <string name="today_widget_name">Сегодня</string>
-    <string name="today_widget_description">Калории, БЖУ и вода с кнопкой «+ стакан»</string>
+    <string name="today_widget_description">Калории, БЖУ и вода с кнопкой «+»</string>
+    <string name="water_widget_name">Вода</string>
+    <string name="water_widget_description">Стаканы воды и кнопки «+ стакан» и «−»</string>
+    <string name="macros_widget_name">БЖУ</string>
+    <string name="macros_widget_description">Белки, жиры и углеводы за день</string>
+    <string name="pills_widget_name">Таблетки</string>
+    <string name="pills_widget_description">Сколько принято и когда следующая</string>
+    <string name="photo_widget_name">Фото еды</string>
+    <string name="photo_widget_description">Открывает бота, чтобы отправить фото еды</string>
+    <string name="left_widget_name">Осталось</string>
+    <string name="left_widget_description">Остаток калорий в маленьком кольце</string>
+    <string name="week_widget_name">Неделя</string>
+    <string name="week_widget_description">Калории по дням недели и серия</string>
 </resources>
