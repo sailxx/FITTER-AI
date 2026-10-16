@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Slider
@@ -136,6 +137,36 @@ fun SettingsScreen(summary: Summary?, onBack: () -> Unit) {
                 ToggleRow("Вода в «Сегодня»", look.showWater) { saveLook(look.copy(showWater = it)) }
             }
             Note("Добавить виджет: удерживай палец на рабочем столе → «Виджеты» → Fitter. Растягивай — содержимое подстроится")
+        }
+
+        item {
+            Section("Размер текста в виджетах")
+            Card {
+                TextPreview(summary, look, t.dark)
+                Row(Modifier.padding(horizontal = 16.dp).padding(bottom = 14.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    val cur = Triple(look.numSize, look.textSize, look.capSize)
+                    listOf("S", "M", "L", "XL").forEachIndexed { i, name ->
+                        val p = WidgetLook.PRESETS[i]
+                        val on = p == cur
+                        Box(
+                            Modifier.weight(1f).height(48.dp).clip(RoundedCornerShape(12.dp))
+                                .background(if (on) Palette.G2.copy(alpha = 0.14f) else t.fill)
+                                .border(1.dp, if (on) Palette.G2 else Color.Transparent, RoundedCornerShape(12.dp))
+                                .clickable { saveLook(look.copy(numSize = p.first, textSize = p.second, capSize = p.third)) },
+                            contentAlignment = Alignment.Center,
+                        ) { Text(name, fontWeight = FontWeight.Bold, color = if (on) Palette.G2 else t.text) }
+                    }
+                }
+                Divider()
+                Stepper("Главное число", look.numSize, 16..44) { saveLook(look.copy(numSize = it)) }
+                Divider()
+                Stepper("Текст", look.textSize, 9..20) { saveLook(look.copy(textSize = it)) }
+                Divider()
+                Stepper("Подписи", look.capSize, 8..16) { saveLook(look.copy(capSize = it)) }
+                Divider()
+                ToggleRow("Не учитывать системный размер шрифта", look.fixedFont) { saveLook(look.copy(fixedFont = it)) }
+            }
+            Note("Размеры в sp для виджета обычного размера: растянутый виджет крупнее. Если переключатель включён, масштаб шрифта телефона на них не влияет")
         }
 
         item {
@@ -262,6 +293,56 @@ private fun Preview(summary: Summary?, look: WidgetLook, dark: Boolean) {
             }
             Spacer(Modifier.height(4.dp))
             Text("${n(s.kcal)} из ${n(s.targets.kcal)}", fontSize = 9.sp, color = skin.mut)
+        }
+    }
+}
+
+/** Строка «название — число +»: квадратные кнопки, как в настройках Okto. */
+@Composable
+private fun Stepper(title: String, value: Int, range: IntRange, onChange: (Int) -> Unit) {
+    val t = LocalTokens.current
+    Row(Modifier.padding(horizontal = 16.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+        Text(title, color = t.text, fontWeight = FontWeight.Medium, modifier = Modifier.weight(1f))
+        StepButton("−", value > range.first) { onChange(value - 1) }
+        Text("$value", color = t.text, fontWeight = FontWeight.SemiBold, fontSize = 17.sp, textAlign = TextAlign.Center, modifier = Modifier.width(48.dp))
+        StepButton("+", value < range.last) { onChange(value + 1) }
+    }
+}
+
+@Composable
+private fun StepButton(label: String, enabled: Boolean, onClick: () -> Unit) {
+    val t = LocalTokens.current
+    Box(
+        Modifier.size(44.dp).clip(RoundedCornerShape(12.dp)).background(t.fill).border(1.dp, t.line, RoundedCornerShape(12.dp))
+            .clickable(enabled = enabled, onClick = onClick),
+        contentAlignment = Alignment.Center,
+    ) { Text(label, fontSize = 20.sp, fontWeight = FontWeight.Bold, color = if (enabled) t.text else t.hint) }
+}
+
+/**
+ * Предпросмотр размеров: кусочек виджета «Сегодня» с настоящими размерами текста —
+ * главное число, строка БЖУ и серая подпись. Учитывает «Не учитывать системный размер шрифта».
+ */
+@Composable
+private fun TextPreview(summary: Summary?, look: WidgetLook, dark: Boolean) {
+    val s = summary ?: Summary("", 1340, 72, 48, 150, Targets(2100, 120, 70, 260), 1250, 2000, 3, 5, 0, 0, "", "")
+    val skin = skinOf(dark, look.copy(opacity = 100))
+    val d = LocalDensity.current
+    // sp в Compose уже умножены на масштаб шрифта телефона; если его надо не учитывать — делим обратно
+    val k = if (look.fixedFont) 1f / d.fontScale else 1f
+    val ringPx = (64 * d.density).toInt()
+    val ring = remember(s.progress, dark) { ringBitmap(skin, s.progress, ringPx, 6 * d.density).asImageBitmap() }
+    Row(
+        Modifier.padding(12.dp).fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(skin.base)
+            .border(1.dp, skin.edge, RoundedCornerShape(16.dp)).padding(16.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Image(ring, null, Modifier.size(64.dp))
+        Spacer(Modifier.width(14.dp))
+        Column {
+            Text(n(if (look.showEaten) s.kcal else kotlin.math.abs(s.kcalLeft)), fontSize = (look.numSize * k).sp, fontWeight = FontWeight.Bold, color = skin.ink, maxLines = 1)
+            Text("Белки ${s.p} / ${s.targets.p} г", fontSize = (look.textSize * k).sp, fontWeight = FontWeight.Medium, color = skin.ink, maxLines = 1)
+            Text(if (look.showEaten) "съедено ккал" else "осталось ккал", fontSize = (look.capSize * k).sp, color = skin.mut, maxLines = 1)
         }
     }
 }

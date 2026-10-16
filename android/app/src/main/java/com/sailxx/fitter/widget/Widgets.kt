@@ -85,11 +85,35 @@ private fun scale(baseW: Float, baseH: Float): Float {
 private fun sp(v: Float, k: Float): TextUnit = (v * k).sp
 private fun dp(v: Float, k: Float): Dp = (v * k).dp
 
+// Размеры текста из «Настроек»: одинаковы для всех виджетов, поэтому храним их рядом с отрисовкой
+private var textLook = com.sailxx.fitter.data.WidgetLook()
+private var mutColor = Color.Unspecified
+private var fontScale = 1f
+
+/** Запомнить настройки текста перед отрисовкой виджета. */
+private fun applyText(context: Context, g: Skin) {
+    textLook = g.look
+    mutColor = g.mut
+    fontScale = context.resources.configuration.fontScale
+}
+
+/**
+ * Текст виджета. Размер в макете — для настроек «M»; дальше он умножается на выбранный размер:
+ * крупные жирные цифры — на «Главное число», серые подписи — на «Подписи», остальное — на «Текст».
+ * «Не учитывать системный размер шрифта» убирает масштаб шрифта телефона.
+ */
 @Composable
 private fun T(text: String, size: TextUnit, color: Color, bold: Boolean = false, modifier: GlanceModifier = GlanceModifier, maxLines: Int = 1, align: TextAlign? = null) {
+    val l = textLook
+    val mul = when {
+        bold && size.value >= 18f -> l.numSize / 26f
+        color == mutColor -> l.capSize / 10f
+        else -> l.textSize / 12f
+    }
+    val fs = (size.value * mul / (if (l.fixedFont) fontScale else 1f)).sp
     Text(
         text, modifier = modifier, maxLines = maxLines,
-        style = TextStyle(color = cp(color), fontSize = size, fontWeight = if (bold) FontWeight.Bold else FontWeight.Medium, textAlign = align),
+        style = TextStyle(color = cp(color), fontSize = fs, fontWeight = if (bold) FontWeight.Bold else FontWeight.Medium, textAlign = align),
     )
 }
 
@@ -175,6 +199,7 @@ abstract class FitterWidget : GlanceAppWidget() {
     override suspend fun provideGlance(context: Context, id: GlanceId) {
         val st = FitterRepository.load(context)
         val g = skinFor(context)
+        applyText(context, g)
         provideContent {
             val s = st.summary
             Box(bg(g).padding(if (s == null) 8.dp else pad).clickable(actionStartActivity<MainActivity>())) {
@@ -508,6 +533,7 @@ class PhotoWidget : GlanceAppWidget() {
 
     override suspend fun provideGlance(context: Context, id: GlanceId) {
         val g = skinFor(context)
+        applyText(context, g)
         val open = Intent(context, MainActivity::class.java)
             .putExtra(Launch.EXTRA_ADD, "camera")
             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP)

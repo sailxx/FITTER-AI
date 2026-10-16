@@ -136,7 +136,42 @@ object FitterRepository {
     /** Сегодняшняя дата по часовому поясу из анкеты: её знает сервер, иначе — дата телефона. */
     fun today(context: Context): String = _state.value.summary?.date ?: load(context).summary?.date ?: java.time.LocalDate.now().toString()
 
-        suspend fun logout(context: Context) {
+        /**
+     * Отметить таблетку принятой или снять отметку (нажатие в карточке «Таблетки»).
+     * Сразу показываем в приложении и на виджетах, потом отправляем на сервер и сверяемся с ним.
+     */
+    suspend fun markPill(context: Context, id: String, time: String, s: String) {
+        val token = token(context) ?: return
+        val p = prefs(context)
+        val sum = p.getString("summary", null)?.let { JSONObject(it) } ?: return
+        val day = p.getString("day", null)?.let { JSONObject(it) } ?: return
+        val date = sum.getString("date")
+        val arr = day.optJSONArray("pills")
+        var was = ""
+        for (i in 0 until (arr?.length() ?: 0)) {
+            val d = arr!!.getJSONObject(i)
+            if (d.optString("id") == id && d.optString("time") == time) { was = d.optString("s"); d.put("s", s) }
+        }
+        sum.optJSONObject("pills")?.let {
+            val delta = (if (s == "taken") 1 else 0) - (if (was == "taken") 1 else 0)
+            it.put("taken", (it.optInt("taken") + delta).coerceAtLeast(0))
+        }
+        p.edit().putString("summary", sum.toString()).putString("day", day.toString()).apply()
+        load(context)
+        updateFitterWidgets(context)
+        try {
+            Api.pillMark(token, date, id, time, s)
+        } catch (e: UnauthorizedException) {
+            clear(context)
+            return
+        } catch (e: Exception) {
+            Log.w(TAG, "pill failed", e)
+            _state.value = _state.value.copy(error = "Не получилось отметить — нет связи")
+        }
+        refresh(context)
+    }
+
+    suspend fun logout(context: Context) {
         token(context)?.let { runCatching { Api.logout(it) } }
         LiveSync.stop()
         clear(context)
