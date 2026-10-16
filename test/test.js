@@ -12,7 +12,7 @@ let rejectQuote = false;
 
 class FakeKV {
   constructor() { this.m = new Map(); }
-  async get(k, type) { const v = this.m.get(k); if (v == null) return null; return type === "json" ? JSON.parse(v) : v; }
+  async get(k, type) { const v = this.m.get(k); if (v == null) return null; return (type && type.type) === "json" || type === "json" ? JSON.parse(v) : v; }
   async put(k, v) { this.m.set(k, v); }
   async delete(k) { this.m.delete(k); }
   async list({ prefix = "" } = {}) { return { keys: [...this.m.keys()].filter((k) => k.startsWith(prefix)).map((name) => ({ name })), list_complete: true }; }
@@ -805,6 +805,72 @@ console.log("✓ /app и /setup");
   assert.equal(_test.checkAiLimit(lim, b), false, "второй запрос с устаревшими данными");
   assert.equal(_test.checkAiLimit(lim, { id: 992, tz: 180 }), true, "другой пользователь не задет");
   console.log("✓ лимит ИИ при параллельных запросах");
+}
+
+// 16. Приложение Android: вход через бота, токен, виджет
+{
+  const post = (path, body, headers = {}) =>
+    worker.fetch(new Request(base + path, { method: "POST", headers: { "content-type": "application/json", ...headers }, body: JSON.stringify(body || {}) }), env, ctx);
+  let r = await post("/api/link/start");
+  const ln = await r.json();
+  assert.match(ln.code, /^[0-9a-z]{8}[0-9a-f]{12}$/);
+  assert.equal(ln.url, "https://t.me/FitterFoodBot?start=link_" + ln.code);
+  assert.equal(_test.startSource("/start link_" + ln.code), "app");
+  assert.equal([...env.DB.m.keys()].some((k) => k.startsWith("lk:")), false, "старт входа ничего не пишет в базу");
+  r = await post("/api/link/poll", { code: ln.code, secret: ln.secret });
+  assert.equal((await r.json()).status, "wait");
+  r = await post("/api/link/poll", { code: ln.code, secret: "0".repeat(64) });
+  assert.equal(r.status, 410, "чужой секрет не подходит");
+
+  s = await msg("/start link_" + ln.code);
+  assert.match(lastText(s), /Войти в приложение Fitter/);
+  s = await cb("lnk|y|" + ln.code);
+  assert.match(lastText(s), /подключено/);
+  r = await post("/api/link/poll", { code: ln.code, secret: ln.secret, device: "Pixel <8>" });
+  const { token } = await r.json();
+  assert.match(token, /^ft_[0-9a-f]{64}$/);
+  r = await post("/api/link/poll", { code: ln.code, secret: ln.secret });
+  assert.equal((await r.json()).status, "wait", "токен выдаётся один раз");
+  const uu = await env.DB.get("u:42", "json");
+  assert.equal(uu.apps.length, 1);
+  assert.equal(uu.apps[0].device, "Pixel 8");
+  assert.equal([...env.DB.m.keys()].some((k) => k.includes(token)), false, "в базе только хэш токена");
+
+  const bearer = { Authorization: "Bearer " + token };
+  r = await worker.fetch(new Request(base + "/api/widget", { headers: bearer }), env, ctx);
+  assert.equal(r.status, 200);
+  const w = await r.json();
+  assert.equal(typeof w.kcal, "number");
+  assert.ok(w.targets.kcal > 0);
+  assert.ok(w.waterGoal > 0);
+  assert.equal(typeof w.pills.total, "number");
+  r = await worker.fetch(new Request(base + "/api/day", { headers: bearer }), env, ctx);
+  assert.equal(r.status, 200, "весь API работает с токеном");
+  r = await post("/api/water", { date: w.date, delta: 250 }, bearer);
+  assert.equal(r.status, 200);
+  r = await worker.fetch(new Request(base + "/api/widget", { headers: { Authorization: "Bearer ft_" + "0".repeat(64) } }), env, ctx);
+  assert.equal(r.status, 401);
+
+  // Отказ в боте
+  const ln2 = await (await post("/api/link/start")).json();
+  await msg("/start link_" + ln2.code);
+  s = await cb("lnk|n|" + ln2.code);
+  assert.match(lastText(s), /отменён/);
+  r = await post("/api/link/poll", { code: ln2.code, secret: ln2.secret });
+  assert.equal(r.status, 403);
+
+  // Устаревшая ссылка
+  const oldCode = (Date.now() - 11 * 60000).toString(36) + "a".repeat(12);
+  s = await msg("/start link_" + oldCode);
+  assert.match(lastText(s), /устарела/);
+
+  // Выход
+  r = await post("/api/logout", {}, bearer);
+  assert.equal(r.status, 200);
+  r = await worker.fetch(new Request(base + "/api/widget", { headers: bearer }), env, ctx);
+  assert.equal(r.status, 401, "после выхода токен не работает");
+  assert.equal((await env.DB.get("u:42", "json")).apps.length, 0);
+  console.log("✓ приложение: вход через бота, токен, виджет");
 }
 
 // 12. Лимит запросов к ИИ
