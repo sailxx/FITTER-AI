@@ -67,6 +67,7 @@ jobs:
           APKSIGNER=$(ls "$ANDROID_HOME"/build-tools/*/apksigner | sort -V | tail -1)
           SHA=$("$APKSIGNER" verify --print-certs Fitter.apk | grep -oP 'SHA-256 digest: \K\w+')
           [ -n "$SHA" ] || { echo "::error::APK не подписан"; exit 1; }
+          [ "$SHA" = "6a8229a5e72aa53171d8999461643651187049e9f4e069078fbb94a8fa192988" ] || { echo "::error::APK подписан чужим ключом: $SHA"; exit 1; }
           echo "SHA=$SHA" >> "$GITHUB_ENV"
 
       - name: Пробный запуск — APK во вложения
