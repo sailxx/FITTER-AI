@@ -382,8 +382,10 @@ async function getWeights(env, id) {
 
 // Полное удаление данных пользователя по команде /delete
 async function deleteUserData(env, id) {
+  const u = await getUser(env, id);
   const keys = [
     `u:${id}`, `w:${id}`, `adv:${id}`,
+    ...((u && u.apps) || []).map((a) => `tk:${a.h}`),
     ...(await listAll(env, `d:${id}:`)),
     ...(await listAll(env, `an:${id}:`)),
   ];
@@ -721,6 +723,7 @@ function newUser(from) {
 // Метка источника из /start: только латиница, цифры, _ и -, до 32 символов
 function startSource(text) {
   const m = String(text || "").match(/^\/start\s+([A-Za-z0-9_-]{1,32})$/);
+  if (m && m[1].startsWith("link_")) return "app"; // пришёл из приложения Android
   return m ? m[1].toLowerCase() : "direct";
 }
 
@@ -866,6 +869,8 @@ async function onMessage(msg, env) {
     return tgRaw(env, "sendMessage", { chat_id: chatId, text: e ? `Последняя ошибка иконок (${e.at}, ${e.method}):\n${e.error}` : "Ошибок с иконками не было ✅" });
   }
 
+  const linkCode = text.match(/^\/start link_([0-9a-z]{20})$/);
+  if (linkCode && u.targets) return askLinkConfirm(env, u, chatId, linkCode[1]);
   if (text === "/start" || text.startsWith("/start ")) {
     if (u.targets) {
       u.state = null;
@@ -1071,6 +1076,7 @@ async function onCallback(q, env) {
   const answer = (text) => tg(env, "answerCallbackQuery", { callback_query_id: q.id, text });
   if (!u || !chatId) return answer("Напиши /start");
   const [kind, a, b, c] = data.split("|");
+  if (kind === "lnk" && u.targets) return onLinkCallback(env, u, chatId, msgId, a === "y", b || "", answer);
 
   if (kind === "sex" && u.state?.step === "sex") {
     u.sex = a === "f" ? "f" : "m";
@@ -2491,11 +2497,127 @@ async function verifyInitData(initData, token) {
   try { return JSON.parse(params.get("user")); } catch { return null; }
 }
 
-async function api(request, url, env) {
+// ───────────────────────────── Приложение Android: вход через бота ─────────────────────────────
+//
+// 1. Приложение: POST /api/link/start → { code, secret, url }. Ничего не пишем в базу: код подписан ключом бота.
+// 2. Пользователь открывает url (t.me/FitterFoodBot?start=link_<code>) и подтверждает вход кнопкой в боте → lk:<code> = { uid }.
+// 3. Приложение раз в пару секунд шлёт POST /api/link/poll { code, secret } и один раз получает постоянный токен.
+// 4. Дальше все запросы /api/* — с заголовком Authorization: Bearer <токен>. В базе только хэш: tk:<sha256> = { uid, device, at }.
+
+const LINK_TTL = 600; // ссылка для входа живёт 10 минут
+const APP_TOKENS_MAX = 5; // столько телефонов можно подключить, самый старый вход отключается
+const BOT_LINK = "https://t.me/FitterFoodBot";
+
+const sha256 = async (s) => hex(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(s)));
+const randHex = (n) => hex(crypto.getRandomValues(new Uint8Array(n)));
+async function linkSecret(env, code) {
+  const key = await crypto.subtle.importKey("raw", new TextEncoder().encode("FitterLink" + env.BOT_TOKEN), { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
+  return hex(await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(code)));
+}
+// Код: время создания (base36) + случайная часть. По времени проверяем срок без базы
+function linkCodeAlive(code) {
+  if (!/^[0-9a-z]{8}[0-9a-f]{12}$/.test(code || "")) return false;
+  const age = Date.now() - parseInt(code.slice(0, 8), 36);
+  return age >= 0 && age < LINK_TTL * 1000;
+}
+
+async function linkApi(request, url, env) {
+  if (request.method !== "POST") return json({ error: "not found" }, 404);
+  const body = await request.json().catch(() => ({}));
+  if (url.pathname === "/api/link/start") {
+    const code = Date.now().toString(36).padStart(8, "0") + randHex(6);
+    return json({ code, secret: await linkSecret(env, code), url: `${BOT_LINK}?start=link_${code}`, ttl: LINK_TTL });
+  }
+  if (url.pathname === "/api/link/poll") {
+    const code = String(body.code || "");
+    if (!linkCodeAlive(code) || !safeEqual(body.secret, await linkSecret(env, code))) return json({ error: "expired" }, 410);
+    // cacheTtl 30 — меньше разрешённого KV не бывает: подтверждение из бота дойдёт до телефона не дольше чем за полминуты
+    const link = await env.DB.get(`lk:${code}`, { type: "json", cacheTtl: 30 });
+    if (!link) return json({ status: "wait" });
+    if (!link.uid) return json({ error: "denied" }, 403);
+    await env.DB.delete(`lk:${code}`);
+    const u = await getUser(env, link.uid);
+    if (!u || !u.targets) return json({ error: "no_profile" }, 404);
+    const token = "ft_" + randHex(32);
+    const h = await sha256(token);
+    const device = String(body.device || "Android").replace(/[<>&\n\r]/g, "").trim().slice(0, 40) || "Android";
+    const at = new Date().toISOString();
+    u.apps = [...(u.apps || []), { h, device, at }];
+    const old = u.apps.slice(0, Math.max(0, u.apps.length - APP_TOKENS_MAX));
+    u.apps = u.apps.slice(old.length);
+    await Promise.all([env.DB.put(`tk:${h}`, JSON.stringify({ uid: u.id, device, at })), saveUser(env, u), ...old.map((a) => env.DB.delete(`tk:${a.h}`))]);
+    return json({ token, name: u.name || "" });
+  }
+  return json({ error: "not found" }, 404);
+}
+
+// Бот: /start link_<code> → просим подтвердить вход, чтобы по чужой ссылке нельзя было увести дневник
+async function askLinkConfirm(env, u, chatId, code) {
+  if (!linkCodeAlive(code)) return send(env, chatId, "⌛ Ссылка для входа устарела. Нажми «Войти через Telegram» в приложении ещё раз.");
+  return send(env, chatId,
+    "📱 <b>Войти в приложение Fitter?</b>\n\nПриложение получит доступ к твоему дневнику: еде, воде, весу и таблеткам.\n\n" +
+    "Подтверждай, только если ты сам сейчас нажал «Войти» в приложении Fitter на своём телефоне.",
+    { reply_markup: { inline_keyboard: [[{ text: "✅ Да, это я", callback_data: `lnk|y|${code}` }, { text: "Отмена", callback_data: `lnk|n|${code}` }]] } });
+}
+
+// Бот: кнопки подтверждения входа
+async function onLinkCallback(env, u, chatId, msgId, yes, code, answer) {
+  if (!linkCodeAlive(code)) {
+    await answer("Ссылка устарела");
+    return edit(env, chatId, msgId, "⌛ Ссылка для входа устарела. Нажми «Войти через Telegram» в приложении ещё раз.");
+  }
+  // Отказ тоже записываем: приложение сразу покажет, что вход отменён
+  await env.DB.put(`lk:${code}`, JSON.stringify(yes ? { uid: u.id } : { denied: true }), { expirationTtl: LINK_TTL });
+  await answer(yes ? "Готово" : "Отменено");
+  return edit(env, chatId, msgId, yes ? "✅ Приложение Fitter подключено. Можно вернуться в него." : "Вход в приложение отменён.");
+}
+
+// Кто делает запрос: телефон с токеном или дневник в Telegram с подписью initData
+async function apiUserId(request, env) {
+  const m = (request.headers.get("Authorization") || "").match(/^Bearer (ft_[0-9a-f]{64})$/);
+  if (m) {
+    const t = await env.DB.get(`tk:${await sha256(m[1])}`, "json");
+    return t ? t.uid : null;
+  }
   const tgUser = await verifyInitData(request.headers.get("X-Init-Data"), env.BOT_TOKEN);
-  if (!tgUser) return json({ error: "unauthorized" }, 401);
-  const u = await getUser(env, tgUser.id);
+  return tgUser ? tgUser.id : null;
+}
+
+async function api(request, url, env) {
+  if (url.pathname.startsWith("/api/link/")) return linkApi(request, url, env);
+  const uid = await apiUserId(request, env);
+  if (!uid) return json({ error: "unauthorized" }, 401);
+  const u = await getUser(env, uid);
   if (!u || !u.targets) return json({ error: "no_profile" }, 404);
+
+  // Выход из приложения: токен больше не работает
+  if (url.pathname === "/api/logout" && request.method === "POST") {
+    const m = (request.headers.get("Authorization") || "").match(/^Bearer (ft_[0-9a-f]{64})$/);
+    if (!m) return json({ error: "no token" }, 400);
+    const h = await sha256(m[1]);
+    u.apps = (u.apps || []).filter((a) => a.h !== h);
+    await Promise.all([env.DB.delete(`tk:${h}`), saveUser(env, u)]);
+    return json({ ok: true });
+  }
+
+  // Короткая сводка за сегодня для виджетов: одно чтение дня из базы
+  if (url.pathname === "/api/widget" && request.method === "GET") {
+    const date = today(u);
+    const day = await getDay(env, u.id, date);
+    const t = dayTotals(day);
+    const pills = pillDoses(u, day);
+    return json({
+      date,
+      kcal: round(t.kcal), p: round(t.p), f: round(t.f), c: round(t.c),
+      targets: u.targets,
+      water: day.water || 0,
+      waterGoal: waterGoal(u),
+      meals: day.meals.length,
+      streak: streakNow(u),
+      pills: { total: pills.length, taken: pills.filter((x) => x.s === "taken").length, next: pills.find((x) => !x.s && x.time >= nowTime(u))?.time || "" },
+      name: u.name || "",
+    });
+  }
 
   if (url.pathname === "/api/day" && request.method === "GET") {
     const date = isDate(url.searchParams.get("date")) ? url.searchParams.get("date") : today(u);
