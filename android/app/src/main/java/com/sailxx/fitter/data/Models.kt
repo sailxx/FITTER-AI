@@ -53,13 +53,18 @@ data class Meal(val id: String, val time: String, val title: String, val kcal: I
 /** Таблетка на сегодня: s = "taken" | "skip" | "" (ещё не отмечена). */
 data class PillDose(val name: String, val dose: String, val time: String, val s: String)
 
-data class Day(val date: String, val meals: List<Meal>, val pills: List<PillDose>) {
+/** День недели в шапке: сколько калорий и были ли записи. */
+data class WeekDay(val date: String, val kcal: Int, val meals: Int)
+
+data class Day(val date: String, val today: String, val meals: List<Meal>, val pills: List<PillDose>, val week: List<WeekDay>) {
     companion object {
         fun parse(j: JSONObject): Day {
             val meals = j.optJSONArray("meals")
             val pills = j.optJSONArray("pills")
+            val week = j.optJSONArray("week")
             return Day(
                 date = j.optString("date"),
+                today = j.optString("today"),
                 meals = (0 until (meals?.length() ?: 0)).map { i ->
                     val m = meals!!.getJSONObject(i)
                     val t = m.optJSONObject("totals") ?: JSONObject()
@@ -72,6 +77,10 @@ data class Day(val date: String, val meals: List<Meal>, val pills: List<PillDose
                 pills = (0 until (pills?.length() ?: 0)).map { i ->
                     val p = pills!!.getJSONObject(i)
                     PillDose(p.optString("name"), p.optString("dose"), p.optString("time"), p.optString("s"))
+                },
+                week = (0 until (week?.length() ?: 0)).map { i ->
+                    val w = week!!.getJSONObject(i)
+                    WeekDay(w.optString("date"), w.optInt("kcal"), w.optInt("meals"))
                 },
             )
         }
