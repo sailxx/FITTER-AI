@@ -19,13 +19,19 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -62,6 +68,7 @@ private val Card = RoundedCornerShape(20.dp)
 
 private data class Option(val title: String, val why: String, val kcal: Int, val p: Int, val f: Int, val c: Int, val items: String)
 private data class Advice(val intro: String, val options: List<Option>)
+private data class Recipe(val time: String, val ingredients: List<String>, val steps: List<String>, val tip: String)
 private data class Analysis(val score: Int, val summary: String, val good: List<String>, val improve: List<String>, val tips: List<String>, val from: String, val end: String, val recorded: Int)
 
 private fun JSONArray?.strings() = (0 until (this?.length() ?: 0)).map { this!!.optString(it) }.filter { it.isNotBlank() }
@@ -77,6 +84,11 @@ private fun parseAdvice(j: JSONObject?): Advice? {
         )
     }
     return if (opts.isEmpty()) null else Advice(j.optString("intro"), opts)
+}
+
+private fun parseRecipe(j: JSONObject?): Recipe? {
+    if (j == null || !j.has("steps")) return null
+    return Recipe(j.optString("time"), j.optJSONArray("ingredients").strings(), j.optJSONArray("steps").strings(), j.optString("tip"))
 }
 
 private fun parseAnalysis(j: JSONObject?): Analysis? {
@@ -108,6 +120,11 @@ fun TipsScreen() {
     var advErr by remember { mutableStateOf<String?>(null) }
     var anErr by remember { mutableStateOf<String?>(null) }
     var eaten by remember { mutableStateOf<String?>(null) }
+    var open by remember { mutableStateOf<Int?>(null) }
+    var recipe by remember { mutableStateOf<Recipe?>(null) }
+    var recipeBusy by remember { mutableStateOf(false) }
+    var similarBusy by remember { mutableStateOf(false) }
+    var sheetErr by remember { mutableStateOf<String?>(null) }
 
     LaunchedEffect(Unit) {
         val token = FitterRepository.token(context) ?: return@LaunchedEffect
@@ -136,6 +153,26 @@ fun TipsScreen() {
         } catch (e: CancellationException) { throw e } catch (e: Exception) { advErr = aiError(e) }
     }
 
+    fun openOption(i: Int) = scope.launch {
+        val token = FitterRepository.token(context) ?: return@launch
+        open = i; recipe = null; sheetErr = null; recipeBusy = true
+        try {
+            recipe = parseRecipe(Api.adviceRecipe(token, FitterRepository.today(context), i))
+            if (recipe == null) sheetErr = "Не получилось составить рецепт"
+        } catch (e: CancellationException) { throw e } catch (e: Exception) { sheetErr = aiError(e) }
+        recipeBusy = false
+    }
+
+    fun similar(i: Int) = scope.launch {
+        val token = FitterRepository.token(context) ?: return@launch
+        similarBusy = true; sheetErr = null
+        try {
+            advice = parseAdvice(Api.adviceSimilar(token, FitterRepository.today(context), i))
+            open = null
+        } catch (e: CancellationException) { throw e } catch (e: Exception) { sheetErr = aiError(e) }
+        similarBusy = false
+    }
+
     fun analyze() = scope.launch {
         val token = FitterRepository.token(context) ?: return@launch
         anBusy = true; anErr = null
@@ -143,6 +180,16 @@ fun TipsScreen() {
             analysis = parseAnalysis(Api.analysis(token, FitterRepository.today(context)))
         } catch (e: CancellationException) { throw e } catch (e: Exception) { anErr = aiError(e) }
         anBusy = false
+    }
+
+    val openOpt = open?.let { advice?.options?.getOrNull(it) }
+    if (open != null && openOpt != null) {
+        RecipeSheet(
+            o = openOpt, recipe = recipe, busy = recipeBusy, similarBusy = similarBusy, err = sheetErr,
+            onClose = { if (!similarBusy) open = null },
+            onSimilar = { similar(open!!) },
+            onEat = { val i = open!!; open = null; eat(i, openOpt.title) },
+        )
     }
 
     LazyColumn(Modifier.fillMaxSize().background(t.bg), contentPadding = PaddingValues(bottom = 140.dp)) {
@@ -154,7 +201,7 @@ fun TipsScreen() {
                     advice != null -> {
                         val a = advice!!
                         if (a.intro.isNotBlank()) Note(a.intro)
-                        a.options.forEachIndexed { i, o -> OptionCard(i, o) { eat(i, o.title) } }
+                        a.options.forEachIndexed { i, o -> OptionCard(i, o, onOpen = { openOption(i) }) { eat(i, o.title) } }
                         GhostButton("🔄 Другие варианты") { pickAdvice() }
                     }
                     else -> {
@@ -234,9 +281,9 @@ private fun Section(@DrawableRes icon: Int, title: String, sub: String, modifier
 }
 
 @Composable
-private fun OptionCard(i: Int, o: Option, onEat: () -> Unit) {
+private fun OptionCard(i: Int, o: Option, onOpen: () -> Unit, onEat: () -> Unit) {
     val t = LocalTokens.current
-    Column(Modifier.fillMaxWidth().background(t.bg, RoundedCornerShape(16.dp)).padding(14.dp)) {
+    Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(t.bg).clickable(onClick = onOpen).padding(14.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text("${i + 1}", fontWeight = FontWeight.ExtraBold, color = Color.White, fontSize = 13.sp, textAlign = TextAlign.Center,
                 modifier = Modifier.size(22.dp).background(Palette.G2, RoundedCornerShape(11.dp)).padding(top = 2.dp))
@@ -251,6 +298,46 @@ private fun OptionCard(i: Int, o: Option, onEat: () -> Unit) {
         Box(
             Modifier.clip(RoundedCornerShape(12.dp)).background(Palette.G2).clickable(onClick = onEat).padding(horizontal = 14.dp, vertical = 8.dp),
         ) { Text("✅ Съел это", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 13.sp) }
+        Text("Нажми — рецепт и похожее", fontSize = 11.sp, color = t.hint, modifier = Modifier.padding(top = 8.dp))
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun RecipeSheet(o: Option, recipe: Recipe?, busy: Boolean, similarBusy: Boolean, err: String?, onClose: () -> Unit, onSimilar: () -> Unit, onEat: () -> Unit) {
+    val t = LocalTokens.current
+    ModalBottomSheet(
+        onDismissRequest = onClose,
+        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+        containerColor = t.card,
+        dragHandle = { Box(Modifier.padding(top = 10.dp).size(40.dp, 4.dp).background(t.line, RoundedCornerShape(2.dp))) },
+    ) {
+        Column(
+            Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(horizontal = 20.dp).padding(top = 12.dp, bottom = 20.dp).navigationBarsPadding(),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(o.title, fontSize = 20.sp, fontWeight = FontWeight.ExtraBold, color = t.text, modifier = Modifier.weight(1f))
+                Text("${o.kcal} ккал", fontWeight = FontWeight.ExtraBold, color = Palette.G3)
+            }
+            Text("Б ${o.p} · Ж ${o.f} · У ${o.c}" + (if (o.why.isNotBlank()) " — ${o.why}" else ""), fontSize = 12.sp, color = t.hint)
+            Text(o.items, fontSize = 13.sp, color = t.text)
+            when {
+                busy -> Thinking("Пишу рецепт…")
+                recipe != null -> {
+                    if (recipe.time.isNotBlank()) Text("⏱ ${recipe.time}", fontWeight = FontWeight.Bold, color = t.text)
+                    Bullets(R.drawable.ic_salad, "Ингредиенты", recipe.ingredients)
+                    Column(Modifier.fillMaxWidth().background(t.bg, RoundedCornerShape(16.dp)).padding(14.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Text("Приготовление", fontWeight = FontWeight.ExtraBold, color = t.text)
+                        recipe.steps.forEachIndexed { k, st -> Text("${k + 1}. $st", fontSize = 14.sp, color = t.text, lineHeight = 19.sp) }
+                    }
+                    if (recipe.tip.isNotBlank()) Note("💡 ${recipe.tip}")
+                }
+            }
+            err?.let { Err(it) }
+            if (similarBusy) Thinking("Ищу похожее…") else GhostButton("🔍 Найти похожее") { onSimilar() }
+            MainButton("✅ Съел это") { onEat() }
+        }
     }
 }
 

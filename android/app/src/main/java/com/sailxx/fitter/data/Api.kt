@@ -108,6 +108,12 @@ object Api {
     suspend fun advice(token: String, date: String) =
         authed("/api/advice", token, "POST", JSONObject().put("date", date), timeout = 60_000)
 
+    suspend fun adviceRecipe(token: String, date: String, i: Int) =
+        authed("/api/advice/recipe", token, "POST", JSONObject().put("date", date).put("i", i), timeout = 60_000)
+
+    suspend fun adviceSimilar(token: String, date: String, i: Int) =
+        authed("/api/advice/similar", token, "POST", JSONObject().put("date", date).put("i", i), timeout = 60_000)
+
     suspend fun adviceEat(token: String, date: String, i: Int) =
         authed("/api/advice/eat", token, "POST", JSONObject().put("date", date).put("i", i))
 
