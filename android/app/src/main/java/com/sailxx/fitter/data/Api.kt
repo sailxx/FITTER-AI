@@ -95,6 +95,10 @@ object Api {
     suspend fun mealPhoto(token: String, date: String, image: String, caption: String) =
         authed("/api/meal/photo", token, "POST", JSONObject().put("date", date).put("image", image).put("caption", caption), timeout = 60_000)
 
+    /** Отметка таблетки: s = "taken" — принята, "" — снять отметку. */
+    suspend fun pillMark(token: String, date: String, id: String, time: String, s: String) =
+        authed("/api/pill/mark", token, "POST", JSONObject().put("date", date).put("id", id).put("time", time).put("s", s))
+
     suspend fun mealDelete(token: String, date: String, mealId: String) =
         authed("/api/meal/delete", token, "POST", JSONObject().put("date", date).put("mealId", mealId))
 

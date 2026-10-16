@@ -8,6 +8,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
+import com.sailxx.fitter.data.ThemeMode
 
 /**
  * Цвета FITTER — те же, что у дневника в Telegram (APP_HTML в worker.js):
@@ -80,8 +81,12 @@ private val DarkTokens = Tokens(
 val LocalTokens = staticCompositionLocalOf { LightTokens }
 
 @Composable
-fun FitterTheme(content: @Composable () -> Unit) {
-    val dark = isSystemInDarkTheme()
+fun FitterTheme(mode: ThemeMode = ThemeMode.SYSTEM, content: @Composable () -> Unit) {
+    val dark = when (mode) {
+        ThemeMode.LIGHT -> false
+        ThemeMode.DARK -> true
+        ThemeMode.SYSTEM -> isSystemInDarkTheme()
+    }
     val t = if (dark) DarkTokens else LightTokens
     val scheme = if (dark) {
         darkColorScheme(primary = Palette.G1, onPrimary = Palette.HeroInk, background = t.bg, surface = t.card, onBackground = t.text, onSurface = t.text)

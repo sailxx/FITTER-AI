@@ -145,7 +145,7 @@ fun TipsScreen() {
         anBusy = false
     }
 
-    LazyColumn(Modifier.fillMaxSize().background(t.bg), contentPadding = PaddingValues(bottom = 120.dp)) {
+    LazyColumn(Modifier.fillMaxSize().background(t.bg), contentPadding = PaddingValues(bottom = 140.dp)) {
         item { TipsHero() }
         item {
             Section(R.drawable.ic_salad, "Что съесть сейчас", "3 варианта под остаток твоей нормы", Modifier.padding(top = 16.dp).rise(0)) {

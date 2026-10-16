@@ -120,7 +120,7 @@ private fun plural(x: Int, a: String, b: String, c: String): String {
 /** Экран дня — как дневник в Telegram: яркая шапка с неделей и кольцом, БЖУ, вода, таблетки, еда. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun TodayScreen(st: AppState, onAdd: () -> Unit) {
+fun TodayScreen(st: AppState, onAdd: () -> Unit, onSettings: () -> Unit) {
     val t = LocalTokens.current
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -133,10 +133,10 @@ fun TodayScreen(st: AppState, onAdd: () -> Unit) {
         onRefresh = { scope.launch { refreshing = true; FitterRepository.refresh(context); refreshing = false } },
         modifier = Modifier.fillMaxSize().background(t.bg),
     ) {
-        LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 120.dp)) {
+        LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 140.dp)) {
             item {
                 Hero(s, day, onRefresh = { scope.launch { FitterRepository.refresh(context) } }, onBot = { openUrl(context, BOT_URL) },
-                    onLogout = { scope.launch { FitterRepository.logout(context) } })
+                    onLogout = { scope.launch { FitterRepository.logout(context) } }, onSettings = onSettings)
             }
             if (s == null) {
                 item {
@@ -186,7 +186,7 @@ fun TodayScreen(st: AppState, onAdd: () -> Unit) {
 // ───────────────────────────── Шапка ─────────────────────────────
 
 @Composable
-private fun Hero(s: Summary?, day: Day?, onRefresh: () -> Unit, onBot: () -> Unit, onLogout: () -> Unit) {
+private fun Hero(s: Summary?, day: Day?, onRefresh: () -> Unit, onBot: () -> Unit, onLogout: () -> Unit, onSettings: () -> Unit) {
     val t = LocalTokens.current
     val shape = RoundedCornerShape(bottomStart = 30.dp, bottomEnd = 30.dp)
     val date = s?.date?.let { runCatching { LocalDate.parse(it) }.getOrNull() }
@@ -220,6 +220,7 @@ private fun Hero(s: Summary?, day: Day?, onRefresh: () -> Unit, onBot: () -> Uni
             Box {
                 HeroButton("•••") { menu = true }
                 DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
+                    DropdownMenuItem(text = { Text("Настройки") }, onClick = { menu = false; onSettings() })
                     DropdownMenuItem(text = { Text("Открыть бота") }, onClick = { menu = false; onBot() })
                     DropdownMenuItem(text = { Text("Выйти") }, onClick = { menu = false; onLogout() })
                 }
@@ -513,15 +514,23 @@ private fun PillsCard(day: Day) {
             Spacer(Modifier.width(10.dp))
             Column {
                 Text("Таблетки", fontWeight = FontWeight.ExtraBold, color = t.text)
-                Text("$taken из ${day.pills.size} принято", fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = t.hint)
+                Text("$taken из ${day.pills.size} принято" + if (taken < day.pills.size) " · нажми, чтобы отметить" else "", fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = t.hint)
             }
         }
         Box(Modifier.padding(top = 12.dp, bottom = 4.dp).fillMaxWidth().height(5.dp).clip(RoundedCornerShape(9.dp)).background(t.line)) {
             Box(Modifier.fillMaxHeight().fillMaxWidth(bar).background(Palette.Pill))
         }
+        val ctx = LocalContext.current
+        val scope = rememberCoroutineScope()
         day.pills.forEachIndexed { i, p ->
             if (i > 0) Box(Modifier.fillMaxWidth().height(1.dp).background(t.line))
-            Row(Modifier.padding(vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+            // Нажатие отмечает таблетку принятой, повторное — снимает отметку
+            Row(
+                Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp))
+                    .clickable { scope.launch { FitterRepository.markPill(ctx, p.id, p.time, if (p.s == "taken") "" else "taken") } }
+                    .padding(vertical = 10.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
                 Text(p.time, fontSize = 13.sp, fontWeight = FontWeight.ExtraBold, color = t.hint, modifier = Modifier.width(48.dp))
                 Column(Modifier.weight(1f)) {
                     Text(

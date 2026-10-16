@@ -51,7 +51,7 @@ data class Summary(
 data class Meal(val id: String, val time: String, val title: String, val kcal: Int, val p: Int, val f: Int, val c: Int)
 
 /** Таблетка на сегодня: s = "taken" | "skip" | "" (ещё не отмечена). */
-data class PillDose(val name: String, val dose: String, val time: String, val s: String)
+data class PillDose(val id: String, val name: String, val dose: String, val time: String, val s: String)
 
 /** День недели в шапке: сколько калорий и были ли записи. */
 data class WeekDay(val date: String, val kcal: Int, val meals: Int)
@@ -76,7 +76,7 @@ data class Day(val date: String, val today: String, val meals: List<Meal>, val p
                 },
                 pills = (0 until (pills?.length() ?: 0)).map { i ->
                     val p = pills!!.getJSONObject(i)
-                    PillDose(p.optString("name"), p.optString("dose"), p.optString("time"), p.optString("s"))
+                    PillDose(p.optString("id"), p.optString("name"), p.optString("dose"), p.optString("time"), p.optString("s"))
                 },
                 week = (0 until (week?.length() ?: 0)).map { i ->
                     val w = week!!.getJSONObject(i)
