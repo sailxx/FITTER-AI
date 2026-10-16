@@ -3056,15 +3056,15 @@ const APP_HTML = `<!doctype html>
     --r:20px;
   }
   /* Тема, выбранная кнопкой: перекрывает цвета Telegram */
-  html[data-theme="light"]{--bg:#f6faf7;--card:#ffffff;--text:#13201a;--hint:#7f8c85;--line:rgba(19,32,26,.08);--edge:rgba(19,32,26,.045);--fill:rgba(19,32,26,.04);--shadow:0 1px 2px rgba(16,40,28,.03),0 8px 24px rgba(16,60,40,.07)}
+  html[data-theme="light"]{--bg:#f6faf7;--card:#ffffff;--text:#13201a;--hint:#7f8c85;--line:rgba(19,32,26,.08);--edge:rgba(19,32,26,.045);--fill:rgba(19,32,26,.04);--shadow:0 1px 2px rgba(16,40,28,.04),0 4px 12px rgba(16,60,40,.06)}
   html[data-theme="dark"]{--bg:#0c100e;--card:#161c19;--text:#eef3f0;--hint:#8b968f;--line:rgba(255,255,255,.08);--edge:rgba(255,255,255,.06);--fill:rgba(255,255,255,.07);--shadow:none}
   /* Шапка: максимально яркий зелёный в обеих темах, текст тёмно-зелёный (контраст от 9:1) */
   html{--h-bg:radial-gradient(90% 70% at 90% -12%,rgba(220,255,236,.8),rgba(220,255,236,0) 60%),linear-gradient(165deg,#5dffad,#33f792 50%,#1fec84);
     --h-ink:#03301a;--h-sub:rgba(3,48,26,.75);--h-btn:rgba(255,255,255,.42);--h-chip:rgba(255,255,255,.5);--h-track:rgba(3,48,26,.12);--h-arc:#ffffff;--h-arc2:#e6fff1;
-    --h-sel:#03301a;--h-sel-ink:#5dffad;--h-sel-sub:rgba(93,255,173,.7);--h-dot-ok:#03301a;--h-dot-lo:rgba(3,48,26,.3);--h-dot-ov:#d93a2f;--h-shadow:0 12px 30px rgba(31,236,132,.3)}
-  html[data-theme="dark"]{--h-shadow:0 12px 30px rgba(31,236,132,.18)}
+    --h-sel:#03301a;--h-sel-ink:#5dffad;--h-sel-sub:rgba(93,255,173,.7);--h-dot-ok:#03301a;--h-dot-lo:rgba(3,48,26,.3);--h-dot-ov:#d93a2f;--h-shadow:0 8px 16px rgba(31,236,132,.28)}
+  html[data-theme="dark"]{--h-shadow:0 8px 16px rgba(31,236,132,.16)}
   /* Светлая тема: яркая шапка, воздух вокруг белого кольца */
-  html[data-theme="light"]{--h-bg:radial-gradient(90% 70% at 90% -12%,rgba(230,255,240,.85),rgba(230,255,240,0) 60%),linear-gradient(165deg,#62ffb0,#2ef88f 50%,#12e97c);--h-shadow:0 14px 32px rgba(18,233,124,.32)}
+  html[data-theme="light"]{--h-bg:radial-gradient(90% 70% at 90% -12%,rgba(230,255,240,.85),rgba(230,255,240,0) 60%),linear-gradient(165deg,#62ffb0,#2ef88f 50%,#12e97c);--h-shadow:0 8px 16px rgba(18,233,124,.3)}
   html[data-theme="light"] .ring .in{box-shadow:0 8px 24px rgba(22,184,106,.18)}
   html.tt,html.tt *{transition:background-color .3s,color .3s,border-color .3s!important}
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
@@ -3100,13 +3100,13 @@ const APP_HTML = `<!doctype html>
   .ring{position:relative;width:204px;height:204px}
   .ring > svg{position:absolute;inset:0;transform:rotate(-90deg);overflow:visible}
   .ring .trk{stroke:var(--h-track)}
-  .ring .arc{transition:stroke-dashoffset 1.2s cubic-bezier(.2,.8,.2,1);filter:drop-shadow(0 3px 8px rgba(3,48,26,.22))}
+  /* Без CSS-фильтров на SVG: во встроенном браузере Telegram на Android они рвали отрисовку шапки на куски */
+  .ring .arc{transition:stroke-dashoffset 1.2s cubic-bezier(.2,.8,.2,1)}
   .ring .s1{stop-color:var(--h-arc)} .ring .s2{stop-color:var(--h-arc2)}
   .ring.over .s1{stop-color:#b4231a} .ring.over .s2{stop-color:#ff6a4d}
   .ring .knob{transform-origin:102px 102px;transition:transform 1.2s cubic-bezier(.2,.8,.2,1)}
   .ring .knob circle{fill:#13a35a;stroke:#fff;stroke-width:4}
   .ring.over .knob circle{fill:#d93a2f}
-  .ring.ok .arc{filter:drop-shadow(0 0 8px rgba(255,255,255,.9))}
   .ring .in{position:absolute;left:34px;top:34px;width:136px;height:136px;border-radius:50%;background:#fff;color:#03301a;
     box-shadow:0 10px 26px rgba(3,48,26,.16),inset 0 -6px 14px rgba(3,48,26,.05);display:flex;flex-direction:column;align-items:center;justify-content:center}
   .ring .in .ic{width:22px;height:22px;margin-bottom:1px}
@@ -3152,8 +3152,9 @@ const APP_HTML = `<!doctype html>
   .glass{width:52px;height:70px;flex:none;position:relative}
   .glass svg{width:100%;height:100%;overflow:visible}
   .glass .lvl{transition:transform 1s cubic-bezier(.2,.8,.2,1)}
-  .glass .wave{animation:wave 2.4s linear infinite}
-  .glass .wave2{animation:wave 3.6s linear infinite reverse;opacity:.55}
+  /* Волна качается 3 раза и замирает: бесконечная анимация постоянно перерисовывала страницу */
+  .glass .wave{animation:wave 2.4s linear 3}
+  .glass .wave2{animation:wave 3.6s linear 2 reverse;opacity:.55}
   @keyframes wave{from{transform:translateX(0)}to{transform:translateX(-40px)}}
   .wt{flex:1;position:relative;z-index:1}
   .wt .lb{font-size:12px;font-weight:600;color:rgba(255,255,255,.85)}
@@ -3277,7 +3278,7 @@ const APP_HTML = `<!doctype html>
   .load{padding:60px 0;text-align:center;opacity:.8}
 
   /* ── Анимации ── */
-  .rise{animation:rise .45s cubic-bezier(.2,.8,.2,1) both}
+  .rise{animation:rise .45s cubic-bezier(.2,.8,.2,1) backwards}
   @keyframes rise{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
   .pop{animation:pop .5s cubic-bezier(.3,1.6,.5,1)}
   @keyframes pop{0%{transform:scale(1)}35%{transform:scale(1.05)}100%{transform:scale(1)}}
