@@ -46,7 +46,7 @@ export default {
       }
       if (url.pathname === "/setup") return await setup(request, E);
       if (url.pathname === "/app") {
-        return new Response(APP_HTML, { headers: { "content-type": "text/html; charset=utf-8", ...(await appHeaders()) } });
+        return new Response(APP_HTML, { headers: { "content-type": "text/html; charset=utf-8", "cache-control": "no-cache", ...(await appHeaders()) } });
       }
       if (url.pathname.startsWith("/api/")) {
         const res = await api(request, url, E);
@@ -3146,23 +3146,19 @@ const APP_HTML = `<!doctype html>
   /* ── Вода ── */
   .water{margin-top:12px;border-radius:var(--r);padding:18px;color:#fff;display:flex;align-items:center;gap:14px;position:relative;overflow:hidden;
     background:linear-gradient(135deg,var(--w1),var(--w2));box-shadow:0 8px 22px rgba(42,123,240,.24)}
-  .water:after{content:"";position:absolute;width:160px;height:160px;border-radius:50%;right:-50px;top:-70px;background:rgba(255,255,255,.12)}
   .water.done{box-shadow:0 0 0 2px rgba(255,255,255,.7) inset,0 8px 26px rgba(42,123,240,.4)}
   html[data-theme="dark"] .water:not(.done){box-shadow:none}
   .glass{width:52px;height:70px;flex:none;position:relative}
   .glass svg{width:100%;height:100%;overflow:visible}
   /* Волна качается 3 раза и замирает: бесконечная анимация постоянно перерисовывала страницу */
-  .glass .wave{animation:wave 2.4s linear 3}
-  .glass .wave2{animation:wave 3.6s linear 2 reverse;opacity:.55}
-  @keyframes wave{from{transform:translateX(0)}to{transform:translateX(-40px)}}
-  .wt{flex:1;position:relative;z-index:1}
+  .wt{flex:1;min-width:0}
   .wt .lb{font-size:12px;font-weight:600;color:rgba(255,255,255,.85)}
   .wt b{font-size:24px;font-weight:800;letter-spacing:-.02em}
   .wt small{font-size:12px;font-weight:600;color:rgba(255,255,255,.85)}
   .cups{display:flex;flex-wrap:wrap;gap:4px;margin-top:7px}
   .cups i{width:9px;height:12px;border-radius:1px 1px 3px 3px;background:rgba(255,255,255,.28);transition:background .3s}
   .cups i.on{background:#fff}
-  .wbtn{display:flex;flex-direction:column;gap:6px;position:relative;z-index:1}
+  .wbtn{display:flex;flex-direction:column;gap:6px}
   .wbtn button{height:36px;border-radius:12px;padding:0 14px;font-weight:700;font-size:14px;background:rgba(255,255,255,.22);color:#fff}
   .wbtn button.add{background:#fff;color:var(--w2)}
   /* ── Таблетки ── */
@@ -3480,14 +3476,17 @@ const APP_HTML = `<!doctype html>
       '<div class="wsum"><span>В норме <b>' + inN + ' из ' + days.length + '</b> ' + (days.length === 1 ? 'дня' : 'дней') + '</span><span class="lg"><i class="ok"></i>норма <i class="lo"></i>меньше <i class="ov"></i>больше</span></div></div>';
   }
 
-  // Стакан с волной: уровень воды поднимается
+  // Вода в стакане — многоугольник по форме стакана: без clip-path, который на Android рисовался чёрным
+  function waterPts(y){
+    var t = Math.min(70, Math.max(7, y)), sl = (t - 4) * 5 / 66;
+    return (6.5 + sl).toFixed(2) + "," + t.toFixed(2) + " " + (51.5 - sl).toFixed(2) + "," + t.toFixed(2) + " 47,70 44,73 14,73 11,70";
+  }
   function glass(pct){
     var y = 74 - 66 * Math.min(1, pct);
-    return '<div class="glass"><svg viewBox="0 0 58 78"><defs><clipPath id="gc"><path d="M5 4h48l-5 66a6 6 0 0 1-6 5H16a6 6 0 0 1-6-5z"/></clipPath></defs>' +
-      '<path d="M5 4h48l-5 66a6 6 0 0 1-6 5H16a6 6 0 0 1-6-5z" fill="rgba(255,255,255,.18)" stroke="rgba(255,255,255,.75)" stroke-width="2.4" stroke-linejoin="round"/>' +
-      '<g clip-path="url(#gc)"><g class="lvl" transform="translate(0 ' + y + ')" data-y="' + y + '">' +
-      '<path class="wave2" d="M0 4 Q10 -2 20 4 T40 4 T60 4 T80 4 T100 4 V90 H0z" fill="#d6f0ff"/>' +
-      '<path class="wave" d="M0 6 Q10 0 20 6 T40 6 T60 6 T80 6 T100 6 V90 H0z" fill="#fff"/></g></g>' +
+    return '<div class="glass"><svg viewBox="0 0 58 78">' +
+      '<path d="M5 4h48l-5 66a6 6 0 0 1-6 5H16a6 6 0 0 1-6-5z" fill="rgba(255,255,255,.18)"/>' +
+      '<polygon class="lvl" points="' + waterPts(y) + '" data-y="' + y + '" fill="#fff" fill-opacity="' + (pct > 0 ? 1 : 0) + '"/>' +
+      '<path d="M5 4h48l-5 66a6 6 0 0 1-6 5H16a6 6 0 0 1-6-5z" fill="none" stroke="rgba(255,255,255,.75)" stroke-width="2.4" stroke-linejoin="round"/>' +
       '<path d="M14 14l3 44" stroke="rgba(255,255,255,.55)" stroke-width="3" stroke-linecap="round"/></svg></div>';
   }
 
@@ -3701,9 +3700,10 @@ const APP_HTML = `<!doctype html>
   function moveLevel(g, to){
     var from = Number(g.getAttribute("data-y")) || to, t0 = performance.now(), dur = calm ? 0 : 700;
     g.setAttribute("data-y", to);
+    g.setAttribute("fill-opacity", to < 74 ? 1 : 0);
     (function step(now){
       var k = dur ? Math.min(1, (now - t0) / dur) : 1, e = 1 - Math.pow(1 - k, 3);
-      g.setAttribute("transform", "translate(0 " + (from + (to - from) * e).toFixed(2) + ")");
+      g.setAttribute("points", waterPts(from + (to - from) * e));
       if (k < 1) requestAnimationFrame(step);
     })(t0);
   }
