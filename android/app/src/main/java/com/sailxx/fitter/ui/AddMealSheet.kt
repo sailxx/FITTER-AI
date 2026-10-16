@@ -38,6 +38,7 @@ import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -77,7 +78,7 @@ private sealed interface Stage {
 /** Добавить еду: текстом, снимком с камеры или фото из галереи. Считает нейросеть на сервере, как в боте. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun AddMealSheet(onClose: () -> Unit) {
+fun AddMealSheet(openCamera: Boolean = false, onClose: () -> Unit) {
     val t = LocalTokens.current
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -94,6 +95,8 @@ fun AddMealSheet(onClose: () -> Unit) {
     }
     val camera = rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { ok -> if (ok) cameraUri?.let { load(it) } }
     val gallery = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri -> uri?.let { load(it) } }
+    // Открыли с виджета «Фото еды» — сразу запускаем камеру
+    LaunchedEffect(Unit) { if (openCamera) { val u = Photos.cameraUri(context); cameraUri = u; camera.launch(u) } }
 
     fun send() = scope.launch {
         val token = FitterRepository.token(context) ?: return@launch

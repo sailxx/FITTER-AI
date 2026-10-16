@@ -71,11 +71,22 @@ import com.sailxx.fitter.data.FitterRepository
 import com.sailxx.fitter.data.LiveSync
 import com.sailxx.fitter.data.ThemePref
 import com.sailxx.fitter.data.WidgetPrefs
+import com.sailxx.fitter.widget.SyncWorker
 import com.sailxx.fitter.widget.updateFitterWidgets
 import com.sailxx.fitter.R
 import kotlinx.coroutines.launch
 
 const val BOT_URL = "https://t.me/FitterFoodBot"
+
+/** Что попросили при запуске: виджет «Фото еды» передаёт add=camera. */
+object Launch {
+    const val EXTRA_ADD = "add"
+    val add = kotlinx.coroutines.flow.MutableStateFlow<String?>(null)
+    fun read(intent: Intent?) {
+        intent?.getStringExtra(EXTRA_ADD)?.let { add.value = it }
+        intent?.removeExtra(EXTRA_ADD)
+    }
+}
 
 fun openUrl(context: Context, url: String) {
     context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
@@ -89,6 +100,7 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge(statusBarStyle = SystemBarStyle.light(android.graphics.Color.TRANSPARENT, android.graphics.Color.TRANSPARENT))
         super.onCreate(savedInstanceState)
         FitterRepository.load(this)
+        Launch.read(intent)
         ThemePref.load(this)
         WidgetPrefs.load(this)
         setContent {
@@ -104,13 +116,22 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    // Виджет «Фото еды» открывает уже запущенное приложение — сразу показываем камеру
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        Launch.read(intent)
+    }
+
     // Приложение на экране — держим живое соединение, свернули — закрываем
     override fun onStart() {
         super.onStart()
         started = true
         // Тема могла смениться вместе с системной — виджеты перекрашиваем под неё
         lifecycleScope.launch { updateFitterWidgets(this@MainActivity) }
-        if (FitterRepository.token(this) != null) LiveSync.start(this)
+        if (FitterRepository.token(this) != null) {
+            LiveSync.start(this)
+            SyncWorker.schedule(this) // виджеты обновляются в фоне раз в 15 минут
+        }
     }
 
     override fun onStop() {
@@ -133,6 +154,11 @@ private enum class Tab { Today, Tips, Settings }
 private fun Home(st: AppState) {
     var tab by rememberSaveable { mutableStateOf(Tab.Today) }
     var adding by remember { mutableStateOf(false) }
+    var camera by remember { mutableStateOf(false) }
+    val request by Launch.add.collectAsState()
+    LaunchedEffect(request) {
+        if (request != null) { tab = Tab.Today; camera = request == "camera"; adding = true; Launch.add.value = null }
+    }
     Box(Modifier.fillMaxSize()) {
         Crossfade(tab, animationSpec = tween(250), label = "tab") { t ->
             when (t) {
@@ -142,7 +168,7 @@ private fun Home(st: AppState) {
             }
         }
         BottomBar(tab, onTab = { tab = it }, onAdd = { adding = true }, modifier = Modifier.align(Alignment.BottomCenter))
-        if (adding) AddMealSheet(onClose = { adding = false })
+        if (adding) AddMealSheet(openCamera = camera, onClose = { adding = false; camera = false })
     }
 }
 

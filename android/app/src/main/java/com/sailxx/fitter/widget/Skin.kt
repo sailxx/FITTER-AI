@@ -77,14 +77,14 @@ private fun paint(c: Color, stroke: Float = 0f) = Paint(Paint.ANTI_ALIAS_FLAG).a
 }
 
 /** Кольцо: дорожка и дуга с круглыми концами. При превышении нормы дуга оранжевая. */
-fun ringBitmap(g: Skin, progress: Float, sizePx: Int, strokePx: Float): Bitmap {
+fun ringBitmap(g: Skin, progress: Float, sizePx: Int, strokePx: Float, color: Color? = null): Bitmap {
     val bmp = Bitmap.createBitmap(sizePx, sizePx, Bitmap.Config.ARGB_8888)
     val c = Canvas(bmp)
     val pad = strokePx / 2 + 1
     val r = RectF(pad, pad, sizePx - pad, sizePx - pad)
     c.drawArc(r, 0f, 360f, false, paint(g.trk, strokePx))
     val sweep = 360f * progress.coerceIn(0f, 1f)
-    if (sweep > 0f) c.drawArc(r, -90f, sweep.coerceAtLeast(1f), false, paint(if (progress > 1.1f) Palette.Protein else g.arc, strokePx))
+    if (sweep > 0f) c.drawArc(r, -90f, sweep.coerceAtLeast(1f), false, paint(color ?: if (progress > 1.1f) Palette.Protein else g.arc, strokePx))
     return bmp
 }
 
