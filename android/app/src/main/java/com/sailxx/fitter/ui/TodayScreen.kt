@@ -133,7 +133,7 @@ fun TodayScreen(st: AppState, onAdd: () -> Unit, onSettings: () -> Unit) {
         onRefresh = { scope.launch { refreshing = true; FitterRepository.refresh(context); refreshing = false } },
         modifier = Modifier.fillMaxSize().background(t.bg),
     ) {
-        LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 120.dp)) {
+        LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 140.dp)) {
             item {
                 Hero(s, day, onRefresh = { scope.launch { FitterRepository.refresh(context) } }, onBot = { openUrl(context, BOT_URL) },
                     onLogout = { scope.launch { FitterRepository.logout(context) } }, onSettings = onSettings)

@@ -81,7 +81,7 @@ fun SettingsScreen(summary: Summary?, onBack: () -> Unit) {
         scope.launch { updateFitterWidgets(context) }
     }
 
-    LazyColumn(Modifier.fillMaxSize().background(t.bg), contentPadding = PaddingValues(bottom = 32.dp)) {
+    LazyColumn(Modifier.fillMaxSize().background(t.bg), contentPadding = PaddingValues(bottom = 140.dp)) {
         item {
             val shape = RoundedCornerShape(bottomStart = 30.dp, bottomEnd = 30.dp)
             Row(
@@ -89,14 +89,9 @@ fun SettingsScreen(summary: Summary?, onBack: () -> Unit) {
                     .shadow(14.dp, shape, spotColor = Color(0xFF12E97C), ambientColor = Color(0x6612E97C))
                     .clip(shape)
                     .background(Brush.linearGradient(listOf(Palette.Hero1, Palette.Hero2, Palette.Hero3), start = Offset.Zero, end = Offset(500f, 900f)))
-                    .statusBarsPadding().padding(start = 14.dp, end = 18.dp, top = 14.dp, bottom = 22.dp),
+                    .statusBarsPadding().padding(start = 18.dp, end = 18.dp, top = 18.dp, bottom = 22.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Box(
-                    Modifier.size(40.dp).clip(RoundedCornerShape(12.dp)).background(Palette.HeroBtn).clickable(onClick = onBack),
-                    contentAlignment = Alignment.Center,
-                ) { Text("←", color = Palette.HeroInk, fontSize = 20.sp, fontWeight = FontWeight.ExtraBold) }
-                Spacer(Modifier.width(12.dp))
                 Text("Настройки", fontSize = 28.sp, fontWeight = FontWeight.ExtraBold, color = Palette.HeroInk, letterSpacing = (-0.5).sp)
             }
         }
@@ -143,7 +138,6 @@ fun SettingsScreen(summary: Summary?, onBack: () -> Unit) {
                 Action("Выйти из аккаунта", Palette.Danger) { scope.launch { FitterRepository.logout(context) } }
             }
         }
-        item { Spacer(Modifier.navigationBarsPadding()) }
     }
 }
 

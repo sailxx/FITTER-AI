@@ -19,6 +19,18 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Outline
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.Density
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -116,7 +128,7 @@ class MainActivity : ComponentActivity() {
 
 private enum class Tab { Today, Tips, Settings }
 
-/** Главный экран: «Сегодня» и «Советы ИИ», внизу — плавающая панель с зелёной кнопкой «+». */
+/** Главный экран: вкладки «Сегодня», «Советы», «Настройки»; внизу панель с вырезом и зелёной кнопкой «+». */
 @Composable
 private fun Home(st: AppState) {
     var tab by rememberSaveable { mutableStateOf(Tab.Today) }
@@ -129,53 +141,94 @@ private fun Home(st: AppState) {
                 Tab.Settings -> SettingsScreen(st.summary, onBack = { tab = Tab.Today })
             }
         }
-        if (tab != Tab.Settings) BottomBar(tab, onTab = { tab = it }, onAdd = { adding = true }, modifier = Modifier.align(Alignment.BottomCenter))
+        BottomBar(tab, onTab = { tab = it }, onAdd = { adding = true }, modifier = Modifier.align(Alignment.BottomCenter))
         if (adding) AddMealSheet(onClose = { adding = false })
+    }
+}
+
+private val BarHeight = 68.dp
+private val PlusSize = 62.dp
+private val NotchGap = 6.dp
+private val NotchDrop = 4.dp // центр кнопки и выреза чуть ниже верхнего края панели
+
+/** Форма панели: скруглённые верхние углы и полукруглый вырез посередине под кнопку «+». */
+private class NotchShape(private val d: Density) : Shape {
+    override fun createOutline(size: Size, layoutDirection: LayoutDirection, density: Density): Outline = with(d) {
+        val corner = 20.dp.toPx()
+        val r = (PlusSize / 2 + NotchGap).toPx()
+        val cy = NotchDrop.toPx()
+        val shoulder = 10.dp.toPx()
+        val cx = size.width / 2
+        val p = Path().apply {
+            moveTo(0f, corner)
+            quadraticTo(0f, 0f, corner, 0f)
+            lineTo(cx - r - shoulder, 0f)
+            // Мягкое «плечо» перед вырезом, чтобы край не был острым
+            quadraticTo(cx - r, 0f, cx - r, cy)
+            arcTo(Rect(cx - r, cy - r, cx + r, cy + r), 180f, -180f, false)
+            quadraticTo(cx + r, 0f, cx + r + shoulder, 0f)
+            lineTo(size.width - corner, 0f)
+            quadraticTo(size.width, 0f, size.width, corner)
+            lineTo(size.width, size.height)
+            lineTo(0f, size.height)
+            close()
+        }
+        Outline.Generic(p)
     }
 }
 
 @Composable
 private fun BottomBar(tab: Tab, onTab: (Tab) -> Unit, onAdd: () -> Unit, modifier: Modifier) {
     val t = LocalTokens.current
-    val shape = RoundedCornerShape(28.dp)
-    Row(
-        modifier.navigationBarsPadding().padding(bottom = 12.dp)
-            .shadow(18.dp, shape, spotColor = Color(0x4410283C), ambientColor = Color(0x2210283C))
-            .background(t.card, shape).border(1.dp, t.edge, shape)
-            .padding(horizontal = 10.dp, vertical = 8.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(6.dp),
-    ) {
-        TabItem(R.drawable.ic_plate, "Сегодня", tab == Tab.Today) { onTab(Tab.Today) }
-        AddButton(onAdd)
-        TabItem(R.drawable.ic_sparkles, "Советы", tab == Tab.Tips) { onTab(Tab.Tips) }
+    val density = LocalDensity.current
+    val shape = remember(density) { NotchShape(density) }
+    Box(modifier.fillMaxWidth()) {
+        Row(
+            Modifier.padding(top = PlusSize / 2 - NotchDrop).fillMaxWidth()
+                .shadow(16.dp, shape, spotColor = Color(0x3310283C), ambientColor = Color(0x2210283C))
+                .background(t.card, shape)
+                .navigationBarsPadding().height(BarHeight).padding(horizontal = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            TabItem(R.drawable.ic_plate, "Сегодня", tab == Tab.Today, Modifier.weight(1f)) { onTab(Tab.Today) }
+            TabItem(R.drawable.ic_sparkles, "Советы", tab == Tab.Tips, Modifier.weight(1f)) { onTab(Tab.Tips) }
+            Spacer(Modifier.width(PlusSize + NotchGap * 4))
+            TabItem(R.drawable.ic_gear, "Настройки", tab == Tab.Settings, Modifier.weight(2f)) { onTab(Tab.Settings) }
+        }
+        AddButton(onAdd, Modifier.align(Alignment.TopCenter))
     }
 }
 
 @Composable
-private fun TabItem(@DrawableRes icon: Int, label: String, active: Boolean, onClick: () -> Unit) {
+private fun TabItem(@DrawableRes icon: Int, label: String, active: Boolean, modifier: Modifier, onClick: () -> Unit) {
     val t = LocalTokens.current
-    val scale by animateFloatAsState(if (active) 1f else 0.9f, spring(dampingRatio = 0.5f, stiffness = Spring.StiffnessMedium), label = "s")
+    val scale by animateFloatAsState(if (active) 1.1f else 0.92f, spring(dampingRatio = 0.45f, stiffness = Spring.StiffnessMedium), label = "s")
+    val dot by animateFloatAsState(if (active) 1f else 0f, spring(dampingRatio = 0.5f, stiffness = Spring.StiffnessMediumLow), label = "d")
+    val press = remember { MutableInteractionSource() }
     Column(
-        Modifier.width(84.dp).clip(RoundedCornerShape(18.dp))
-            .background(if (active) Palette.G2.copy(alpha = 0.12f) else Color.Transparent)
-            .clickable(onClick = onClick).padding(vertical = 6.dp),
+        modifier.fillMaxHeight().clickable(interactionSource = press, indication = null, onClick = onClick),
         horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center,
     ) {
         Image(painterResource(icon), null, Modifier.size(26.dp).graphicsLayer { scaleX = scale; scaleY = scale }.alpha(if (active) 1f else 0.55f))
         Text(label, fontSize = 11.sp, fontWeight = if (active) FontWeight.ExtraBold else FontWeight.SemiBold, color = if (active) t.text else t.hint)
+        Box(Modifier.padding(top = 3.dp).size(5.dp).graphicsLayer { scaleX = dot; scaleY = dot }.background(Palette.G2, CircleShape))
     }
 }
 
+/** Зелёная «+», приподнятая над панелью и сидящая в вырезе. Пружинит при нажатии. */
 @Composable
-private fun AddButton(onClick: () -> Unit) {
+private fun AddButton(onClick: () -> Unit, modifier: Modifier) {
     val press = remember { MutableInteractionSource() }
+    val pressed by press.collectIsPressedAsState()
+    val scale by animateFloatAsState(if (pressed) 0.9f else 1f, spring(dampingRatio = 0.4f, stiffness = Spring.StiffnessMedium), label = "p")
     Box(
-        Modifier.size(58.dp)
-            .shadow(12.dp, CircleShape, spotColor = Color(0xAA12E97C), ambientColor = Color(0x5512E97C))
+        modifier.size(PlusSize)
+            .graphicsLayer { scaleX = scale; scaleY = scale }
+            .shadow(14.dp, CircleShape, spotColor = Color(0xAA12E97C), ambientColor = Color(0x5512E97C))
             .clip(CircleShape)
             .background(Brush.linearGradient(listOf(Color(0xFF3DF59A), Palette.G2)))
             .clickable(interactionSource = press, indication = null, onClick = onClick),
         contentAlignment = Alignment.Center,
-    ) { Text("+", color = Color.White, fontSize = 32.sp, fontWeight = FontWeight.Medium, modifier = Modifier.padding(bottom = 3.dp)) }
+    ) { Text("+", color = Color.White, fontSize = 34.sp, fontWeight = FontWeight.Medium, modifier = Modifier.padding(bottom = 3.dp)) }
 }
