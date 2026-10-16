@@ -12,7 +12,7 @@ import java.net.URL
 class UnauthorizedException : IOException("unauthorized")
 
 /** Ответ сервера с кодом ошибки (кроме 401). */
-class ApiException(val code: Int, val error: String) : IOException("$code $error")
+class ApiException(val code: Int, val error: String, val answer: String = "") : IOException("$code $error")
 
 /** Вход через бота: ссылка, которую нужно открыть в Telegram, и секрет для опроса. */
 data class LinkStart(val code: String, val secret: String, val url: String, val ttlSec: Int)
@@ -31,13 +31,13 @@ sealed interface LinkPoll {
 object Api {
     private const val TIMEOUT = 15_000
 
-    private suspend fun call(path: String, method: String = "GET", body: JSONObject? = null, token: String? = null): Pair<Int, JSONObject> =
+    private suspend fun call(path: String, method: String = "GET", body: JSONObject? = null, token: String? = null, timeout: Int = TIMEOUT): Pair<Int, JSONObject> =
         withContext(Dispatchers.IO) {
             val conn = URL(BuildConfig.API + path).openConnection() as HttpURLConnection
             try {
                 conn.requestMethod = method
                 conn.connectTimeout = TIMEOUT
-                conn.readTimeout = TIMEOUT
+                conn.readTimeout = timeout
                 conn.setRequestProperty("Accept", "application/json")
                 if (token != null) conn.setRequestProperty("Authorization", "Bearer $token")
                 if (body != null) {
@@ -54,10 +54,10 @@ object Api {
             }
         }
 
-    private suspend fun authed(path: String, token: String, method: String = "GET", body: JSONObject? = null): JSONObject {
-        val (code, json) = call(path, method, body, token)
+    private suspend fun authed(path: String, token: String, method: String = "GET", body: JSONObject? = null, timeout: Int = TIMEOUT): JSONObject {
+        val (code, json) = call(path, method, body, token, timeout)
         if (code == 401) throw UnauthorizedException()
-        if (code >= 400) throw ApiException(code, json.optString("error"))
+        if (code >= 400) throw ApiException(code, json.optString("error"), json.optString("answer"))
         return json
     }
 
@@ -86,4 +86,27 @@ object Api {
         authed("/api/water", token, "POST", JSONObject().put("date", date).put("delta", delta))
 
     suspend fun logout(token: String) = authed("/api/logout", token, "POST", JSONObject())
+
+    /** Еда текстом: «2 яйца и тост». 422 not_food — нейросеть не нашла еду (answer — её ответ). */
+    suspend fun mealText(token: String, date: String, text: String) =
+        authed("/api/meal/add", token, "POST", JSONObject().put("date", date).put("text", text))
+
+    /** Еда по фото: сжатый JPEG в base64 и необязательная подсказка. */
+    suspend fun mealPhoto(token: String, date: String, image: String, caption: String) =
+        authed("/api/meal/photo", token, "POST", JSONObject().put("date", date).put("image", image).put("caption", caption), timeout = 60_000)
+
+    suspend fun mealDelete(token: String, date: String, mealId: String) =
+        authed("/api/meal/delete", token, "POST", JSONObject().put("date", date).put("mealId", mealId))
+
+    /** Советы ИИ, уже подобранные сегодня: без новых запросов к нейросети. */
+    suspend fun tips(token: String) = authed("/api/tips", token)
+
+    suspend fun advice(token: String, date: String) =
+        authed("/api/advice", token, "POST", JSONObject().put("date", date), timeout = 60_000)
+
+    suspend fun adviceEat(token: String, date: String, i: Int) =
+        authed("/api/advice/eat", token, "POST", JSONObject().put("date", date).put("i", i))
+
+    suspend fun analysis(token: String, date: String) =
+        authed("/api/analysis", token, "POST", JSONObject().put("date", date), timeout = 60_000)
 }

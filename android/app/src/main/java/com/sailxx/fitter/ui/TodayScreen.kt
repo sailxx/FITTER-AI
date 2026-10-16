@@ -14,7 +14,9 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.IntrinsicSize
@@ -37,7 +39,9 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -92,6 +96,13 @@ import kotlin.math.roundToInt
 import kotlin.math.sin
 
 private val Ease = CubicBezierEasing(0.2f, 0.8f, 0.2f, 1f)
+
+/** Удалить приём пищи: долгое нажатие на карточку. */
+private suspend fun deleteMeal(context: android.content.Context, id: String) {
+    val token = FitterRepository.token(context) ?: return
+    runCatching { com.sailxx.fitter.data.Api.mealDelete(token, FitterRepository.today(context), id) }
+    FitterRepository.refresh(context)
+}
 private val Card = RoundedCornerShape(20.dp)
 private val MONTHS = listOf("января", "февраля", "марта", "апреля", "мая", "июня", "июля", "августа", "сентября", "октября", "ноября", "декабря")
 private val WD = listOf("Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс")
@@ -109,7 +120,7 @@ private fun plural(x: Int, a: String, b: String, c: String): String {
 /** Экран дня — как дневник в Telegram: яркая шапка с неделей и кольцом, БЖУ, вода, таблетки, еда. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun TodayScreen(st: AppState) {
+fun TodayScreen(st: AppState, onAdd: () -> Unit) {
     val t = LocalTokens.current
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -122,7 +133,7 @@ fun TodayScreen(st: AppState) {
         onRefresh = { scope.launch { refreshing = true; FitterRepository.refresh(context); refreshing = false } },
         modifier = Modifier.fillMaxSize().background(t.bg),
     ) {
-        LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 28.dp)) {
+        LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 120.dp)) {
             item {
                 Hero(s, day, onRefresh = { scope.launch { FitterRepository.refresh(context) } }, onBot = { openUrl(context, BOT_URL) },
                     onLogout = { scope.launch { FitterRepository.logout(context) } })
@@ -156,14 +167,16 @@ fun TodayScreen(st: AppState) {
                 }
             }
             val meals = day?.meals.orEmpty()
-            if (meals.isEmpty()) item { EmptyMeals() } else items(meals, key = { it.id }) { MealCard(it) }
-            item { AddFood { openUrl(context, BOT_URL) } }
+            if (meals.isEmpty()) item { EmptyMeals() } else items(meals, key = { it.id }) { m ->
+                MealCard(m) { scope.launch { deleteMeal(context, m.id) } }
+            }
+            item { AddFood(onAdd) }
             item {
                 val ago = if (st.updatedAt > 0) DateUtils.getRelativeTimeSpanString(st.updatedAt).toString() else ""
                 Text(
                     listOfNotNull(st.error, ago.takeIf { it.isNotEmpty() }?.let { "Обновлено $it" }).joinToString(" · "),
                     fontSize = 12.sp, color = t.hint, textAlign = TextAlign.Center,
-                    modifier = Modifier.fillMaxWidth().padding(top = 16.dp).navigationBarsPadding(),
+                    modifier = Modifier.fillMaxWidth().padding(top = 16.dp),
                 )
             }
         }
@@ -528,10 +541,22 @@ private fun PillsCard(day: Day) {
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
-private fun MealCard(m: Meal) {
+private fun MealCard(m: Meal, onDelete: () -> Unit) {
     val t = LocalTokens.current
-    Column(Modifier.padding(start = 16.dp, end = 16.dp, bottom = 12.dp).rise(80).fillMaxWidth().card().padding(start = 18.dp, end = 18.dp, top = 16.dp, bottom = 12.dp)) {
+    var ask by remember { mutableStateOf(false) }
+    if (ask) {
+        AlertDialog(
+            onDismissRequest = { ask = false },
+            title = { Text("Удалить «${m.title}»?") },
+            text = { Text("${m.kcal} ккал уберутся из дневника — и здесь, и в боте.") },
+            confirmButton = { TextButton(onClick = { ask = false; onDelete() }) { Text("Удалить", color = Palette.Danger) } },
+            dismissButton = { TextButton(onClick = { ask = false }) { Text("Отмена") } },
+        )
+    }
+    Column(Modifier.padding(start = 16.dp, end = 16.dp, bottom = 12.dp).rise(80).fillMaxWidth().card().clip(Card)
+        .combinedClickable(onClick = {}, onLongClick = { ask = true }).padding(start = 18.dp, end = 18.dp, top = 16.dp, bottom = 12.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Box(Modifier.size(36.dp).background(Palette.Carbs.copy(alpha = 0.13f), RoundedCornerShape(12.dp)), contentAlignment = Alignment.Center) {
                 Image(painterResource(R.drawable.ic_plate), null, Modifier.size(24.dp))
@@ -591,7 +616,7 @@ private fun AddFood(onClick: () -> Unit) {
         Spacer(Modifier.width(10.dp))
         Column(Modifier.weight(1f)) {
             Text("Записать еду", fontWeight = FontWeight.Bold, color = t.text)
-            Text("Фото или текст — в чате с ботом", fontSize = 12.sp, color = t.hint)
+            Text("Фото, снимок с камеры или пара слов", fontSize = 12.sp, color = t.hint)
         }
         Box(Modifier.size(44.dp).background(Palette.G2, RoundedCornerShape(14.dp)), contentAlignment = Alignment.Center) {
             Text("+", color = Color.White, fontSize = 26.sp, fontWeight = FontWeight.SemiBold)

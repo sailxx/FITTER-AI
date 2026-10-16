@@ -73,4 +73,7 @@ dependencies {
     // Виджеты на рабочем столе и их фоновое обновление
     implementation("androidx.glance:glance-appwidget:1.1.1")
     implementation("androidx.work:work-runtime-ktx:2.10.0")
+
+    // Живая синхронизация: WebSocket к серверу, пока приложение открыто
+    implementation("com.squareup.okhttp3:okhttp:4.12.0")
 }

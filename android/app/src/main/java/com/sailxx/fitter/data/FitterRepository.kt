@@ -120,8 +120,25 @@ object FitterRepository {
         refresh(context)
     }
 
-    suspend fun logout(context: Context) {
+    /** Данные из живой синхронизации: сохраняем как ответ /api/widget и /api/day и перерисовываем всё. */
+    suspend fun applyLive(context: Context, widget: JSONObject, day: JSONObject) {
+        if (token(context) == null) return
+        prefs(context).edit()
+            .putString("summary", widget.toString())
+            .putString("day", day.toString())
+            .putLong("updatedAt", System.currentTimeMillis())
+            .apply()
+        _state.value = _state.value.copy(error = null)
+        load(context)
+        updateFitterWidgets(context)
+    }
+
+    /** Сегодняшняя дата по часовому поясу из анкеты: её знает сервер, иначе — дата телефона. */
+    fun today(context: Context): String = _state.value.summary?.date ?: load(context).summary?.date ?: java.time.LocalDate.now().toString()
+
+        suspend fun logout(context: Context) {
         token(context)?.let { runCatching { Api.logout(it) } }
+        LiveSync.stop()
         clear(context)
     }
 
