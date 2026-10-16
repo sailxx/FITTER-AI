@@ -1,0 +1,94 @@
+# Выпуск приложения Fitter для Android: поднять versionCode/versionName в android/app/build.gradle.kts,
+# закоммитить и отправить тег:  git tag v3.0.0 && git push origin v3.0.0
+# GitHub соберёт, подпишет и опубликует Fitter.apk. Тег, не совпадающий с versionName, сборку не запускает.
+name: Android release
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch: # пробный запуск: сборка и подпись без публикации
+
+permissions:
+  contents: write
+
+defaults:
+  run:
+    working-directory: android
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Тег совпадает с versionName
+        id: ver
+        run: |
+          VER=$(grep -oP 'versionName = "\K[^"]+' app/build.gradle.kts)
+          echo "VER=$VER" >> "$GITHUB_ENV"
+          if [[ "$GITHUB_REF" == refs/tags/* && "v$VER" != "$GITHUB_REF_NAME" ]]; then
+            echo "::notice::Тег $GITHUB_REF_NAME — не версия приложения ($VER), APK не собираем"
+            echo "skip=1" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: actions/setup-java@v4
+        if: steps.ver.outputs.skip != '1'
+        with:
+          distribution: temurin
+          java-version: 21
+      - uses: gradle/actions/setup-gradle@v4
+        if: steps.ver.outputs.skip != '1'
+
+      - name: Ключ подписи из секретов
+        if: steps.ver.outputs.skip != '1'
+        env:
+          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+        run: |
+          [ -n "$KEYSTORE_BASE64" ] || { echo "::error::Нет секрета KEYSTORE_BASE64"; exit 1; }
+          echo "$KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/release.jks"
+          {
+            echo "storeFile=$RUNNER_TEMP/release.jks"
+            echo "storePassword=$KEYSTORE_PASSWORD"
+            echo "keyAlias=$KEY_ALIAS"
+            echo "keyPassword=$KEY_PASSWORD"
+          } > keystore.properties
+
+      - name: Сборка
+        if: steps.ver.outputs.skip != '1'
+        run: chmod +x gradlew && ./gradlew assembleRelease --no-daemon
+
+      - name: Проверка подписи
+        if: steps.ver.outputs.skip != '1'
+        run: |
+          cp app/build/outputs/apk/release/app-release.apk Fitter.apk
+          APKSIGNER=$(ls "$ANDROID_HOME"/build-tools/*/apksigner | sort -V | tail -1)
+          SHA=$("$APKSIGNER" verify --print-certs Fitter.apk | grep -oP 'SHA-256 digest: \K\w+')
+          [ -n "$SHA" ] || { echo "::error::APK не подписан"; exit 1; }
+          [ "$SHA" = "6a8229a5e72aa53171d8999461643651187049e9f4e069078fbb94a8fa192988" ] || { echo "::error::APK подписан чужим ключом: $SHA"; exit 1; }
+          echo "SHA=$SHA" >> "$GITHUB_ENV"
+
+      - name: Пробный запуск — APK во вложения
+        if: steps.ver.outputs.skip != '1' && !startsWith(github.ref, 'refs/tags/')
+        uses: actions/upload-artifact@v4
+        with:
+          name: Fitter.apk
+          path: android/Fitter.apk
+
+      - name: Публикация
+        if: steps.ver.outputs.skip != '1' && startsWith(github.ref, 'refs/tags/')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          NOTES=$(printf '**Установка:** скачайте Fitter.apk, откройте и разрешите установку. Android 8.0+.\n\nВход — через бота @FitterFoodBot, пароль не нужен.\n\nПодпись (SHA-256): `%s`' "$SHA")
+          if gh release view "$GITHUB_REF_NAME" > /dev/null 2>&1; then
+            gh release upload "$GITHUB_REF_NAME" Fitter.apk --clobber
+          else
+            gh release create "$GITHUB_REF_NAME" Fitter.apk --title "Fitter $VER — Android" --generate-notes --latest --notes "$NOTES"
+          fi
+
+      - name: Убрать ключ
+        if: always()
+        run: rm -f "$RUNNER_TEMP/release.jks" keystore.properties

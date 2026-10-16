@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Fitter</string>
+    <string name="calories_widget_name">Калории</string>
+    <string name="calories_widget_description">Сколько калорий осталось на сегодня</string>
+    <string name="today_widget_name">Сегодня</string>
+    <string name="today_widget_description">Калории, БЖУ и вода с кнопкой «+ стакан»</string>
+</resources>
