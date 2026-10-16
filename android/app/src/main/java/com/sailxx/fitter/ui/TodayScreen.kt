@@ -17,6 +17,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -441,10 +442,11 @@ private fun WaterCard(s: Summary, onWater: (Int) -> Unit) {
             }
         }
         Spacer(Modifier.width(10.dp))
-        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        Column(Modifier.width(IntrinsicSize.Max), verticalArrangement = Arrangement.spacedBy(6.dp)) {
             Text(
                 "+ стакан", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Palette.Water2,
-                modifier = Modifier.clip(RoundedCornerShape(12.dp)).background(Color.White).clickable { onWater(CUP) }.padding(horizontal = 14.dp, vertical = 9.dp),
+                textAlign = TextAlign.Center,
+                modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(Color.White).clickable { onWater(CUP) }.padding(horizontal = 14.dp, vertical = 9.dp),
             )
             Text(
                 "−", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color.White, textAlign = TextAlign.Center,
