@@ -8,6 +8,15 @@ compatibility_date = "2026-09-01"
 binding = "DB"
 id = "7a5f3505aed24657afb0cc924445a9c2"
 
+# Живая синхронизация с приложением Android: на каждого пользователя свой объект с WebSocket-соединениями
+[[durable_objects.bindings]]
+name = "LIVE"
+class_name = "Live"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["Live"]
+
 # Логи в Cloudflare (вкладка Observability), помогают искать ошибки
 # Расписание:
 #   каждые 30 минут — напоминания о воде

@@ -873,6 +873,68 @@ console.log("✓ /app и /setup");
   console.log("✓ приложение: вход через бота, токен, виджет");
 }
 
+// 17. Приложение: фото еды, советы ИИ, живая синхронизация
+{
+  const today = (await (await apiCall("/api/widget")).json()).date;
+  const img = Buffer.from(new Uint8Array(300).fill(7)).toString("base64");
+  const omelet = { name: "омлет", grams: 150, kcal_100: 150, protein_100: 10, fat_100: 11, carbs_100: 2 };
+  geminiReply = { is_food: true, title: "Омлет", items: [omelet], is_package: false, comment: "Похоже на <b>омлет</b>" };
+  let r = await apiCall("/api/meal/photo", "POST", { date: today, image: img, caption: "омлет" });
+  assert.equal(r.status, 200);
+  let j = await r.json();
+  assert.equal(j.title, "Омлет");
+  assert.equal(j.kcal, 225);
+  assert.equal(j.comment, "Похоже на омлет", "в приложение комментарий без HTML");
+  const meals = (await (await apiCall("/api/day")).json()).meals;
+  assert.ok(meals.some((m) => m.id === j.id && m.source === "app_photo"));
+  geminiReply = { is_food: false, items: [] };
+  r = await apiCall("/api/meal/photo", "POST", { date: today, image: img });
+  assert.equal(r.status, 422);
+  r = await apiCall("/api/meal/photo", "POST", { date: today, image: "не картинка" });
+  assert.equal(r.status, 400);
+
+  // Советы: «Что съесть» и запись варианта
+  geminiReply = { intro: "Упор на белок", options: [{ title: "Творог с ягодами", why: "много белка", items: [{ name: "творог", grams: 200, kcal_100: 120, protein_100: 17, fat_100: 5, carbs_100: 3 }] }] };
+  r = await apiCall("/api/advice", "POST", { date: today });
+  j = await r.json();
+  assert.equal(j.intro, "Упор на белок");
+  assert.equal(j.options[0].kcal, 240);
+  let tips = await (await apiCall("/api/tips")).json();
+  assert.equal(tips.advice.options[0].title, "Творог с ягодами", "варианты видны без нового запроса к ИИ");
+  r = await apiCall("/api/advice/eat", "POST", { date: today, i: 0 });
+  assert.equal((await r.json()).title, "Творог с ягодами");
+  r = await apiCall("/api/advice/eat", "POST", { date: today, i: 0 });
+  assert.equal(r.status, 410, "вариант записывается один раз");
+  r = await apiCall("/api/analysis", "POST", { date: today });
+  assert.ok([200, 422].includes(r.status));
+
+  // Живая синхронизация: после изменения из приложения и из бота открытое приложение получает свежую сводку
+  const pushes = [];
+  env.LIVE = {
+    idFromName: (n) => n,
+    get: () => ({
+      fetch: async (u, o) => {
+        const path = new URL(typeof u === "string" ? u : u.url).pathname;
+        if (path === "/count") return new Response("1");
+        if (path === "/push") { pushes.push(JSON.parse(o.body)); return new Response("ok"); }
+        return new Response(null, { status: 101 });
+      },
+    }),
+  };
+  r = await apiCall("/api/water", "POST", { date: today, delta: 250 });
+  await Promise.all(pending.splice(0));
+  assert.equal(pushes.length, 1);
+  assert.equal(pushes[0].type, "sync");
+  assert.equal(pushes[0].widget.water, (await r.json()).water);
+  assert.ok(pushes[0].day.meals.length >= 2);
+  await msg("💧");
+  assert.equal(pushes.length, 2, "запись в боте тоже приходит в приложение");
+  r = await apiCall("/api/live");
+  assert.equal(r.status, 426, "живой канал только по WebSocket");
+  delete env.LIVE;
+  console.log("✓ приложение: фото еды, советы ИИ, живая синхронизация");
+}
+
 // 12. Лимит запросов к ИИ
 env.DAILY_AI_LIMIT = "1";
 s = await msg("что поесть?");
