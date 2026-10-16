@@ -50,6 +50,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.PlatformTextStyle
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -285,8 +287,10 @@ private fun OptionCard(i: Int, o: Option, onOpen: () -> Unit, onEat: () -> Unit)
     val t = LocalTokens.current
     Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(t.bg).clickable(onClick = onOpen).padding(14.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Text("${i + 1}", fontWeight = FontWeight.ExtraBold, color = Color.White, fontSize = 13.sp, textAlign = TextAlign.Center,
-                modifier = Modifier.size(22.dp).background(Palette.G2, RoundedCornerShape(11.dp)).padding(top = 2.dp))
+            Box(Modifier.size(22.dp).background(Palette.G2, RoundedCornerShape(11.dp)), contentAlignment = Alignment.Center) {
+                Text("${i + 1}", fontWeight = FontWeight.ExtraBold, color = Color.White, fontSize = 13.sp, lineHeight = 13.sp,
+                    style = TextStyle(platformStyle = PlatformTextStyle(includeFontPadding = false)))
+            }
             Spacer(Modifier.width(8.dp))
             Text(o.title, fontWeight = FontWeight.Bold, color = t.text, modifier = Modifier.weight(1f))
             Text("${o.kcal} ккал", fontWeight = FontWeight.ExtraBold, color = Palette.G3, fontSize = 14.sp)
