@@ -83,11 +83,21 @@ private fun T(text: String, size: TextUnit, color: Color, bold: Boolean = false,
     )
 }
 
-/** Стеклянная подложка: полупрозрачная, со скруглением и рамкой. Нажатие открывает приложение. */
+/** Фон под размер виджета: белый или чёрный по теме Fitter, прозрачность и скругление из настроек. */
 @Composable
-private fun GlassBox(g: Glass, pad: Dp = 14.dp, align: Alignment = Alignment.TopStart, content: @Composable () -> Unit) {
+private fun bg(g: Skin): GlanceModifier {
+    val ctx = LocalContext.current
+    val size = LocalSize.current
+    return GlanceModifier.fillMaxSize()
+        .background(ImageProvider(bgBitmap(g, size.width.px(ctx), size.height.px(ctx), ctx.resources.displayMetrics.density)))
+        .cornerRadius(g.look.corners.dp)
+}
+
+/** Подложка виджета. Нажатие открывает приложение. */
+@Composable
+private fun WidgetCard(g: Skin, pad: Dp = 14.dp, align: Alignment = Alignment.TopStart, content: @Composable () -> Unit) {
     Box(
-        GlanceModifier.fillMaxSize().background(ImageProvider(g.bg)).cornerRadius(24.dp).padding(pad)
+        bg(g).padding(pad)
             .clickable(actionStartActivity<MainActivity>()),
         contentAlignment = align,
     ) { content() }
@@ -100,7 +110,7 @@ private fun Img(@DrawableRes res: Int, size: Dp) = Image(ImageProvider(res), con
 private fun Bmp(bmp: android.graphics.Bitmap, w: Dp, h: Dp) = Image(ImageProvider(bmp), contentDescription = null, modifier = GlanceModifier.size(w, h))
 
 @Composable
-private fun SignIn(g: Glass) {
+private fun SignIn(g: Skin) {
     Column(GlanceModifier.fillMaxSize(), horizontalAlignment = Alignment.CenterHorizontally, verticalAlignment = Alignment.CenterVertically) {
         Image(ImageProvider(R.drawable.ic_logo), contentDescription = "FITTER", modifier = GlanceModifier.size(36.dp))
         Spacer(GlanceModifier.height(6.dp))
@@ -110,7 +120,7 @@ private fun SignIn(g: Glass) {
 
 /** Кнопка-пилюля: белая с синим текстом, как «+ стакан» в макете. */
 @Composable
-private fun Pill(text: String, g: Glass, w: Dp, h: Dp, action: androidx.glance.action.Action, filled: Boolean = true) {
+private fun Pill(text: String, g: Skin, w: Dp, h: Dp, action: androidx.glance.action.Action, filled: Boolean = true) {
     Box(
         GlanceModifier.size(w, h).background(if (filled) g.btn else g.trk).cornerRadius(h / 2).clickable(action),
         contentAlignment = Alignment.Center,
@@ -118,20 +128,20 @@ private fun Pill(text: String, g: Glass, w: Dp, h: Dp, action: androidx.glance.a
 }
 
 /** Общая основа: читаем сохранённое и тему стекла, рисуем содержимое или просьбу войти. */
-abstract class GlassWidget : GlanceAppWidget() {
+abstract class FitterWidget : GlanceAppWidget() {
     override val sizeMode = SizeMode.Exact
 
     @Composable
-    abstract fun Content(g: Glass, s: Summary, st: AppState)
+    abstract fun Content(g: Skin, s: Summary, st: AppState)
 
     open val pad: Dp = 14.dp
 
     override suspend fun provideGlance(context: Context, id: GlanceId) {
         val st = FitterRepository.load(context)
-        val g = glassFor(context)
+        val g = skinFor(context)
         provideContent {
             val s = st.summary
-            GlassBox(g, if (s == null) 8.dp else pad) {
+            WidgetCard(g, if (s == null) 8.dp else pad) {
                 if (!st.loggedIn || s == null) SignIn(g) else Content(g, s, st)
             }
         }
@@ -140,9 +150,9 @@ abstract class GlassWidget : GlanceAppWidget() {
 
 // ───────────────────────────── «Калории» 2×2 ─────────────────────────────
 
-class CaloriesWidget : GlassWidget() {
+class CaloriesWidget : FitterWidget() {
     @Composable
-    override fun Content(g: Glass, s: Summary, st: AppState) {
+    override fun Content(g: Skin, s: Summary, st: AppState) {
         val ctx = LocalContext.current
         val size = LocalSize.current
         val ring = (minOf(size.width, size.height - 30.dp) - 20.dp).coerceIn(56.dp, 150.dp)
@@ -151,8 +161,13 @@ class CaloriesWidget : GlassWidget() {
             Box(GlanceModifier.size(ring), contentAlignment = Alignment.Center) {
                 Bmp(ringBitmap(g, s.progress, ring.px(ctx), (ring * 0.085f).px(ctx).toFloat()), ring, ring)
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    T(n(kotlin.math.abs(left)), (ring.value * 0.19f).sp, if (left < 0) Palette.Protein else g.ink, bold = true)
-                    T(if (left >= 0) "осталось ккал" else "сверх нормы", 10.sp, g.mut)
+                    if (g.look.showEaten) {
+                        T(n(s.kcal), (ring.value * 0.19f).sp, g.ink, bold = true)
+                        T("съедено ккал", 10.sp, g.mut)
+                    } else {
+                        T(n(kotlin.math.abs(left)), (ring.value * 0.19f).sp, if (left < 0) Palette.Protein else g.ink, bold = true)
+                        T(if (left >= 0) "осталось ккал" else "сверх нормы", 10.sp, g.mut)
+                    }
                 }
             }
             Spacer(GlanceModifier.height(6.dp))
@@ -163,18 +178,18 @@ class CaloriesWidget : GlassWidget() {
 
 // ───────────────────────────── «Осталось» 1×1 ─────────────────────────────
 
-class LeftWidget : GlassWidget() {
+class LeftWidget : FitterWidget() {
     override val pad = 6.dp
 
     @Composable
-    override fun Content(g: Glass, s: Summary, st: AppState) {
+    override fun Content(g: Skin, s: Summary, st: AppState) {
         val ctx = LocalContext.current
         val size = LocalSize.current
         val ring = (minOf(size.width, size.height) - 14.dp).coerceIn(40.dp, 90.dp)
         Box(GlanceModifier.fillMaxSize(), contentAlignment = Alignment.Center) {
             Box(GlanceModifier.size(ring), contentAlignment = Alignment.Center) {
                 Bmp(ringBitmap(g, s.progress, ring.px(ctx), (ring * 0.09f).px(ctx).toFloat()), ring, ring)
-                T(n(kotlin.math.abs(s.kcalLeft)), (ring.value * 0.21f).sp, if (s.kcalLeft < 0) Palette.Protein else g.ink, bold = true)
+                T(n(if (g.look.showEaten) s.kcal else kotlin.math.abs(s.kcalLeft)), (ring.value * 0.21f).sp, if (!g.look.showEaten && s.kcalLeft < 0) Palette.Protein else g.ink, bold = true)
             }
         }
     }
@@ -182,9 +197,9 @@ class LeftWidget : GlassWidget() {
 
 // ───────────────────────────── «Сегодня» 4×2 ─────────────────────────────
 
-class TodayWidget : GlassWidget() {
+class TodayWidget : FitterWidget() {
     @Composable
-    override fun Content(g: Glass, s: Summary, st: AppState) {
+    override fun Content(g: Skin, s: Summary, st: AppState) {
         val ctx = LocalContext.current
         val size = LocalSize.current
         val ring = (size.height - 28.dp).coerceIn(70.dp, 140.dp)
@@ -194,26 +209,38 @@ class TodayWidget : GlassWidget() {
             Box(GlanceModifier.size(ring), contentAlignment = Alignment.Center) {
                 Bmp(ringBitmap(g, s.progress, ring.px(ctx), (ring * 0.085f).px(ctx).toFloat()), ring, ring)
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    T(n(s.kcal), (ring.value * 0.2f).sp, g.ink, bold = true)
-                    T("из ${n(s.targets.kcal)}", 10.sp, g.mut)
+                    if (g.look.showEaten) {
+                        T(n(s.kcal), (ring.value * 0.2f).sp, g.ink, bold = true)
+                        T("из ${n(s.targets.kcal)}", 10.sp, g.mut)
+                    } else {
+                        T(n(kotlin.math.abs(s.kcalLeft)), (ring.value * 0.2f).sp, if (s.kcalLeft < 0) Palette.Protein else g.ink, bold = true)
+                        T(if (s.kcalLeft >= 0) "осталось" else "сверх", 10.sp, g.mut)
+                    }
                     T("$pct%", 10.sp, g.ink, bold = true)
                 }
             }
             Spacer(GlanceModifier.width(14.dp))
             Column(GlanceModifier.width(colW)) {
                 val left = s.kcalLeft
-                T(if (left >= 0) "Осталось ${n(left)} ккал" else "+${n(-left)} ккал сверх нормы", 14.sp, if (left < 0) Palette.Protein else g.ink, bold = true)
+                T(
+                    when { g.look.showEaten && left >= 0 -> "Осталось ${n(left)} ккал"; left >= 0 -> "Съедено ${n(s.kcal)} ккал"; else -> "+${n(-left)} ккал сверх нормы" },
+                    14.sp, if (left < 0) Palette.Protein else g.ink, bold = true,
+                )
                 Spacer(GlanceModifier.height(5.dp))
-                MacroLine(g, "Белки", s.p, s.targets.p, Palette.Protein, colW)
-                MacroLine(g, "Жиры", s.f, s.targets.f, Palette.Fat, colW)
-                MacroLine(g, "Углеводы", s.c, s.targets.c, Palette.Carbs, colW)
-                Spacer(GlanceModifier.height(4.dp))
-                Row(GlanceModifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                    Img(R.drawable.ic_water, 16.dp)
-                    Spacer(GlanceModifier.width(6.dp))
-                    val all = maxOf(1, (s.waterGoal + CUP - 1) / CUP)
-                    T("${s.water / CUP} из $all стаканов", 12.sp, g.ink, modifier = GlanceModifier.defaultWeight())
-                    Pill("+", g, 28.dp, 28.dp, actionRunCallback<AddWaterAction>())
+                if (g.look.showMacros) {
+                    MacroLine(g, "Белки", s.p, s.targets.p, Palette.Protein, colW)
+                    MacroLine(g, "Жиры", s.f, s.targets.f, Palette.Fat, colW)
+                    MacroLine(g, "Углеводы", s.c, s.targets.c, Palette.Carbs, colW)
+                }
+                if (g.look.showWater) {
+                    Spacer(GlanceModifier.height(4.dp))
+                    Row(GlanceModifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                        Img(R.drawable.ic_water, 16.dp)
+                        Spacer(GlanceModifier.width(6.dp))
+                        val all = maxOf(1, (s.waterGoal + CUP - 1) / CUP)
+                        T("${s.water / CUP} из $all стаканов", 12.sp, g.ink, modifier = GlanceModifier.defaultWeight())
+                        Pill("+", g, 28.dp, 28.dp, actionRunCallback<AddWaterAction>())
+                    }
                 }
             }
         }
@@ -221,7 +248,7 @@ class TodayWidget : GlassWidget() {
 }
 
 @Composable
-private fun MacroLine(g: Glass, label: String, v: Int, max: Int, color: Color, w: Dp) {
+private fun MacroLine(g: Skin, label: String, v: Int, max: Int, color: Color, w: Dp) {
     val ctx = LocalContext.current
     Column(GlanceModifier.fillMaxWidth().padding(bottom = 4.dp)) {
         Row(GlanceModifier.fillMaxWidth()) {
@@ -235,9 +262,9 @@ private fun MacroLine(g: Glass, label: String, v: Int, max: Int, color: Color, w
 
 // ───────────────────────────── «Вода» 2×2 ─────────────────────────────
 
-class WaterWidget : GlassWidget() {
+class WaterWidget : FitterWidget() {
     @Composable
-    override fun Content(g: Glass, s: Summary, st: AppState) {
+    override fun Content(g: Skin, s: Summary, st: AppState) {
         val ctx = LocalContext.current
         val size = LocalSize.current
         val inner = size.width - 28.dp
@@ -269,11 +296,11 @@ class WaterWidget : GlassWidget() {
 
 // ───────────────────────────── «БЖУ» 4×1 ─────────────────────────────
 
-class MacrosWidget : GlassWidget() {
+class MacrosWidget : FitterWidget() {
     override val pad = 12.dp
 
     @Composable
-    override fun Content(g: Glass, s: Summary, st: AppState) {
+    override fun Content(g: Skin, s: Summary, st: AppState) {
         val ctx = LocalContext.current
         val size = LocalSize.current
         val colW = (size.width - 24.dp - 16.dp) / 3
@@ -302,9 +329,9 @@ class MacrosWidget : GlassWidget() {
 
 // ───────────────────────────── «Таблетки» 2×2 ─────────────────────────────
 
-class PillsWidget : GlassWidget() {
+class PillsWidget : FitterWidget() {
     @Composable
-    override fun Content(g: Glass, s: Summary, st: AppState) {
+    override fun Content(g: Skin, s: Summary, st: AppState) {
         val ctx = LocalContext.current
         val size = LocalSize.current
         val inner = size.width - 28.dp
@@ -348,11 +375,11 @@ class PhotoWidget : GlanceAppWidget() {
     override val sizeMode = SizeMode.Exact
 
     override suspend fun provideGlance(context: Context, id: GlanceId) {
-        val g = glassFor(context)
+        val g = skinFor(context)
         val open = Intent(Intent.ACTION_VIEW, Uri.parse(BOT_URL)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         provideContent {
             Column(
-                GlanceModifier.fillMaxSize().background(ImageProvider(g.bg)).cornerRadius(24.dp).clickable(actionStartActivity(open)),
+                bg(g).clickable(actionStartActivity(open)),
                 horizontalAlignment = Alignment.CenterHorizontally, verticalAlignment = Alignment.CenterVertically,
             ) {
                 Img(R.drawable.ic_camera, 32.dp)
@@ -367,9 +394,9 @@ class PhotoWidget : GlanceAppWidget() {
 
 private val WD = listOf("Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс")
 
-class WeekWidget : GlassWidget() {
+class WeekWidget : FitterWidget() {
     @Composable
-    override fun Content(g: Glass, s: Summary, st: AppState) {
+    override fun Content(g: Skin, s: Summary, st: AppState) {
         val ctx = LocalContext.current
         val size = LocalSize.current
         val inner = size.width - 28.dp

@@ -120,7 +120,7 @@ private fun plural(x: Int, a: String, b: String, c: String): String {
 /** Экран дня — как дневник в Telegram: яркая шапка с неделей и кольцом, БЖУ, вода, таблетки, еда. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun TodayScreen(st: AppState, onAdd: () -> Unit) {
+fun TodayScreen(st: AppState, onAdd: () -> Unit, onSettings: () -> Unit) {
     val t = LocalTokens.current
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -136,7 +136,7 @@ fun TodayScreen(st: AppState, onAdd: () -> Unit) {
         LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 120.dp)) {
             item {
                 Hero(s, day, onRefresh = { scope.launch { FitterRepository.refresh(context) } }, onBot = { openUrl(context, BOT_URL) },
-                    onLogout = { scope.launch { FitterRepository.logout(context) } })
+                    onLogout = { scope.launch { FitterRepository.logout(context) } }, onSettings = onSettings)
             }
             if (s == null) {
                 item {
@@ -186,7 +186,7 @@ fun TodayScreen(st: AppState, onAdd: () -> Unit) {
 // ───────────────────────────── Шапка ─────────────────────────────
 
 @Composable
-private fun Hero(s: Summary?, day: Day?, onRefresh: () -> Unit, onBot: () -> Unit, onLogout: () -> Unit) {
+private fun Hero(s: Summary?, day: Day?, onRefresh: () -> Unit, onBot: () -> Unit, onLogout: () -> Unit, onSettings: () -> Unit) {
     val t = LocalTokens.current
     val shape = RoundedCornerShape(bottomStart = 30.dp, bottomEnd = 30.dp)
     val date = s?.date?.let { runCatching { LocalDate.parse(it) }.getOrNull() }
@@ -220,6 +220,7 @@ private fun Hero(s: Summary?, day: Day?, onRefresh: () -> Unit, onBot: () -> Uni
             Box {
                 HeroButton("•••") { menu = true }
                 DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
+                    DropdownMenuItem(text = { Text("Настройки") }, onClick = { menu = false; onSettings() })
                     DropdownMenuItem(text = { Text("Открыть бота") }, onClick = { menu = false; onBot() })
                     DropdownMenuItem(text = { Text("Выйти") }, onClick = { menu = false; onLogout() })
                 }

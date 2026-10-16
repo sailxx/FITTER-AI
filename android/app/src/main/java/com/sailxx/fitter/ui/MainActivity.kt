@@ -57,6 +57,9 @@ import androidx.lifecycle.lifecycleScope
 import com.sailxx.fitter.data.AppState
 import com.sailxx.fitter.data.FitterRepository
 import com.sailxx.fitter.data.LiveSync
+import com.sailxx.fitter.data.ThemePref
+import com.sailxx.fitter.data.WidgetPrefs
+import com.sailxx.fitter.widget.updateFitterWidgets
 import com.sailxx.fitter.R
 import kotlinx.coroutines.launch
 
@@ -74,8 +77,11 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge(statusBarStyle = SystemBarStyle.light(android.graphics.Color.TRANSPARENT, android.graphics.Color.TRANSPARENT))
         super.onCreate(savedInstanceState)
         FitterRepository.load(this)
+        ThemePref.load(this)
+        WidgetPrefs.load(this)
         setContent {
-            FitterTheme {
+            val mode by ThemePref.mode.collectAsState()
+            FitterTheme(mode) {
                 val st by FitterRepository.state.collectAsState()
                 // Вошли, пока экран открыт, — сразу включаем живую синхронизацию
                 LaunchedEffect(st.loggedIn) { if (st.loggedIn && started) LiveSync.start(this@MainActivity) }
@@ -90,6 +96,8 @@ class MainActivity : ComponentActivity() {
     override fun onStart() {
         super.onStart()
         started = true
+        // Тема могла смениться вместе с системной — виджеты перекрашиваем под неё
+        lifecycleScope.launch { updateFitterWidgets(this@MainActivity) }
         if (FitterRepository.token(this) != null) LiveSync.start(this)
     }
 
@@ -106,7 +114,7 @@ class MainActivity : ComponentActivity() {
     }
 }
 
-private enum class Tab { Today, Tips }
+private enum class Tab { Today, Tips, Settings }
 
 /** Главный экран: «Сегодня» и «Советы ИИ», внизу — плавающая панель с зелёной кнопкой «+». */
 @Composable
@@ -116,11 +124,12 @@ private fun Home(st: AppState) {
     Box(Modifier.fillMaxSize()) {
         Crossfade(tab, animationSpec = tween(250), label = "tab") { t ->
             when (t) {
-                Tab.Today -> TodayScreen(st, onAdd = { adding = true })
+                Tab.Today -> TodayScreen(st, onAdd = { adding = true }, onSettings = { tab = Tab.Settings })
                 Tab.Tips -> TipsScreen()
+                Tab.Settings -> SettingsScreen(st.summary, onBack = { tab = Tab.Today })
             }
         }
-        BottomBar(tab, onTab = { tab = it }, onAdd = { adding = true }, modifier = Modifier.align(Alignment.BottomCenter))
+        if (tab != Tab.Settings) BottomBar(tab, onTab = { tab = it }, onAdd = { adding = true }, modifier = Modifier.align(Alignment.BottomCenter))
         if (adding) AddMealSheet(onClose = { adding = false })
     }
 }

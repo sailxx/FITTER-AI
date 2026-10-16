@@ -1,63 +1,67 @@
 package com.sailxx.fitter.widget
 
-import android.app.WallpaperColors
-import android.app.WallpaperManager
 import android.content.Context
-import android.content.res.Configuration
 import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.DashPathEffect
 import android.graphics.Paint
 import android.graphics.Path
 import android.graphics.RectF
-import android.os.Build
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.toArgb
-import com.sailxx.fitter.R
+import com.sailxx.fitter.data.ThemePref
+import com.sailxx.fitter.data.WidgetLook
+import com.sailxx.fitter.data.WidgetPrefs
 import com.sailxx.fitter.ui.Palette
 import kotlin.math.PI
 import kotlin.math.sin
 
 /**
- * Стиль «Стекло»: полупрозрачная подложка с тонкой белой рамкой, обои просвечивают.
- * Размытия под виджетом Android не даёт, поэтому цвет текста подбираем под обои:
- * светлые обои — белое стекло и тёмный текст, тёмные — тёмное стекло и белый текст.
+ * Оформление виджетов: белые при светлой теме Fitter, чёрные при тёмной.
+ * Прозрачность фона, скругление и содержимое настраиваются в «Настройках» приложения (WidgetPrefs).
  */
-data class Glass(
+data class Skin(
     val dark: Boolean,
     val ink: Color,
     val mut: Color,
     val trk: Color,
     val arc: Color,
-    val bg: Int,
+    val base: Color,
+    val edge: Color,
     val btn: Color,
     val btnInk: Color,
+    val look: WidgetLook,
 )
 
-private val LightGlass = Glass(
-    dark = false, ink = Color(0xFF13201A), mut = Color(0xA613201A), trk = Color(0x1F13201A), arc = Palette.G2,
-    bg = R.drawable.widget_glass_light, btn = Color(0xD9FFFFFF), btnInk = Palette.Water2,
-)
-private val DarkGlass = Glass(
-    dark = true, ink = Color.White, mut = Color(0xBFFFFFFF), trk = Color(0x38FFFFFF), arc = Color.White,
-    bg = R.drawable.widget_glass_dark, btn = Color(0xD9FFFFFF), btnInk = Palette.Water2,
-)
+fun skinFor(context: Context): Skin = skinOf(ThemePref.isDark(context), WidgetPrefs.load(context))
 
-/** Светлые ли обои: подсказка системы (Android 12+), иначе яркость основного цвета, иначе тема телефона. */
-fun glassFor(context: Context): Glass {
-    val darkText: Boolean? = try {
-        val wc: WallpaperColors? = WallpaperManager.getInstance(context).getWallpaperColors(WallpaperManager.FLAG_SYSTEM)
-        when {
-            wc == null -> null
-            Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> (wc.colorHints and WallpaperColors.HINT_SUPPORTS_DARK_TEXT) != 0
-            else -> Color(wc.primaryColor.toArgb()).luminance() > 0.5f
-        }
-    } catch (e: Exception) {
-        null
+/** Цвета виджета для темы — и для настоящих виджетов, и для предпросмотра в настройках. */
+fun skinOf(dark: Boolean, look: WidgetLook): Skin {
+    return if (dark) {
+        Skin(
+            dark = true, ink = Color.White, mut = Color(0xA6FFFFFF), trk = Color(0x2EFFFFFF), arc = Palette.G1,
+            base = Color.Black, edge = Color(0x24FFFFFF), btn = Color(0xFF16263D), btnInk = Color(0xFF8FD0FF), look = look,
+        )
+    } else {
+        Skin(
+            dark = false, ink = Color(0xFF13201A), mut = Color(0x9913201A), trk = Color(0x1413201A), arc = Palette.G2,
+            base = Color.White, edge = Color(0x1A13201A), btn = Color(0xFFE8F1FE), btnInk = Palette.Water2, look = look,
+        )
     }
-    val night = (context.resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES
-    return if (darkText ?: !night) LightGlass else DarkGlass
+}
+
+/** Фон виджета картинкой: скругление и прозрачность из настроек работают на любой версии Android. */
+fun bgBitmap(s: Skin, wPx: Int, hPx: Int, density: Float): Bitmap {
+    val bmp = Bitmap.createBitmap(wPx.coerceAtLeast(1), hPx.coerceAtLeast(1), Bitmap.Config.ARGB_8888)
+    val c = Canvas(bmp)
+    val a = s.look.opacity / 100f
+    val r = s.look.corners * density
+    val inset = density / 2
+    val rect = RectF(inset, inset, wPx - inset, hPx - inset)
+    c.drawRoundRect(rect, r, r, paint(s.base.copy(alpha = a)))
+    // Тонкая рамка видна и у прозрачного виджета: края не теряются на обоях
+    c.drawRoundRect(rect, r, r, paint(s.edge.copy(alpha = s.edge.alpha * (0.5f + a / 2)), density).apply { strokeCap = Paint.Cap.BUTT })
+    return bmp
 }
 
 // ───────────────────────────── Рисование на Bitmap ─────────────────────────────
@@ -73,7 +77,7 @@ private fun paint(c: Color, stroke: Float = 0f) = Paint(Paint.ANTI_ALIAS_FLAG).a
 }
 
 /** Кольцо: дорожка и дуга с круглыми концами. При превышении нормы дуга оранжевая. */
-fun ringBitmap(g: Glass, progress: Float, sizePx: Int, strokePx: Float): Bitmap {
+fun ringBitmap(g: Skin, progress: Float, sizePx: Int, strokePx: Float): Bitmap {
     val bmp = Bitmap.createBitmap(sizePx, sizePx, Bitmap.Config.ARGB_8888)
     val c = Canvas(bmp)
     val pad = strokePx / 2 + 1
@@ -85,7 +89,7 @@ fun ringBitmap(g: Glass, progress: Float, sizePx: Int, strokePx: Float): Bitmap 
 }
 
 /** Полоска прогресса со скруглёнными концами. */
-fun barBitmap(g: Glass, progress: Float, color: Color, wPx: Int, hPx: Int): Bitmap {
+fun barBitmap(g: Skin, progress: Float, color: Color, wPx: Int, hPx: Int): Bitmap {
     val bmp = Bitmap.createBitmap(wPx.coerceAtLeast(1), hPx.coerceAtLeast(1), Bitmap.Config.ARGB_8888)
     val c = Canvas(bmp)
     val rad = hPx / 2f
@@ -96,7 +100,7 @@ fun barBitmap(g: Glass, progress: Float, color: Color, wPx: Int, hPx: Int): Bitm
 }
 
 /** Стаканчики воды по 250 мл: залитые и пустые. */
-fun cupsBitmap(g: Glass, on: Int, all: Int, color: Color, cupW: Int, cupH: Int, gap: Int): Bitmap {
+fun cupsBitmap(g: Skin, on: Int, all: Int, color: Color, cupW: Int, cupH: Int, gap: Int): Bitmap {
     val bmp = Bitmap.createBitmap((all * cupW + (all - 1) * gap).coerceAtLeast(1), cupH, Bitmap.Config.ARGB_8888)
     val c = Canvas(bmp)
     for (i in 0 until all) {
@@ -136,7 +140,7 @@ fun glassBitmap(level: Float, color: Color, wPx: Int, hPx: Int): Bitmap {
 }
 
 /** Неделя: столбики калорий, пунктир нормы, сегодняшний день обведён. */
-fun weekBitmap(g: Glass, kcal: List<Int>, goal: Int, todayIdx: Int, wPx: Int, hPx: Int, density: Float): Bitmap {
+fun weekBitmap(g: Skin, kcal: List<Int>, goal: Int, todayIdx: Int, wPx: Int, hPx: Int, density: Float): Bitmap {
     val bmp = Bitmap.createBitmap(wPx.coerceAtLeast(1), hPx.coerceAtLeast(1), Bitmap.Config.ARGB_8888)
     val c = Canvas(bmp)
     val top = maxOf(goal * 1.2f, (kcal.maxOrNull() ?: 0).toFloat(), 1f)
