@@ -3145,13 +3145,12 @@ const APP_HTML = `<!doctype html>
 
   /* ── Вода ── */
   .water{margin-top:12px;border-radius:var(--r);padding:18px;color:#fff;display:flex;align-items:center;gap:14px;position:relative;overflow:hidden;
-    background:linear-gradient(135deg,var(--w1),var(--w2));box-shadow:0 8px 22px rgba(42,123,240,.24);transition:box-shadow .4s}
+    background:linear-gradient(135deg,var(--w1),var(--w2));box-shadow:0 8px 22px rgba(42,123,240,.24)}
   .water:after{content:"";position:absolute;width:160px;height:160px;border-radius:50%;right:-50px;top:-70px;background:rgba(255,255,255,.12)}
   .water.done{box-shadow:0 0 0 2px rgba(255,255,255,.7) inset,0 8px 26px rgba(42,123,240,.4)}
   html[data-theme="dark"] .water:not(.done){box-shadow:none}
   .glass{width:52px;height:70px;flex:none;position:relative}
   .glass svg{width:100%;height:100%;overflow:visible}
-  .glass .lvl{transition:transform 1s cubic-bezier(.2,.8,.2,1)}
   /* Волна качается 3 раза и замирает: бесконечная анимация постоянно перерисовывала страницу */
   .glass .wave{animation:wave 2.4s linear 3}
   .glass .wave2{animation:wave 3.6s linear 2 reverse;opacity:.55}
@@ -3282,7 +3281,8 @@ const APP_HTML = `<!doctype html>
   @keyframes rise{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
   .pop{animation:pop .5s cubic-bezier(.3,1.6,.5,1)}
   @keyframes pop{0%{transform:scale(1)}35%{transform:scale(1.05)}100%{transform:scale(1)}}
-  .fl{position:fixed;z-index:30;pointer-events:none;font-weight:800;font-size:15px;color:#fff;text-shadow:0 1px 4px rgba(0,0,0,.25);animation:fup .9s ease-out forwards}
+  /* Всплывающая цифра у кнопки воды: обычный элемент страницы без тени — закреплённый слой с тенью ломал отрисовку на Android */
+  .fl{position:absolute;z-index:30;pointer-events:none;font-weight:800;font-size:15px;color:#fff;animation:fup .9s ease-out forwards}
   @keyframes fup{to{transform:translateY(-46px);opacity:0}}
   .fx{position:fixed;z-index:40;pointer-events:none;font-size:20px;line-height:1;will-change:transform,opacity}
   @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
@@ -3387,7 +3387,7 @@ const APP_HTML = `<!doctype html>
     if (calm) return;
     var rc = btn.getBoundingClientRect(), f = document.createElement("span");
     f.className = "fl"; f.textContent = text;
-    f.style.left = (rc.left + rc.width / 2 - 20) + "px"; f.style.top = (rc.top - 8) + "px";
+    f.style.left = (rc.left + window.scrollX + rc.width / 2 - 20) + "px"; f.style.top = (rc.top + window.scrollY - 8) + "px";
     document.body.appendChild(f); setTimeout(function(){ f.remove(); }, 950);
   }
   function countUp(el, to){
@@ -3485,7 +3485,7 @@ const APP_HTML = `<!doctype html>
     var y = 74 - 66 * Math.min(1, pct);
     return '<div class="glass"><svg viewBox="0 0 58 78"><defs><clipPath id="gc"><path d="M5 4h48l-5 66a6 6 0 0 1-6 5H16a6 6 0 0 1-6-5z"/></clipPath></defs>' +
       '<path d="M5 4h48l-5 66a6 6 0 0 1-6 5H16a6 6 0 0 1-6-5z" fill="rgba(255,255,255,.18)" stroke="rgba(255,255,255,.75)" stroke-width="2.4" stroke-linejoin="round"/>' +
-      '<g clip-path="url(#gc)"><g class="lvl" style="transform:translateY(' + y + 'px)">' +
+      '<g clip-path="url(#gc)"><g class="lvl" transform="translate(0 ' + y + ')" data-y="' + y + '">' +
       '<path class="wave2" d="M0 4 Q10 -2 20 4 T40 4 T60 4 T80 4 T100 4 V90 H0z" fill="#d6f0ff"/>' +
       '<path class="wave" d="M0 6 Q10 0 20 6 T40 6 T60 6 T80 6 T100 6 V90 H0z" fill="#fff"/></g></g>' +
       '<path d="M14 14l3 44" stroke="rgba(255,255,255,.55)" stroke-width="3" stroke-linecap="round"/></svg></div>';
@@ -3696,6 +3696,18 @@ const APP_HTML = `<!doctype html>
     }
   }
 
+  // Уровень воды в стакане едет покадрово через атрибут SVG: CSS-анимация группы внутри clip-path
+  // во встроенном браузере Telegram на Android закрашивала карточку серым и чернила стакан
+  function moveLevel(g, to){
+    var from = Number(g.getAttribute("data-y")) || to, t0 = performance.now(), dur = calm ? 0 : 700;
+    g.setAttribute("data-y", to);
+    (function step(now){
+      var k = dur ? Math.min(1, (now - t0) / dur) : 1, e = 1 - Math.pow(1 - k, 3);
+      g.setAttribute("transform", "translate(0 " + (from + (to - from) * e).toFixed(2) + ")");
+      if (k < 1) requestAnimationFrame(step);
+    })(t0);
+  }
+
   function waterUI(){
     var d = state.data, wg = d.waterGoal || 2000, wv = d.water || 0, card = root.querySelector(".water");
     if (!card) return;
@@ -3704,7 +3716,7 @@ const APP_HTML = `<!doctype html>
     card.querySelector(".wl").textContent = L(wv) + " из " + L(wg);
     card.querySelector(".wn").textContent = wv >= wg ? " · норма ✓" : "";
     card.querySelectorAll(".cups i").forEach(function(el, i){ el.className = i < c ? "on" : ""; });
-    if (lvl) lvl.style.transform = "translateY(" + (74 - 66 * Math.min(1, wv / wg)) + "px)";
+    if (lvl) moveLevel(lvl, 74 - 66 * Math.min(1, wv / wg));
     card.classList.toggle("done", wv >= wg);
   }
 
