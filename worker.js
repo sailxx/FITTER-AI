@@ -36,14 +36,24 @@ export default {
         }
         const update = await request.json();
         // Отвечаем Telegram сразу, а саму работу делаем в фоне
-        ctx.waitUntil(handleUpdate(update, E).catch((e) => console.error("update error:", e && e.stack ? e.stack : e)));
+        const who = update.message?.from?.id || update.callback_query?.from?.id;
+        ctx.waitUntil(
+          handleUpdate(update, E)
+            .catch((e) => console.error("update error:", e && e.stack ? e.stack : e))
+            .then(() => live(E, who)),
+        );
         return new Response("ok");
       }
       if (url.pathname === "/setup") return await setup(request, E);
       if (url.pathname === "/app") {
         return new Response(APP_HTML, { headers: { "content-type": "text/html; charset=utf-8", ...(await appHeaders()) } });
       }
-      if (url.pathname.startsWith("/api/")) return await api(request, url, E);
+      if (url.pathname.startsWith("/api/")) {
+        const res = await api(request, url, E);
+        // Изменение из приложения или дневника — сразу рассылаем открытым приложениям
+        if (request.method === "POST" && E.liveUid && res.status < 400) ctx.waitUntil(live(E, E.liveUid));
+        return res;
+      }
       if (url.pathname === "/") return new Response("FITTER работает ✅", { headers: { "content-type": "text/plain; charset=utf-8" } });
       return new Response("not found", { status: 404 });
     } catch (e) {
@@ -1242,40 +1252,46 @@ async function onPhoto(env, u, chatId, msg) {
     if (!img.ok) throw new Error("download failed " + img.status);
     const b64 = toBase64(await img.arrayBuffer());
     const mime = /\.png$/i.test(path) ? "image/png" : /\.webp$/i.test(path) ? "image/webp" : "image/jpeg";
-    const caption = (msg.caption || "").trim().slice(0, 300);
-    const res = await gemini(env, [
-      { text: PHOTO_PROMPT + (caption ? `\n\nПодсказка от пользователя (учти её в первую очередь): ${caption}` : "") },
-      { inline_data: { mime_type: mime, data: b64 } },
-    ], PHOTO_SCHEMA);
-    const items = cleanItems(res.items);
-    if (!res.is_food || !items.length) {
+    const r = await analyzePhoto(env, b64, mime, (msg.caption || "").trim().slice(0, 300));
+    if (!r) {
       return edit(env, chatId, waitId, "🤔 Не вижу на фото еды. Попробуй сфотографировать тарелку сверху и поближе.\n\nИли напиши текстом, что ты съел.");
     }
-    // Упаковка: КБЖУ с этикетки, а если этикетки не видно — ищем по штрихкоду
-    let comment = res.comment;
-    let source = "photo";
-    if (res.is_package) {
-      source = "package";
-      const code = cleanBarcode(res.barcode);
-      if (res.label_found) {
-        comment = "📦 КБЖУ взяты с этикетки. Если съел не всю упаковку — нажми ✏️ и впиши вес";
-      } else if (code) {
-        const p = await lookupBarcode(env, code);
-        if (p) {
-          items.splice(0, 1, { ...p, grams: p.grams || items[0]?.grams || 100 });
-          comment = `📦 Нашёл по штрихкоду ${code} в базе Open Food Facts. Если съел не всю упаковку — нажми ✏️ и впиши вес`;
-          source = "barcode";
-        }
-      }
-      if (source === "package" && !res.label_found) {
-        comment = "📦 Это упаковка, но КБЖУ я оценил примерно. Для точности сфотографируй этикетку с пищевой ценностью или пришли цифры штрихкода";
-      }
-    }
-    return saveMealAndReply(env, u, chatId, waitId, res.title, items, source, comment);
+    return saveMealAndReply(env, u, chatId, waitId, r.title, r.items, r.source, r.comment);
   } catch (e) {
     console.error("photo error:", e && e.stack ? e.stack : e);
     return edit(env, chatId, waitId, "😔 Не получилось распознать фото. Попробуй ещё раз через минуту или напиши текстом, что ты съел.");
   }
+}
+
+// Распознать еду на фото — общий шаг для бота и приложения. null — еды на фото нет
+async function analyzePhoto(env, b64, mime, caption) {
+  const res = await gemini(env, [
+    { text: PHOTO_PROMPT + (caption ? `\n\nПодсказка от пользователя (учти её в первую очередь): ${caption}` : "") },
+    { inline_data: { mime_type: mime, data: b64 } },
+  ], PHOTO_SCHEMA);
+  const items = cleanItems(res.items);
+  if (!res.is_food || !items.length) return null;
+  // Упаковка: КБЖУ с этикетки, а если этикетки не видно — ищем по штрихкоду
+  let comment = res.comment;
+  let source = "photo";
+  if (res.is_package) {
+    source = "package";
+    const code = cleanBarcode(res.barcode);
+    if (res.label_found) {
+      comment = "📦 КБЖУ взяты с этикетки. Если съел не всю упаковку — нажми ✏️ и впиши вес";
+    } else if (code) {
+      const p = await lookupBarcode(env, code);
+      if (p) {
+        items.splice(0, 1, { ...p, grams: p.grams || items[0]?.grams || 100 });
+        comment = `📦 Нашёл по штрихкоду ${code} в базе Open Food Facts. Если съел не всю упаковку — нажми ✏️ и впиши вес`;
+        source = "barcode";
+      }
+    }
+    if (source === "package" && !res.label_found) {
+      comment = "📦 Это упаковка, но КБЖУ я оценил примерно. Для точности сфотографируй этикетку с пищевой ценностью или пришли цифры штрихкода";
+    }
+  }
+  return { title: res.title, items, source, comment };
 }
 
 // ── Штрихкод ──
@@ -1744,6 +1760,19 @@ async function sendAdvice(env, u, chatId) {
   if (!checkAiLimit(env, u)) return send(env, chatId, "На сегодня лимит запросов к нейросети закончился 😔 Завтра снова можно!");
   await saveUser(env, u);
   tg(env, "sendChatAction", { chat_id: chatId, action: "typing" });
+  let a;
+  try {
+    a = await makeAdvice(env, u);
+  } catch (e) {
+    console.error("advice error:", e && e.stack ? e.stack : e);
+    return send(env, chatId, "😔 Нейросеть сейчас не отвечает. Попробуй ещё раз через минуту.");
+  }
+  if (!a) return send(env, chatId, "Не получилось подобрать варианты, попробуй ещё раз 🙏");
+  return send(env, chatId, adviceText(u, a.left, a.intro, a.options), { reply_markup: adviceKeyboard(a.options) });
+}
+
+// Подобрать 3 варианта под остаток нормы и запомнить их на 6 часов. null — нейросеть ничего не предложила
+async function makeAdvice(env, u) {
   const date = today(u);
   const dates = [...Array(7)].map((_, i) => shiftDate(date, i - 6));
   const days = await Promise.all(dates.map((d) => getDay(env, u.id, d)));
@@ -1756,20 +1785,26 @@ async function sendAdvice(env, u, chatId) {
     `Сейчас ${nowTime(u)}. Цель: ${GOALS[u.goal]}. Норма: ${g.kcal} ккал, Б ${g.p}, Ж ${g.f}, У ${g.c}.\n` +
     `Съедено сегодня: ${round(t.kcal)} ккал, Б ${round(t.p)}, Ж ${round(t.f)}, У ${round(t.c)} (${eaten}).\n` +
     `Осталось: ${left.kcal} ккал, Б ${left.p}, Ж ${left.f}, У ${left.c}.\nЕл за неделю: ${usual}.`;
-  let res;
-  try {
-    res = await gemini(env, [{ text: `${ADVICE_PROMPT}\n\n${ctx}` }], ADVICE_SCHEMA, 0.8);
-  } catch (e) {
-    console.error("advice error:", e && e.stack ? e.stack : e);
-    return send(env, chatId, "😔 Нейросеть сейчас не отвечает. Попробуй ещё раз через минуту.");
-  }
+  const res = await gemini(env, [{ text: `${ADVICE_PROMPT}\n\n${ctx}` }], ADVICE_SCHEMA, 0.8);
   const options = (Array.isArray(res.options) ? res.options : [])
     .map((o) => ({ title: String(o.title || "").trim().slice(0, 60), why: String(o.why || "").trim().slice(0, 80), items: cleanItems(o.items) }))
     .filter((o) => o.title && o.items.length)
     .slice(0, 3);
-  if (!options.length) return send(env, chatId, "Не получилось подобрать варианты, попробуй ещё раз 🙏");
-  await env.DB.put(`adv:${u.id}`, JSON.stringify({ date, options }), { expirationTtl: 6 * 3600 });
-  return send(env, chatId, adviceText(u, left, res.intro, options), { reply_markup: adviceKeyboard(options) });
+  if (!options.length) return null;
+  const intro = String(res.intro || "").trim().slice(0, 200);
+  await env.DB.put(`adv:${u.id}`, JSON.stringify({ date, options, intro, left }), { expirationTtl: 6 * 3600 });
+  return { date, options, intro, left };
+}
+
+// Варианты «Что съесть» для приложения: КБЖУ каждого варианта уже посчитаны
+function advicePayload(a) {
+  return {
+    date: a.date, intro: a.intro || "", left: a.left || null,
+    options: a.options.map((o) => {
+      const t = sumItems(o.items);
+      return { title: o.title, why: o.why, kcal: round(t.kcal), p: round(t.p), f: round(t.f), c: round(t.c), items: o.items.map((it) => ({ name: it.name, grams: it.grams })) };
+    }),
+  };
 }
 
 const NUMS = ["1️⃣", "2️⃣", "3️⃣"];
@@ -2583,10 +2618,136 @@ async function apiUserId(request, env) {
   return tgUser ? tgUser.id : null;
 }
 
+// Записать приём пищи из приложения: время, серия, достижения — как у записи в боте
+async function addAppMeal(env, u, date, title, items, source) {
+  const day = await getDay(env, u.id, date);
+  const meal = {
+    id: crypto.randomUUID().slice(0, 8),
+    time: date === today(u) ? nowTime(u) : "—",
+    title: String(title || items.map((i) => i.name).join(", ")).slice(0, 60),
+    items,
+    source,
+  };
+  day.meals.push(meal);
+  await saveDay(env, u.id, date, day);
+  if (date === today(u)) {
+    const fresh = await progress(env, u, "meal", date, { pack: false, inNorm: inNorm(dayTotals(day).kcal, u.targets.kcal) });
+    await announce(env, u.id, fresh);
+  } else {
+    // Запись задним числом: серию и счётчики пересчитываем по истории
+    delete u.st;
+    await ensureStats(env, u, false);
+    await saveUser(env, u);
+  }
+  const t = sumItems(items);
+  return { ok: true, id: meal.id, title: meal.title, kcal: round(t.kcal), p: round(t.p), f: round(t.f), c: round(t.c) };
+}
+
+// Текст из сообщения бота без HTML-тегов — для приложения
+const plainText = (s) => String(s || "").replace(/<[^>]+>/g, "").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&amp;/g, "&");
+
+// Сводка за сегодня: виджеты, шапка приложения и живая синхронизация
+async function widgetPayload(env, u) {
+  const date = today(u);
+  const day = await getDay(env, u.id, date);
+  const t = dayTotals(day);
+  const pills = pillDoses(u, day);
+  return {
+    date,
+    kcal: round(t.kcal), p: round(t.p), f: round(t.f), c: round(t.c),
+    targets: u.targets,
+    water: day.water || 0,
+    waterGoal: waterGoal(u),
+    meals: day.meals.length,
+    streak: streakNow(u),
+    pills: { total: pills.length, taken: pills.filter((x) => x.s === "taken").length, next: pills.find((x) => !x.s && x.time >= nowTime(u))?.time || "" },
+    name: u.name || "",
+  };
+}
+
+// День с неделей (Пн–Вс), в которую он входит: дневник и приложение
+async function dayPayload(env, u, date) {
+  const wd = (new Date(date + "T00:00:00Z").getUTCDay() + 6) % 7;
+  const monday = shiftDate(date, -wd);
+  const dates = [...Array(7)].map((_, i) => shiftDate(monday, i));
+  const [days, weights] = await Promise.all([Promise.all(dates.map((d) => getDay(env, u.id, d))), getWeights(env, u.id)]);
+  const day = days[dates.indexOf(date)];
+  const meals = day.meals.map((m) => ({ ...m, totals: sumItems(m.items), items: m.items.map((it) => ({ ...it, totals: itemTotals(it) })) }));
+  return {
+    date,
+    today: today(u),
+    targets: u.targets,
+    totals: dayTotals(day),
+    meals,
+    week: dates.map((d, i) => ({ date: d, kcal: round(dayTotals(days[i]).kcal), meals: days[i].meals.length })),
+    weights: weights.slice(-30),
+    streak: streakNow(u),
+    water: day.water || 0,
+    waterGoal: waterGoal(u),
+    pills: pillDoses(u, day),
+    pillList: (u.pills || []).map((p) => ({ id: p.id, name: p.name, dose: p.dose || "", times: p.times })),
+    name: u.name,
+  };
+}
+
+// ───────────────────────────── Живая синхронизация ─────────────────────────────
+//
+// На каждого пользователя — свой Durable Object «Live»: держит WebSocket-соединения открытых приложений.
+// После любого изменения (бот, дневник, приложение) live() собирает свежую сводку там же, где данные
+// только что записаны, и рассылает её. Так приложение не ждёт, пока KV разнесёт запись по миру.
+
+async function live(env, uid) {
+  if (!env.LIVE || !uid) return;
+  try {
+    const stub = env.LIVE.get(env.LIVE.idFromName(String(uid)));
+    const n = Number(await (await stub.fetch("https://live/count")).text());
+    if (!n) return; // приложение не открыто — не тратим чтения базы
+    const u = await getUser(env, uid);
+    if (!u || !u.targets) return;
+    const [widget, day] = await Promise.all([widgetPayload(env, u), dayPayload(env, u, today(u))]);
+    await stub.fetch("https://live/push", { method: "POST", body: JSON.stringify({ type: "sync", widget, day }) });
+  } catch (e) {
+    console.error("live error:", e && e.stack ? e.stack : e);
+  }
+}
+
+export class Live {
+  constructor(ctx) {
+    this.ctx = ctx;
+    // Пинг от приложения отвечаем, не будя объект: соединения живут почти бесплатно
+    if (typeof WebSocketRequestResponsePair !== "undefined") ctx.setWebSocketAutoResponse(new WebSocketRequestResponsePair("ping", "pong"));
+  }
+
+  async fetch(request) {
+    if (request.headers.get("Upgrade") === "websocket") {
+      const pair = new WebSocketPair();
+      this.ctx.acceptWebSocket(pair[1]);
+      return new Response(null, { status: 101, webSocket: pair[0] });
+    }
+    const path = new URL(request.url).pathname;
+    if (path === "/count") return new Response(String(this.ctx.getWebSockets().length));
+    if (path === "/push") {
+      const msg = await request.text();
+      for (const ws of this.ctx.getWebSockets()) {
+        try { ws.send(msg); } catch {}
+      }
+      return new Response("ok");
+    }
+    return new Response("not found", { status: 404 });
+  }
+
+  async webSocketMessage() {}
+
+  async webSocketClose(ws, code) {
+    try { ws.close(code, "bye"); } catch {}
+  }
+}
+
 async function api(request, url, env) {
   if (url.pathname.startsWith("/api/link/")) return linkApi(request, url, env);
   const uid = await apiUserId(request, env);
   if (!uid) return json({ error: "unauthorized" }, 401);
+  env.liveUid = uid;
   const u = await getUser(env, uid);
   if (!u || !u.targets) return json({ error: "no_profile" }, 404);
 
@@ -2600,53 +2761,30 @@ async function api(request, url, env) {
     return json({ ok: true });
   }
 
-  // Короткая сводка за сегодня для виджетов: одно чтение дня из базы
-  if (url.pathname === "/api/widget" && request.method === "GET") {
-    const date = today(u);
-    const day = await getDay(env, u.id, date);
-    const t = dayTotals(day);
-    const pills = pillDoses(u, day);
-    return json({
-      date,
-      kcal: round(t.kcal), p: round(t.p), f: round(t.f), c: round(t.c),
-      targets: u.targets,
-      water: day.water || 0,
-      waterGoal: waterGoal(u),
-      meals: day.meals.length,
-      streak: streakNow(u),
-      pills: { total: pills.length, taken: pills.filter((x) => x.s === "taken").length, next: pills.find((x) => !x.s && x.time >= nowTime(u))?.time || "" },
-      name: u.name || "",
-    });
+  // Живая синхронизация: приложение держит WebSocket, сервер присылает свежие данные при каждом изменении
+  if (url.pathname === "/api/live") {
+    if (!env.LIVE) return json({ error: "no live" }, 501);
+    if (request.headers.get("Upgrade") !== "websocket") return json({ error: "websocket only" }, 426);
+    return env.LIVE.get(env.LIVE.idFromName(String(u.id))).fetch(request);
   }
 
+  // Короткая сводка за сегодня для виджетов: одно чтение дня из базы
+  if (url.pathname === "/api/widget" && request.method === "GET") return json(await widgetPayload(env, u));
+
   if (url.pathname === "/api/day" && request.method === "GET") {
-    const date = isDate(url.searchParams.get("date")) ? url.searchParams.get("date") : today(u);
-    // Неделя (Пн–Вс), в которую входит выбранный день
-    const wd = (new Date(date + "T00:00:00Z").getUTCDay() + 6) % 7;
-    const monday = shiftDate(date, -wd);
-    const dates = [...Array(7)].map((_, i) => shiftDate(monday, i));
-    const [days, weights] = await Promise.all([Promise.all(dates.map((d) => getDay(env, u.id, d))), getWeights(env, u.id)]);
-    const idx = dates.indexOf(date);
-    const day = days[idx];
-    const meals = day.meals.map((m) => ({ ...m, totals: sumItems(m.items), items: m.items.map((it) => ({ ...it, totals: itemTotals(it) })) }));
-    return json({
-      date,
-      today: today(u),
-      targets: u.targets,
-      totals: dayTotals(day),
-      meals,
-      week: dates.map((d, i) => ({ date: d, kcal: round(dayTotals(days[i]).kcal), meals: days[i].meals.length })),
-      weights: weights.slice(-30),
-      streak: streakNow(u),
-      water: day.water || 0,
-      waterGoal: waterGoal(u),
-      pills: pillDoses(u, day),
-      pillList: (u.pills || []).map((p) => ({ id: p.id, name: p.name, dose: p.dose || "", times: p.times })),
-      name: u.name,
-    });
+    return json(await dayPayload(env, u, isDate(url.searchParams.get("date")) ? url.searchParams.get("date") : today(u)));
+  }
+
+  // Советы ИИ в приложении: то, что уже подобрано, без новых запросов к нейросети
+  if (url.pathname === "/api/tips" && request.method === "GET") {
+    const date = today(u);
+    const [adv, an] = await Promise.all([env.DB.get(`adv:${u.id}`, "json"), env.DB.get(`an:${u.id}:${date}`, "json")]);
+    return json({ advice: adv && adv.date === date ? advicePayload(adv) : null, analysis: an || null });
   }
 
   if (request.method === "POST") {
+    // Фото приходит в теле запроса (base64), поэтому ограничиваем размер до чтения
+    if (Number(request.headers.get("content-length") || 0) > MAX_IMAGE_BYTES * 1.4) return json({ error: "too big" }, 413);
     const body = await request.json().catch(() => ({}));
     if (!isDate(body.date)) return json({ error: "bad date" }, 400);
     if (url.pathname === "/api/water") {
@@ -2704,26 +2842,64 @@ async function api(request, url, env) {
       }
       const items = cleanItems(res.items);
       if (res.intent !== "food_log" || !items.length) return json({ error: "not_food", answer: res.answer || "" }, 422);
-      const day = await getDay(env, u.id, body.date);
-      const meal = {
-        id: crypto.randomUUID().slice(0, 8),
-        time: body.date === today(u) ? nowTime(u) : "—",
-        title: String(res.title || items.map((i) => i.name).join(", ")).slice(0, 60),
-        items,
-        source: "app",
-      };
-      day.meals.push(meal);
-      await saveDay(env, u.id, body.date, day);
-      if (body.date === today(u)) {
-        const fresh = await progress(env, u, "meal", body.date, { pack: false, inNorm: inNorm(dayTotals(day).kcal, u.targets.kcal) });
-        await announce(env, u.id, fresh);
-      } else {
-        // Запись задним числом: серию и счётчики пересчитываем по истории
-        delete u.st;
-        await ensureStats(env, u, false);
-        await saveUser(env, u);
+      return json(await addAppMeal(env, u, body.date, res.title, items, "app"));
+    }
+
+    // Фото еды из приложения: камера или галерея, сжатый JPEG в base64
+    if (url.pathname === "/api/meal/photo") {
+      const image = String(body.image || "");
+      if (image.length < 100 || !/^[A-Za-z0-9+/]+={0,2}$/.test(image)) return json({ error: "bad image" }, 400);
+      if (image.length > MAX_IMAGE_BYTES * 1.37) return json({ error: "too big" }, 413);
+      if (body.date > today(u)) return json({ error: "future" }, 400);
+      if (!checkAiLimit(env, u)) return json({ error: "limit" }, 429);
+      await saveUser(env, u);
+      let r;
+      try {
+        r = await analyzePhoto(env, image, "image/jpeg", String(body.caption || "").trim().slice(0, 300));
+      } catch (e) {
+        console.error("app photo error:", e && e.stack ? e.stack : e);
+        return json({ error: "ai" }, 502);
       }
-      return json({ ok: true, id: meal.id, title: meal.title, kcal: round(sumItems(items).kcal) });
+      if (!r) return json({ error: "not_food" }, 422);
+      return json({ ...(await addAppMeal(env, u, body.date, r.title, r.items, r.source === "photo" ? "app_photo" : r.source)), comment: plainText(r.comment) });
+    }
+
+    // «Что съесть»: новые варианты от нейросети
+    if (url.pathname === "/api/advice") {
+      if (!checkAiLimit(env, u)) return json({ error: "limit" }, 429);
+      await saveUser(env, u);
+      let a;
+      try {
+        a = await makeAdvice(env, u);
+      } catch (e) {
+        console.error("app advice error:", e && e.stack ? e.stack : e);
+        return json({ error: "ai" }, 502);
+      }
+      if (!a) return json({ error: "empty" }, 502);
+      return json(advicePayload(a));
+    }
+
+    // «Съел этот вариант» — записываем в дневник
+    if (url.pathname === "/api/advice/eat") {
+      const saved = await env.DB.get(`adv:${u.id}`, "json");
+      const o = saved?.date === today(u) ? saved.options[Number(body.i)] : null;
+      if (!o) return json({ error: "expired" }, 410);
+      await env.DB.delete(`adv:${u.id}`);
+      return json(await addAppMeal(env, u, today(u), o.title, o.items, "advice"));
+    }
+
+    // Разбор недели от нейросети (кэш на 12 часов)
+    if (url.pathname === "/api/analysis") {
+      let a;
+      try {
+        a = await makeAnalysis(env, u);
+      } catch (e) {
+        console.error("app analysis error:", e && e.stack ? e.stack : e);
+        return json({ error: "ai" }, 502);
+      }
+      if (a.short) return json({ error: "short", recorded: a.recorded }, 422);
+      if (a.limit) return json({ error: "limit" }, 429);
+      return json(a);
     }
 
     const day = await getDay(env, u.id, body.date);
@@ -2880,15 +3056,15 @@ const APP_HTML = `<!doctype html>
     --r:20px;
   }
   /* Тема, выбранная кнопкой: перекрывает цвета Telegram */
-  html[data-theme="light"]{--bg:#f6faf7;--card:#ffffff;--text:#13201a;--hint:#7f8c85;--line:rgba(19,32,26,.08);--edge:rgba(19,32,26,.045);--fill:rgba(19,32,26,.04);--shadow:0 1px 2px rgba(16,40,28,.03),0 8px 24px rgba(16,60,40,.07)}
+  html[data-theme="light"]{--bg:#f6faf7;--card:#ffffff;--text:#13201a;--hint:#7f8c85;--line:rgba(19,32,26,.08);--edge:rgba(19,32,26,.045);--fill:rgba(19,32,26,.04);--shadow:0 1px 2px rgba(16,40,28,.04),0 4px 12px rgba(16,60,40,.06)}
   html[data-theme="dark"]{--bg:#0c100e;--card:#161c19;--text:#eef3f0;--hint:#8b968f;--line:rgba(255,255,255,.08);--edge:rgba(255,255,255,.06);--fill:rgba(255,255,255,.07);--shadow:none}
   /* Шапка: максимально яркий зелёный в обеих темах, текст тёмно-зелёный (контраст от 9:1) */
   html{--h-bg:radial-gradient(90% 70% at 90% -12%,rgba(220,255,236,.8),rgba(220,255,236,0) 60%),linear-gradient(165deg,#5dffad,#33f792 50%,#1fec84);
     --h-ink:#03301a;--h-sub:rgba(3,48,26,.75);--h-btn:rgba(255,255,255,.42);--h-chip:rgba(255,255,255,.5);--h-track:rgba(3,48,26,.12);--h-arc:#ffffff;--h-arc2:#e6fff1;
-    --h-sel:#03301a;--h-sel-ink:#5dffad;--h-sel-sub:rgba(93,255,173,.7);--h-dot-ok:#03301a;--h-dot-lo:rgba(3,48,26,.3);--h-dot-ov:#d93a2f;--h-shadow:0 12px 30px rgba(31,236,132,.3)}
-  html[data-theme="dark"]{--h-shadow:0 12px 30px rgba(31,236,132,.18)}
+    --h-sel:#03301a;--h-sel-ink:#5dffad;--h-sel-sub:rgba(93,255,173,.7);--h-dot-ok:#03301a;--h-dot-lo:rgba(3,48,26,.3);--h-dot-ov:#d93a2f;--h-shadow:0 8px 16px rgba(31,236,132,.28)}
+  html[data-theme="dark"]{--h-shadow:0 8px 16px rgba(31,236,132,.16)}
   /* Светлая тема: яркая шапка, воздух вокруг белого кольца */
-  html[data-theme="light"]{--h-bg:radial-gradient(90% 70% at 90% -12%,rgba(230,255,240,.85),rgba(230,255,240,0) 60%),linear-gradient(165deg,#62ffb0,#2ef88f 50%,#12e97c);--h-shadow:0 14px 32px rgba(18,233,124,.32)}
+  html[data-theme="light"]{--h-bg:radial-gradient(90% 70% at 90% -12%,rgba(230,255,240,.85),rgba(230,255,240,0) 60%),linear-gradient(165deg,#62ffb0,#2ef88f 50%,#12e97c);--h-shadow:0 8px 16px rgba(18,233,124,.3)}
   html[data-theme="light"] .ring .in{box-shadow:0 8px 24px rgba(22,184,106,.18)}
   html.tt,html.tt *{transition:background-color .3s,color .3s,border-color .3s!important}
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
@@ -2924,13 +3100,13 @@ const APP_HTML = `<!doctype html>
   .ring{position:relative;width:204px;height:204px}
   .ring > svg{position:absolute;inset:0;transform:rotate(-90deg);overflow:visible}
   .ring .trk{stroke:var(--h-track)}
-  .ring .arc{transition:stroke-dashoffset 1.2s cubic-bezier(.2,.8,.2,1);filter:drop-shadow(0 3px 8px rgba(3,48,26,.22))}
+  /* Без CSS-фильтров на SVG: во встроенном браузере Telegram на Android они рвали отрисовку шапки на куски */
+  .ring .arc{transition:stroke-dashoffset 1.2s cubic-bezier(.2,.8,.2,1)}
   .ring .s1{stop-color:var(--h-arc)} .ring .s2{stop-color:var(--h-arc2)}
   .ring.over .s1{stop-color:#b4231a} .ring.over .s2{stop-color:#ff6a4d}
   .ring .knob{transform-origin:102px 102px;transition:transform 1.2s cubic-bezier(.2,.8,.2,1)}
   .ring .knob circle{fill:#13a35a;stroke:#fff;stroke-width:4}
   .ring.over .knob circle{fill:#d93a2f}
-  .ring.ok .arc{filter:drop-shadow(0 0 8px rgba(255,255,255,.9))}
   .ring .in{position:absolute;left:34px;top:34px;width:136px;height:136px;border-radius:50%;background:#fff;color:#03301a;
     box-shadow:0 10px 26px rgba(3,48,26,.16),inset 0 -6px 14px rgba(3,48,26,.05);display:flex;flex-direction:column;align-items:center;justify-content:center}
   .ring .in .ic{width:22px;height:22px;margin-bottom:1px}
@@ -2976,8 +3152,9 @@ const APP_HTML = `<!doctype html>
   .glass{width:52px;height:70px;flex:none;position:relative}
   .glass svg{width:100%;height:100%;overflow:visible}
   .glass .lvl{transition:transform 1s cubic-bezier(.2,.8,.2,1)}
-  .glass .wave{animation:wave 2.4s linear infinite}
-  .glass .wave2{animation:wave 3.6s linear infinite reverse;opacity:.55}
+  /* Волна качается 3 раза и замирает: бесконечная анимация постоянно перерисовывала страницу */
+  .glass .wave{animation:wave 2.4s linear 3}
+  .glass .wave2{animation:wave 3.6s linear 2 reverse;opacity:.55}
   @keyframes wave{from{transform:translateX(0)}to{transform:translateX(-40px)}}
   .wt{flex:1;position:relative;z-index:1}
   .wt .lb{font-size:12px;font-weight:600;color:rgba(255,255,255,.85)}
@@ -3101,7 +3278,7 @@ const APP_HTML = `<!doctype html>
   .load{padding:60px 0;text-align:center;opacity:.8}
 
   /* ── Анимации ── */
-  .rise{animation:rise .45s cubic-bezier(.2,.8,.2,1) both}
+  .rise{animation:rise .45s cubic-bezier(.2,.8,.2,1) backwards}
   @keyframes rise{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
   .pop{animation:pop .5s cubic-bezier(.3,1.6,.5,1)}
   @keyframes pop{0%{transform:scale(1)}35%{transform:scale(1.05)}100%{transform:scale(1)}}
@@ -3652,4 +3829,4 @@ const APP_HTML = `<!doctype html>
 </html>`;
 
 // Для тестов
-export const _test = { checkAiLimit, appHeaders, waterTick, pillTick, parsePill, nextSlot, slotOf, adviceText, weekTip, startSource, statsText, spark, ACHIEVEMENTS, baseEmoji, calcTargets, verifyInitData, cleanItems, sumItems, parseFix, parseWater, cleanBarcode, waterGoal, HELP, APP_HTML };
+export const _test = { live, widgetPayload, analyzePhoto, checkAiLimit, appHeaders, waterTick, pillTick, parsePill, nextSlot, slotOf, adviceText, weekTip, startSource, statsText, spark, ACHIEVEMENTS, baseEmoji, calcTargets, verifyInitData, cleanItems, sumItems, parseFix, parseWater, cleanBarcode, waterGoal, HELP, APP_HTML };

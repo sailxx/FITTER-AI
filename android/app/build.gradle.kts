@@ -15,8 +15,8 @@ android {
         applicationId = "com.sailxx.fitter"
         minSdk = 26
         targetSdk = 36
-        versionCode = 1
-        versionName = "3.0.0"
+        versionCode = 2
+        versionName = "3.1.0"
         // Сервер бота на Cloudflare Workers: тот же API, что у дневника в Telegram
         buildConfigField("String", "API", "\"https://fitter-ai.vladislav-arkhitkov.workers.dev\"")
     }
@@ -73,4 +73,7 @@ dependencies {
     // Виджеты на рабочем столе и их фоновое обновление
     implementation("androidx.glance:glance-appwidget:1.1.1")
     implementation("androidx.work:work-runtime-ktx:2.10.0")
+
+    // Живая синхронизация: WebSocket к серверу, пока приложение открыто
+    implementation("com.squareup.okhttp3:okhttp:4.12.0")
 }
