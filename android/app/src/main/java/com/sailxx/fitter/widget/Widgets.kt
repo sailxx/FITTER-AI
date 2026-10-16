@@ -18,17 +18,12 @@ import androidx.glance.Image
 import androidx.glance.ImageProvider
 import androidx.glance.LocalContext
 import androidx.glance.LocalSize
-import androidx.glance.action.Action
-import androidx.glance.action.ActionParameters
-import androidx.glance.action.actionParametersOf
 import androidx.glance.action.actionStartActivity
 import androidx.glance.action.clickable
 import androidx.glance.appwidget.GlanceAppWidget
 import androidx.glance.appwidget.GlanceAppWidgetManager
 import androidx.glance.appwidget.GlanceAppWidgetReceiver
 import androidx.glance.appwidget.SizeMode
-import androidx.glance.appwidget.action.ActionCallback
-import androidx.glance.appwidget.action.actionRunCallback
 import androidx.glance.appwidget.action.actionStartActivity
 import androidx.glance.appwidget.cornerRadius
 import androidx.glance.appwidget.provideContent
@@ -59,7 +54,6 @@ import androidx.work.WorkerParameters
 import com.sailxx.fitter.R
 import com.sailxx.fitter.data.AppState
 import com.sailxx.fitter.data.FitterRepository
-import com.sailxx.fitter.data.PillDose
 import com.sailxx.fitter.data.Summary
 import com.sailxx.fitter.ui.Launch
 import com.sailxx.fitter.ui.MainActivity
@@ -126,15 +120,6 @@ private fun SignIn(g: Skin) {
     }
 }
 
-/** Кнопка-пилюля: на тёмной теме тёмно-синяя, на светлой — голубая. */
-@Composable
-private fun Pill(text: String, g: Skin, w: Dp, h: Dp, action: Action, filled: Boolean = true, size: TextUnit = 13.sp) {
-    Box(
-        GlanceModifier.size(w, h).background(if (filled) g.btn else g.trk).cornerRadius(h / 2).clickable(action),
-        contentAlignment = Alignment.Center,
-    ) { T(text, size, if (filled) g.btnInk else g.ink, bold = true) }
-}
-
 /** Кольцо с подписью внутри: картинка-кольцо и текст поверх. */
 @Composable
 private fun RingBox(g: Skin, progress: Float, size: Dp, stroke: Float, color: Color? = null, content: @Composable () -> Unit) {
@@ -177,8 +162,6 @@ private fun Macros(g: Skin, s: Summary, w: Dp, k: Float) {
     MacroLine(g, "Жиры", s.f, s.targets.f, Palette.Fat, w, k)
     MacroLine(g, "Углеводы", s.c, s.targets.c, Palette.Carbs, w, k)
 }
-
-private fun waterAction(delta: Int) = actionRunCallback<WaterAction>(actionParametersOf(WaterAction.Delta to delta))
 
 /** Основа: читаем сохранённое и оформление, рисуем содержимое или просьбу войти. */
 abstract class FitterWidget : GlanceAppWidget() {
@@ -311,8 +294,7 @@ class TodayWidget : FitterWidget() {
                             Img(R.drawable.ic_water, dp(16f, k))
                             Spacer(GlanceModifier.width(dp(6f, k)))
                             val all = maxOf(1, (s.waterGoal + CUP - 1) / CUP)
-                            T("${s.water / CUP} из $all стаканов", sp(12f, k), g.ink, modifier = GlanceModifier.defaultWeight())
-                            Pill("+", g, dp(30f, k), dp(30f, k), waterAction(CUP), size = sp(18f, k))
+                            T("${s.water / CUP} из $all стаканов · ${liters(s.water)}", sp(12f, k), g.ink, modifier = GlanceModifier.defaultWeight())
                         }
                     }
                 }
@@ -353,62 +335,49 @@ class WaterWidget : FitterWidget() {
         val level = if (s.waterGoal > 0) s.water.toFloat() / s.waterGoal else 0f
         val wide = w > h * 1.45f
         val k = if (wide) scale(300f, 140f) else scale(160f, 160f)
-        val btnH = dp(36f, k).coerceAtMost(54.dp)
-        // Нажатие на стакан — тоже стакан воды
-        val glassW = if (wide) minOf(h * 0.62f, w * 0.25f) else dp(42f, k)
-        val glassH = glassW * 1.35f
+        val glassH = if (wide) h * 0.9f else (h * 0.5f).coerceAtLeast(dp(56f, k))
+        val glassW = glassH / 1.35f
         val glass = glassBitmap(level, water, glassW.px(ctx), glassH.px(ctx))
-        val gap = dp(6f, k)
 
         val info: @Composable () -> Unit = {
-            T("Вода", sp(11f, k), g.mut)
-            T(liters(s.water), sp(26f, k), g.ink, bold = true)
-            T(if (s.water >= s.waterGoal) "норма ${liters(s.waterGoal)} ✓" else "из ${liters(s.waterGoal)} · $on из $all", sp(11f, k), g.mut)
+            T("Вода", sp(12f, k), g.mut)
+            T(liters(s.water), sp(30f, k), g.ink, bold = true)
+            T(if (s.water >= s.waterGoal) "норма ${liters(s.waterGoal)} ✓" else "из ${liters(s.waterGoal)}", sp(12f, k), g.mut)
         }
         val cups: @Composable (Dp) -> Unit = { width ->
-            val cupW = ((width.value - (all - 1) * 3 * k) / all).coerceIn(4f, 14f * k).dp
-            val cupH = (cupW * 1.25f).coerceAtMost(dp(16f, k))
+            val cupW = ((width.value - (all - 1) * 3 * k) / all).coerceIn(4f, 16f * k).dp
+            val cupH = (cupW * 1.25f).coerceAtMost(dp(18f, k))
             Bmp(cupsBitmap(g, on, all, water, cupW.px(ctx), cupH.px(ctx), dp(3f, k).px(ctx)), cupW * all + dp(3f, k) * (all - 1), cupH)
         }
-        val buttons: @Composable (Dp) -> Unit = { width ->
-            // Крупный виджет — ещё и бутылка 0,5 л
-            val big = width.value >= 230f
-            Row(GlanceModifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                val rest = width - btnH - gap - if (big) gap else 0.dp
-                Pill("+ стакан", g, if (big) rest * 0.55f else rest, btnH, waterAction(CUP), size = sp(13f, k))
-                if (big) {
-                    Spacer(GlanceModifier.width(gap))
-                    Pill("+ 0,5 л", g, rest * 0.45f, btnH, waterAction(2 * CUP), size = sp(13f, k))
-                }
-                Spacer(GlanceModifier.width(gap))
-                Pill("−", g, btnH, btnH, waterAction(-CUP), filled = false, size = sp(18f, k))
-            }
+        val left: @Composable () -> Unit = {
+            val rest = s.waterGoal - s.water
+            T(if (rest > 0) "Ещё ${(rest + CUP - 1) / CUP} ${if ((rest + CUP - 1) / CUP == 1) "стакан" else "стакана"} до нормы" else "Норма выполнена 💧", sp(12f, k), g.ink, bold = true)
         }
 
         if (wide) {
             Row(GlanceModifier.fillMaxSize(), verticalAlignment = Alignment.CenterVertically) {
-                Bmp(glass, glassW, glassH, GlanceModifier.clickable(waterAction(CUP)))
-                Spacer(GlanceModifier.width(dp(14f, k)))
-                val col = w - glassW - dp(14f, k)
+                Bmp(glass, glassW, glassH)
+                Spacer(GlanceModifier.width(dp(16f, k)))
+                val col = w - glassW - dp(16f, k)
                 Column(GlanceModifier.width(col)) {
                     info()
-                    Spacer(GlanceModifier.height(dp(6f, k)))
+                    Spacer(GlanceModifier.height(dp(8f, k)))
                     cups(col)
-                    Spacer(GlanceModifier.height(dp(10f, k)))
-                    buttons(col)
+                    Spacer(GlanceModifier.height(dp(8f, k)))
+                    left()
                 }
             }
         } else {
             Column(GlanceModifier.fillMaxSize()) {
-                Row(verticalAlignment = Alignment.Bottom) {
-                    Bmp(glass, glassW, glassH, GlanceModifier.clickable(waterAction(CUP)))
-                    Spacer(GlanceModifier.width(dp(10f, k)))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Bmp(glass, glassW, glassH)
+                    Spacer(GlanceModifier.width(dp(12f, k)))
                     Column { info() }
                 }
-                Spacer(GlanceModifier.height(dp(8f, k)))
-                cups(w)
                 Spacer(GlanceModifier.defaultWeight())
-                buttons(w)
+                cups(w)
+                Spacer(GlanceModifier.height(dp(8f, k)))
+                left()
             }
         }
     }
@@ -475,9 +444,9 @@ class MacrosWidget : FitterWidget() {
 // ───────────────────────────── «Таблетки» 2×2 (растягивается) ─────────────────────────────
 
 /** Ближайший неотмеченный приём: по времени из сводки, иначе первый неотмеченный. */
-private fun nextDose(s: Summary, st: AppState): PillDose? {
+private fun nextDose(s: Summary, st: AppState) = run {
     val doses = st.day?.pills.orEmpty().filter { it.s.isEmpty() }
-    return doses.firstOrNull { it.time == s.pillNext } ?: doses.firstOrNull()
+    doses.firstOrNull { it.time == s.pillNext } ?: doses.firstOrNull()
 }
 
 class PillsWidget : FitterWidget() {
@@ -525,12 +494,7 @@ class PillsWidget : FitterWidget() {
             if (next == null) {
                 T("Все приняты ✅", sp(13f, k), g.ink, bold = true)
             } else {
-                // Отметить ближайшую таблетку прямо с рабочего стола
-                Pill(
-                    "✓ Принял ${next.time}", g, w, dp(34f, k).coerceAtMost(50.dp),
-                    actionRunCallback<PillAction>(actionParametersOf(PillAction.Id to next.id, PillAction.Time to next.time)),
-                    size = sp(13f, k),
-                )
+                T("Следующая в ${next.time}: ${next.name}", sp(13f, k), g.ink, bold = true)
             }
         }
     }
@@ -615,33 +579,6 @@ class WeekWidget : FitterWidget() {
                 T("Открой приложение, чтобы загрузить неделю", sp(12f, k), g.mut, maxLines = 2)
             }
         }
-    }
-}
-
-// ───────────────────────────── Кнопки на виджетах ─────────────────────────────
-
-/** Вода: +250, +500 или −250 мл. Сразу видно на всех виджетах и в приложении, потом уходит на сервер и в бота. */
-class WaterAction : ActionCallback {
-    override suspend fun onAction(context: Context, glanceId: GlanceId, parameters: ActionParameters) {
-        FitterRepository.addWater(context, parameters[Delta] ?: CUP)
-    }
-
-    companion object {
-        val Delta = ActionParameters.Key<Int>("delta")
-    }
-}
-
-/** Отметить таблетку принятой. */
-class PillAction : ActionCallback {
-    override suspend fun onAction(context: Context, glanceId: GlanceId, parameters: ActionParameters) {
-        val id = parameters[Id] ?: return
-        val time = parameters[Time] ?: return
-        FitterRepository.markPill(context, id, time)
-    }
-
-    companion object {
-        val Id = ActionParameters.Key<String>("id")
-        val Time = ActionParameters.Key<String>("time")
     }
 }
 

@@ -932,11 +932,6 @@ console.log("✓ /app и /setup");
   r = await apiCall("/api/live");
   assert.equal(r.status, 426, "живой канал только по WebSocket");
   delete env.LIVE;
-  // Бутылка 0,5 л с виджета — можно, произвольный объём — нет
-  r = await apiCall("/api/water", "POST", { date: today, delta: 500 });
-  assert.equal(r.status, 200);
-  r = await apiCall("/api/water", "POST", { date: today, delta: 300 });
-  assert.equal(r.status, 400);
   console.log("✓ приложение: фото еды, советы ИИ, живая синхронизация");
 }
 

@@ -2789,8 +2789,7 @@ async function api(request, url, env) {
     if (!isDate(body.date)) return json({ error: "bad date" }, 400);
     if (url.pathname === "/api/water") {
       const delta = Number(body.delta);
-      // Стакан (250 мл) или бутылка (500 мл) — с виджета приложения
-      if (![250, -250, 500, -500].includes(delta)) return json({ error: "bad delta" }, 400);
+      if (![250, -250].includes(delta)) return json({ error: "bad delta" }, 400);
       const { day: d, reached, fresh } = await addWater(env, u, body.date, delta);
       await announce(env, u.id, fresh);
       return json({ ok: true, water: d.water, reached });

@@ -136,39 +136,7 @@ object FitterRepository {
     /** Сегодняшняя дата по часовому поясу из анкеты: её знает сервер, иначе — дата телефона. */
     fun today(context: Context): String = _state.value.summary?.date ?: load(context).summary?.date ?: java.time.LocalDate.now().toString()
 
-        /**
-     * Отметить таблетку принятой (кнопка на виджете). Сразу показываем отметку в приложении и на виджете,
-     * потом отправляем на сервер и сверяемся с ним.
-     */
-    suspend fun markPill(context: Context, id: String, time: String) {
-        val token = token(context) ?: return
-        val p = prefs(context)
-        val sum = p.getString("summary", null)?.let { JSONObject(it) } ?: return
-        val date = sum.getString("date")
-        sum.optJSONObject("pills")?.let { it.put("taken", it.optInt("taken") + 1) }
-        p.getString("day", null)?.let { JSONObject(it) }?.let { day ->
-            val arr = day.optJSONArray("pills")
-            for (i in 0 until (arr?.length() ?: 0)) {
-                val d = arr!!.getJSONObject(i)
-                if (d.optString("id") == id && d.optString("time") == time) d.put("s", "taken")
-            }
-            p.edit().putString("day", day.toString()).apply()
-        }
-        p.edit().putString("summary", sum.toString()).apply()
-        load(context)
-        updateFitterWidgets(context)
-        try {
-            Api.pillMark(token, date, id, time, "taken")
-        } catch (e: UnauthorizedException) {
-            clear(context)
-            return
-        } catch (e: Exception) {
-            Log.w(TAG, "pill failed", e)
-        }
-        refresh(context)
-    }
-
-    suspend fun logout(context: Context) {
+        suspend fun logout(context: Context) {
         token(context)?.let { runCatching { Api.logout(it) } }
         LiveSync.stop()
         clear(context)
