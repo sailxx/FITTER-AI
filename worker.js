@@ -1772,7 +1772,7 @@ async function sendAdvice(env, u, chatId) {
 }
 
 // Подобрать 3 варианта под остаток нормы и запомнить их на 6 часов. null — нейросеть ничего не предложила
-async function makeAdvice(env, u) {
+async function makeAdvice(env, u, like = "") {
   const date = today(u);
   const dates = [...Array(7)].map((_, i) => shiftDate(date, i - 6));
   const days = await Promise.all(dates.map((d) => getDay(env, u.id, d)));
@@ -1784,7 +1784,8 @@ async function makeAdvice(env, u) {
   const ctx =
     `Сейчас ${nowTime(u)}. Цель: ${GOALS[u.goal]}. Норма: ${g.kcal} ккал, Б ${g.p}, Ж ${g.f}, У ${g.c}.\n` +
     `Съедено сегодня: ${round(t.kcal)} ккал, Б ${round(t.p)}, Ж ${round(t.f)}, У ${round(t.c)} (${eaten}).\n` +
-    `Осталось: ${left.kcal} ккал, Б ${left.p}, Ж ${left.f}, У ${left.c}.\nЕл за неделю: ${usual}.`;
+    `Осталось: ${left.kcal} ккал, Б ${left.p}, Ж ${left.f}, У ${left.c}.\nЕл за неделю: ${usual}.` +
+    (like ? `\nЧеловеку понравилось «${like}»: предложи 3 похожих по вкусу и составу блюда, но не само это блюдо.` : "");
   const res = await gemini(env, [{ text: `${ADVICE_PROMPT}\n\n${ctx}` }], ADVICE_SCHEMA, 0.8);
   const options = (Array.isArray(res.options) ? res.options : [])
     .map((o) => ({ title: String(o.title || "").trim().slice(0, 60), why: String(o.why || "").trim().slice(0, 80), items: cleanItems(o.items) }))
@@ -1794,6 +1795,38 @@ async function makeAdvice(env, u) {
   const intro = String(res.intro || "").trim().slice(0, 200);
   await env.DB.put(`adv:${u.id}`, JSON.stringify({ date, options, intro, left }), { expirationTtl: 6 * 3600 });
   return { date, options, intro, left };
+}
+
+const RECIPE_SCHEMA = {
+  type: "OBJECT",
+  properties: {
+    time: { type: "STRING", description: "Время приготовления, например «10 минут»" },
+    ingredients: { type: "ARRAY", items: { type: "STRING" }, description: "Ингредиенты с количеством" },
+    steps: { type: "ARRAY", items: { type: "STRING" }, description: "Шаги приготовления, коротко" },
+    tip: { type: "STRING", description: "Один совет к блюду, можно пустую строку" },
+  },
+  required: ["time", "ingredients", "steps"],
+};
+
+// Полный рецепт варианта «Что съесть» (кэшируется внутри adv:, пока варианты живы)
+async function makeRecipe(env, u, saved, i) {
+  const o = saved.options[i];
+  if (saved.recipes?.[i]) return saved.recipes[i];
+  const list = o.items.map((it) => `${it.name} ${it.grams} г`).join(", ");
+  const res = await gemini(env, [{ text:
+    `Ты повар-ассистент FITTER. Напиши по-русски простой рецепт блюда «${o.title}» из продуктов: ${list}. ` +
+    `Держи те же граммовки. Не больше 6 коротких шагов, без воды.` }], RECIPE_SCHEMA, 0.5);
+  const strs = (a, n, len) => (Array.isArray(a) ? a : []).map((x) => String(x || "").trim().slice(0, len)).filter(Boolean).slice(0, n);
+  const recipe = {
+    time: String(res.time || "").trim().slice(0, 40),
+    ingredients: strs(res.ingredients, 15, 100),
+    steps: strs(res.steps, 8, 300),
+    tip: String(res.tip || "").trim().slice(0, 200),
+  };
+  if (!recipe.steps.length) return null;
+  saved.recipes = { ...(saved.recipes || {}), [i]: recipe };
+  await env.DB.put(`adv:${u.id}`, JSON.stringify(saved), { expirationTtl: 6 * 3600 });
+  return recipe;
 }
 
 // Варианты «Что съесть» для приложения: КБЖУ каждого варианта уже посчитаны
@@ -2873,6 +2906,42 @@ async function api(request, url, env) {
         a = await makeAdvice(env, u);
       } catch (e) {
         console.error("app advice error:", e && e.stack ? e.stack : e);
+        return json({ error: "ai" }, 502);
+      }
+      if (!a) return json({ error: "empty" }, 502);
+      return json(advicePayload(a));
+    }
+
+    // Полный рецепт варианта
+    if (url.pathname === "/api/advice/recipe") {
+      const saved = await env.DB.get(`adv:${u.id}`, "json");
+      const o = saved?.date === today(u) ? saved.options[Number(body.i)] : null;
+      if (!o) return json({ error: "expired" }, 410);
+      if (!saved.recipes?.[Number(body.i)] && !checkAiLimit(env, u)) return json({ error: "limit" }, 429);
+      await saveUser(env, u);
+      let recipe;
+      try {
+        recipe = await makeRecipe(env, u, saved, Number(body.i));
+      } catch (e) {
+        console.error("app recipe error:", e && e.stack ? e.stack : e);
+        return json({ error: "ai" }, 502);
+      }
+      if (!recipe) return json({ error: "empty" }, 502);
+      return json(recipe);
+    }
+
+    // Похожие блюда на выбранный вариант: заменяют текущий список вариантов
+    if (url.pathname === "/api/advice/similar") {
+      const saved = await env.DB.get(`adv:${u.id}`, "json");
+      const o = saved?.date === today(u) ? saved.options[Number(body.i)] : null;
+      if (!o) return json({ error: "expired" }, 410);
+      if (!checkAiLimit(env, u)) return json({ error: "limit" }, 429);
+      await saveUser(env, u);
+      let a;
+      try {
+        a = await makeAdvice(env, u, o.title);
+      } catch (e) {
+        console.error("app similar error:", e && e.stack ? e.stack : e);
         return json({ error: "ai" }, 502);
       }
       if (!a) return json({ error: "empty" }, 502);
