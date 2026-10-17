@@ -147,14 +147,15 @@ class MainActivity : ComponentActivity() {
     }
 }
 
-private enum class Tab { Today, Tips, Settings }
+private enum class Tab { Today, Tips, Workouts, Settings }
 
-/** Главный экран: вкладки «Сегодня», «Советы», «Настройки»; внизу панель с вырезом и зелёной кнопкой «+». */
+/** Главный экран: вкладки «Сегодня», «Советы», «Тренировки», «Настройки»; внизу панель с вырезом и зелёной кнопкой «+». */
 @Composable
 private fun Home(st: AppState) {
     var tab by rememberSaveable { mutableStateOf(Tab.Today) }
     var adding by remember { mutableStateOf(false) }
     var camera by remember { mutableStateOf(false) }
+    var editing by remember { mutableStateOf(false) } // открыт редактор тренировки — панель прячем
     val request by Launch.add.collectAsState()
     LaunchedEffect(request) {
         if (request != null) { tab = Tab.Today; camera = request == "camera"; adding = true; Launch.add.value = null }
@@ -164,10 +165,11 @@ private fun Home(st: AppState) {
             when (t) {
                 Tab.Today -> TodayScreen(st, onAdd = { adding = true }, onSettings = { tab = Tab.Settings })
                 Tab.Tips -> TipsScreen()
+                Tab.Workouts -> WorkoutsScreen(onEditing = { editing = it })
                 Tab.Settings -> SettingsScreen(st.summary, onBack = { tab = Tab.Today })
             }
         }
-        BottomBar(tab, onTab = { tab = it }, onAdd = { adding = true }, modifier = Modifier.align(Alignment.BottomCenter))
+        if (!(editing && tab == Tab.Workouts)) BottomBar(tab, onTab = { tab = it }, onAdd = { adding = true }, modifier = Modifier.align(Alignment.BottomCenter))
         if (adding) AddMealSheet(openCamera = camera, onClose = { adding = false; camera = false })
     }
 }
@@ -213,13 +215,14 @@ private fun BottomBar(tab: Tab, onTab: (Tab) -> Unit, onAdd: () -> Unit, modifie
             Modifier.padding(top = PlusSize / 2 - NotchDrop).fillMaxWidth()
                 .shadow(16.dp, shape, spotColor = Color(0x3310283C), ambientColor = Color(0x2210283C))
                 .background(t.card, shape)
-                .navigationBarsPadding().height(BarHeight).padding(horizontal = 8.dp),
+                .navigationBarsPadding().height(BarHeight).padding(horizontal = 4.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             TabItem(R.drawable.ic_plate, "Сегодня", tab == Tab.Today, Modifier.weight(1f)) { onTab(Tab.Today) }
             TabItem(R.drawable.ic_sparkles, "Советы", tab == Tab.Tips, Modifier.weight(1f)) { onTab(Tab.Tips) }
             Spacer(Modifier.width(PlusSize + NotchGap * 4))
-            TabItem(R.drawable.ic_gear, "Настройки", tab == Tab.Settings, Modifier.weight(2f)) { onTab(Tab.Settings) }
+            TabItem(R.drawable.ic_muscle, "Тренировки", tab == Tab.Workouts, Modifier.weight(1f)) { onTab(Tab.Workouts) }
+            TabItem(R.drawable.ic_gear, "Настройки", tab == Tab.Settings, Modifier.weight(1f)) { onTab(Tab.Settings) }
         }
         AddButton(onAdd, Modifier.align(Alignment.TopCenter))
     }
@@ -237,7 +240,7 @@ private fun TabItem(@DrawableRes icon: Int, label: String, active: Boolean, modi
         verticalArrangement = Arrangement.Center,
     ) {
         Image(painterResource(icon), null, Modifier.size(26.dp).graphicsLayer { scaleX = scale; scaleY = scale }.alpha(if (active) 1f else 0.55f))
-        Text(label, fontSize = 11.sp, fontWeight = if (active) FontWeight.ExtraBold else FontWeight.SemiBold, color = if (active) t.text else t.hint)
+        Text(label, fontSize = 11.sp, maxLines = 1, softWrap = false, fontWeight = if (active) FontWeight.ExtraBold else FontWeight.SemiBold, color = if (active) t.text else t.hint)
         Box(Modifier.padding(top = 3.dp).size(5.dp).graphicsLayer { scaleX = dot; scaleY = dot }.background(Palette.G2, CircleShape))
     }
 }

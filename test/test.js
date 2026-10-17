@@ -947,6 +947,56 @@ console.log("✓ /app и /setup");
   console.log("✓ приложение: фото еды, советы ИИ, живая синхронизация");
 }
 
+// 11b. Дневник тренировок в приложении
+{
+  const today = (await (await apiCall("/api/widget")).json()).date;
+  let r = await apiCall("/api/workouts");
+  assert.deepEqual(await r.json(), { list: [], custom: [] });
+  r = await apiCall("/api/exercise/add", "POST", { date: today, name: "Жим гири стоя", kind: "w", group: "Плечи" });
+  const ex = (await r.json()).exercise;
+  assert.match(ex.id, /^c:/);
+  r = await apiCall("/api/exercise/add", "POST", { date: today, name: " " });
+  assert.equal(r.status, 400);
+  const workout = {
+    title: "Грудь и плечи",
+    ex: [
+      { id: "bench", name: "Жим штанги лёжа", kind: "w", effort: "hard", sets: [{ w: 60, r: 10 }, { w: 62.5, r: 8 }, { w: -5, r: "x" }] },
+      { id: ex.id, name: ex.name, kind: "w", effort: "nope", sets: [{ w: 16, r: 12 }] },
+      { id: "plank", name: "Планка", kind: "t", effort: "easy", sets: [{ s: 60 }] },
+      { name: "" },
+    ],
+  };
+  r = await apiCall("/api/workout/save", "POST", { date: today, workout });
+  assert.equal(r.status, 200);
+  const saved = (await r.json()).workout;
+  assert.equal(saved.ex.length, 3, "упражнение без названия отброшено");
+  assert.deepEqual(saved.ex[0].sets[2], { w: 0, r: 0, s: 0, km: 0 }, "плохие числа обнулены");
+  assert.equal(saved.ex[1].effort, "");
+  assert.equal(saved.ex[2].sets[0].s, 60);
+  // Исправление той же тренировки не создаёт новую
+  r = await apiCall("/api/workout/save", "POST", { date: today, workout: { ...saved, title: "Грудь" } });
+  let all = await (await apiCall("/api/workouts")).json();
+  assert.equal(all.list.length, 1);
+  assert.equal(all.list[0].title, "Грудь");
+  assert.equal(all.custom.length, 1);
+  // Будущая дата и пустая тренировка — ошибка
+  const tomorrow = new Date(Date.parse(today + "T00:00:00Z") + 864e5).toISOString().slice(0, 10);
+  assert.equal((await apiCall("/api/workout/save", "POST", { date: tomorrow, workout })).status, 400);
+  assert.equal((await apiCall("/api/workout/save", "POST", { date: today, workout: { ex: [] } })).status, 400);
+  // Вчерашняя тренировка идёт ниже сегодняшней
+  const y = new Date(Date.parse(today + "T00:00:00Z") - 864e5).toISOString().slice(0, 10);
+  await apiCall("/api/workout/save", "POST", { date: y, workout: { ex: [{ id: "run", name: "Бег", kind: "c", sets: [{ s: 1800, km: 5 }] }] } });
+  all = await (await apiCall("/api/workouts")).json();
+  assert.deepEqual(all.list.map((w) => w.date), [today, y]);
+  await apiCall("/api/workout/delete", "POST", { date: today, id: saved.id });
+  await apiCall("/api/exercise/delete", "POST", { date: today, id: ex.id });
+  all = await (await apiCall("/api/workouts")).json();
+  assert.equal(all.list.length, 1);
+  assert.equal(all.custom.length, 0);
+  assert.ok(await env.DB.get("wo:42"));
+  console.log("✓ приложение: дневник тренировок");
+}
+
 // 12. Лимит запросов к ИИ
 env.DAILY_AI_LIMIT = "1";
 s = await msg("что поесть?");

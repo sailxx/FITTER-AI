@@ -439,6 +439,7 @@ private fun FloatingFood() {
 /** Появление снизу с задержкой — как .rise в дневнике. */
 @Composable
 fun Modifier.rise(delayMs: Int): Modifier {
+    if (androidx.compose.ui.platform.LocalInspectionMode.current) return this // превью и снимки экрана — сразу на месте
     val p = remember { Animatable(0f) }
     LaunchedEffect(Unit) { delay(delayMs.toLong()); p.animateTo(1f, tween(520, easing = Ease)) }
     return this.graphicsLayer { alpha = p.value; translationY = (1f - p.value) * 16.dp.toPx() }

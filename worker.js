@@ -394,7 +394,7 @@ async function getWeights(env, id) {
 async function deleteUserData(env, id) {
   const u = await getUser(env, id);
   const keys = [
-    `u:${id}`, `w:${id}`, `adv:${id}`,
+    `u:${id}`, `w:${id}`, `adv:${id}`, `wo:${id}`,
     ...((u && u.apps) || []).map((a) => `tk:${a.h}`),
     ...(await listAll(env, `d:${id}:`)),
     ...(await listAll(env, `an:${id}:`)),
@@ -2723,6 +2723,52 @@ async function dayPayload(env, u, date) {
   };
 }
 
+// ───────────────────────────── Тренировки ─────────────────────────────
+//
+// Дневник тренировок из приложения: одна запись wo:<id> = { list: [тренировки], custom: [свои упражнения] }.
+// Каталог упражнений живёт в приложении, сервер хранит только то, что записано.
+// Тренировка: { id, date, title, ex: [{ id, name, kind, effort, sets: [{ w, r, s, km }] }] }
+//   kind: w — вес × повторы, r — повторы, t — время, c — кардио (минуты и км); effort: easy | medium | hard | ""
+
+const WO_MAX = 500; // старые тренировки сверх лимита отбрасываются
+const WO_CUSTOM_MAX = 100;
+const WO_KINDS = ["w", "r", "t", "c"];
+const WO_EFFORTS = ["easy", "medium", "hard"];
+
+async function getWorkouts(env, id) {
+  const w = await env.DB.get(`wo:${id}`, "json");
+  return { list: (w && w.list) || [], custom: (w && w.custom) || [] };
+}
+async function saveWorkouts(env, id, w) {
+  if (!w.list.length && !w.custom.length) return env.DB.delete(`wo:${id}`);
+  await env.DB.put(`wo:${id}`, JSON.stringify(w));
+}
+
+// Число из тела запроса в разумных пределах, иначе 0
+const woNum = (x, max) => {
+  const n = Number(x);
+  return n > 0 && n <= max ? Math.round(n * 100) / 100 : 0;
+};
+const woId = (s) => String(s || "").replace(/[^\w:-]/g, "").slice(0, 40);
+
+// Чистим тренировку от приложения: только известные поля и пределы
+function cleanWorkout(w, date) {
+  const ex = (Array.isArray(w && w.ex) ? w.ex : []).slice(0, 40).map((e) => ({
+    id: woId(e && e.id),
+    name: String((e && e.name) || "").trim().slice(0, 60),
+    kind: WO_KINDS.includes(e && e.kind) ? e.kind : "w",
+    effort: WO_EFFORTS.includes(e && e.effort) ? e.effort : "",
+    sets: (Array.isArray(e && e.sets) ? e.sets : []).slice(0, 30).map((s) => ({
+      w: woNum(s && s.w, 1000), r: Math.round(woNum(s && s.r, 1000)), s: Math.round(woNum(s && s.s, 86400)), km: woNum(s && s.km, 500),
+    })),
+  })).filter((e) => e.name);
+  if (!ex.length) return null;
+  return { id: woId(w.id) || crypto.randomUUID().slice(0, 8), date, title: String(w.title || "").trim().slice(0, 60), ex };
+}
+
+// Новые сверху: по дате, а в один день — по порядку записи
+const woSort = (list) => list.sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0));
+
 // ───────────────────────────── Живая синхронизация ─────────────────────────────
 //
 // На каждого пользователя — свой Durable Object «Live»: держит WebSocket-соединения открытых приложений.
@@ -2815,11 +2861,50 @@ async function api(request, url, env) {
     return json({ advice: adv && adv.date === date ? advicePayload(adv) : null, analysis: an || null });
   }
 
+  // Дневник тренировок: все записи и свои упражнения
+  if (url.pathname === "/api/workouts" && request.method === "GET") return json(await getWorkouts(env, u.id));
+
   if (request.method === "POST") {
     // Фото приходит в теле запроса (base64), поэтому ограничиваем размер до чтения
     if (Number(request.headers.get("content-length") || 0) > MAX_IMAGE_BYTES * 1.4) return json({ error: "too big" }, 413);
     const body = await request.json().catch(() => ({}));
     if (!isDate(body.date)) return json({ error: "bad date" }, 400);
+    // Тренировка: новая или исправленная (тот же id)
+    if (url.pathname === "/api/workout/save") {
+      if (body.date > today(u)) return json({ error: "future" }, 400);
+      const w = cleanWorkout(body.workout, body.date);
+      if (!w) return json({ error: "empty" }, 400);
+      const all = await getWorkouts(env, u.id);
+      const i = all.list.findIndex((x) => x.id === w.id);
+      if (i >= 0) all.list[i] = w;
+      else all.list.unshift(w);
+      all.list = woSort(all.list).slice(0, WO_MAX);
+      await saveWorkouts(env, u.id, all);
+      return json({ ok: true, workout: w });
+    }
+    if (url.pathname === "/api/workout/delete") {
+      const all = await getWorkouts(env, u.id);
+      all.list = all.list.filter((x) => x.id !== body.id);
+      await saveWorkouts(env, u.id, all);
+      return json({ ok: true });
+    }
+    // Своё упражнение: название и тип (вес × повторы, повторы, время, кардио)
+    if (url.pathname === "/api/exercise/add") {
+      const name = String(body.name || "").trim().slice(0, 60);
+      if (name.length < 2) return json({ error: "empty" }, 400);
+      const all = await getWorkouts(env, u.id);
+      if (all.custom.length >= WO_CUSTOM_MAX) return json({ error: "too many" }, 400);
+      const ex = { id: "c:" + crypto.randomUUID().slice(0, 6), name, kind: WO_KINDS.includes(body.kind) ? body.kind : "w", group: String(body.group || "").slice(0, 20) };
+      all.custom.push(ex);
+      await saveWorkouts(env, u.id, all);
+      return json({ ok: true, exercise: ex });
+    }
+    if (url.pathname === "/api/exercise/delete") {
+      const all = await getWorkouts(env, u.id);
+      all.custom = all.custom.filter((x) => x.id !== body.id);
+      await saveWorkouts(env, u.id, all);
+      return json({ ok: true });
+    }
     if (url.pathname === "/api/water") {
       const delta = Number(body.delta);
       if (![250, -250].includes(delta)) return json({ error: "bad delta" }, 400);
