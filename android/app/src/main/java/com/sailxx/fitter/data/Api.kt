@@ -119,4 +119,19 @@ object Api {
 
     suspend fun analysis(token: String, date: String) =
         authed("/api/analysis", token, "POST", JSONObject().put("date", date), timeout = 60_000)
+
+    /** Дневник тренировок: все записи и свои упражнения. */
+    suspend fun workouts(token: String) = authed("/api/workouts", token)
+
+    suspend fun workoutSave(token: String, date: String, workout: JSONObject) =
+        authed("/api/workout/save", token, "POST", JSONObject().put("date", date).put("workout", workout))
+
+    suspend fun workoutDelete(token: String, date: String, id: String) =
+        authed("/api/workout/delete", token, "POST", JSONObject().put("date", date).put("id", id))
+
+    suspend fun exerciseAdd(token: String, date: String, name: String, kind: String, group: String) =
+        authed("/api/exercise/add", token, "POST", JSONObject().put("date", date).put("name", name).put("kind", kind).put("group", group))
+
+    suspend fun exerciseDelete(token: String, date: String, id: String) =
+        authed("/api/exercise/delete", token, "POST", JSONObject().put("date", date).put("id", id))
 }

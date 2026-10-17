@@ -179,6 +179,7 @@ object FitterRepository {
 
     private suspend fun clear(context: Context) {
         prefs(context).edit().clear().apply()
+        WorkoutStore.reset()
         SyncWorker.cancel(context)
         load(context)
         updateFitterWidgets(context)
