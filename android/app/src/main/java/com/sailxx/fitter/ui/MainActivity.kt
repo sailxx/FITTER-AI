@@ -233,17 +233,17 @@ private fun GlassBar(tab: Tab, backdrop: GraphicsLayer, onTab: (Tab) -> Unit, on
                 .drawBehind { drawRect(t.bg); translate(-pos.x, -pos.y) { drawLayer(backdrop) } },
         )
         val fill = when {
-            !blur -> if (t.dark) listOf(Color(0xF2232A27), Color(0xF21A201D)) else listOf(Color(0xF7FFFFFF), Color(0xF2F4F7F5))
-            t.dark -> listOf(Color(0x47FFFFFF), Color(0x14FFFFFF))
+            !blur -> if (t.dark) listOf(Color(0xF52A2A31), Color(0xF71E1E23)) else listOf(Color(0xF7FFFFFF), Color(0xF2F4F7F5))
+            t.dark -> listOf(Color(0xB32C2C33), Color(0xD1141418))
             else -> listOf(Color(0x9EFFFFFF), Color(0x52FFFFFF))
         }
-        val rim = if (t.dark) listOf(Color(0x80FFFFFF), Color(0x0DFFFFFF), Color(0x00FFFFFF), Color(0x4DFFFFFF))
+        val rim = if (t.dark) listOf(Color(0x47FFFFFF), Color(0x0AFFFFFF), Color(0x00FFFFFF), Color(0x29FFFFFF))
             else listOf(Color(0xF2FFFFFF), Color(0x26FFFFFF), Color(0x00FFFFFF), Color(0xBFFFFFFF))
         Box(Modifier.matchParentSize().background(Brush.verticalGradient(fill)).border(1.2.dp, Brush.linearGradient(rim), shape))
         // Блик по верхнему краю
         Box(
             Modifier.padding(start = 26.dp, top = 3.dp).fillMaxWidth(0.5f).height(13.dp)
-                .background(Brush.verticalGradient(listOf(Color.White.copy(alpha = if (t.dark) 0.22f else 0.6f), Color.Transparent)), RoundedCornerShape(7.dp)),
+                .background(Brush.verticalGradient(listOf(Color.White.copy(alpha = if (t.dark) 0.1f else 0.6f), Color.Transparent)), RoundedCornerShape(7.dp)),
         )
         Row(
             Modifier.fillMaxSize().padding(horizontal = 9.dp),
@@ -273,7 +273,7 @@ private fun GlassTab(@DrawableRes icon: Int, label: String, active: Boolean, onC
         Box(
             Modifier.matchParentSize().graphicsLayer { alpha = bubble; scaleX = 0.7f + 0.3f * bubble; scaleY = 0.7f + 0.3f * bubble }
                 .background(
-                    Brush.verticalGradient(if (t.dark) listOf(Color(0x42FFFFFF), Color(0x1AFFFFFF)) else listOf(Color(0xF2FFFFFF), Color(0x8CFFFFFF))),
+                    Brush.verticalGradient(if (t.dark) listOf(Color(0x33FFFFFF), Color(0x14FFFFFF)) else listOf(Color(0xF2FFFFFF), Color(0x8CFFFFFF))),
                     CircleShape,
                 )
                 .border(1.dp, Color.White.copy(alpha = if (t.dark) 0.28f else 0.9f), CircleShape),
@@ -292,7 +292,7 @@ private fun CameraButton(onClick: () -> Unit) {
     val press = remember { MutableInteractionSource() }
     val pressed by press.collectIsPressedAsState()
     val scale by animateFloatAsState(if (pressed) 0.9f else 1f, spring(dampingRatio = 0.4f, stiffness = Spring.StiffnessMedium), label = "p")
-    val body = if (t.dark) listOf(Color(0xF0F2F6F4), Color(0xC7BEC6C2)) else listOf(Color(0xD92A2D35), Color(0xF00A0B0E))
+    val body = if (t.dark) listOf(Color(0xF0484852), Color(0xF22A2A31)) else listOf(Color(0xD92A2D35), Color(0xF00A0B0E))
     Box(
         Modifier.size(CamSize)
             .graphicsLayer { scaleX = scale; scaleY = scale }
@@ -302,14 +302,14 @@ private fun CameraButton(onClick: () -> Unit) {
             .drawBehind {
                 // Блик сверху
                 drawCircle(
-                    Brush.radialGradient(listOf(Color.White.copy(alpha = if (t.dark) 0.9f else 0.38f), Color.Transparent), center = Offset(size.width / 2, 0f), radius = size.width * 0.62f),
+                    Brush.radialGradient(listOf(Color.White.copy(alpha = if (t.dark) 0.32f else 0.38f), Color.Transparent), center = Offset(size.width / 2, 0f), radius = size.width * 0.62f),
                     radius = size.width, center = center,
                 )
             }
-            .border(1.dp, Color.White.copy(alpha = if (t.dark) 0.9f else 0.22f), CircleShape)
+            .border(1.dp, Color.White.copy(alpha = if (t.dark) 0.2f else 0.22f), CircleShape)
             .clickable(interactionSource = press, indication = null, onClick = onClick),
         contentAlignment = Alignment.Center,
     ) {
-        Icon(painterResource(R.drawable.ic_nav_camera), "Сфотографировать еду", Modifier.size(26.dp), tint = if (t.dark) Color(0xFF0B0D0C) else Color.White)
+        Icon(painterResource(R.drawable.ic_nav_camera), "Сфотографировать еду", Modifier.size(26.dp), tint = Color.White)
     }
 }

@@ -48,7 +48,10 @@ data class Summary(
 }
 
 /** Приём пищи из дневника — часть ответа /api/day. */
-data class Meal(val id: String, val time: String, val title: String, val kcal: Int, val p: Int, val f: Int, val c: Int)
+data class Meal(val id: String, val time: String, val title: String, val kcal: Int, val p: Int, val f: Int, val c: Int, val items: List<MealItem> = emptyList())
+
+/** Продукт в приёме пищи: вес и КБЖУ порции (не на 100 г). */
+data class MealItem(val name: String, val grams: Int, val kcal: Double, val p: Double, val f: Double, val c: Double)
 
 /** Таблетка на сегодня: s = "taken" | "skip" | "" (ещё не отмечена). */
 data class PillDose(val id: String, val name: String, val dose: String, val time: String, val s: String)
@@ -83,6 +86,16 @@ data class Day(
                         id = m.optString("id"), time = m.optString("time"), title = m.optString("title"),
                         kcal = t.optDouble("kcal", 0.0).roundToInt(), p = t.optDouble("p", 0.0).roundToInt(),
                         f = t.optDouble("f", 0.0).roundToInt(), c = t.optDouble("c", 0.0).roundToInt(),
+                        items = m.optJSONArray("items").let { arr ->
+                            (0 until (arr?.length() ?: 0)).map { k ->
+                                val it = arr!!.getJSONObject(k)
+                                val tt = it.optJSONObject("totals") ?: JSONObject()
+                                MealItem(
+                                    it.optString("name"), it.optDouble("grams", 0.0).roundToInt(),
+                                    tt.optDouble("kcal", 0.0), tt.optDouble("p", 0.0), tt.optDouble("f", 0.0), tt.optDouble("c", 0.0),
+                                )
+                            }
+                        },
                     )
                 },
                 pills = (0 until (pills?.length() ?: 0)).map { i ->

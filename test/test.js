@@ -253,6 +253,18 @@ assert.equal(d.meals.length, 1);
 assert.equal(d.meals[0].items[1].grams, 100);
 assert.equal(d.meals[0].items[1].name, "Индейка");
 assert.equal(Math.round(d.meals[0].items[1].totals.kcal), 140);
+// Ручная правка продукта из приложения: КБЖУ порции пересчитываются на 100 г
+r = await apiCall("/api/item/set", "POST", { date: d.date, mealId: d.meals[0].id, idx: 1, name: "Индейка гриль", grams: 200, kcal: 300, p: 50, f: 8, c: 2 });
+assert.equal(r.status, 200);
+r = await apiCall("/api/item/set", "POST", { date: d.date, mealId: d.meals[0].id, idx: 1, grams: 100, kcal: 5000, p: 1, f: 1, c: 1 });
+assert.equal(r.status, 400, "калорийность больше 900 на 100 г не принимаем");
+r = await apiCall("/api/item/set", "POST", { date: d.date, mealId: d.meals[0].id, idx: 1, grams: 0, kcal: 1, p: 1, f: 1, c: 1 });
+assert.equal(r.status, 400, "вес должен быть больше нуля");
+d = await (await apiCall("/api/day?date=" + d.date)).json();
+assert.equal(d.meals[0].items[1].name, "Индейка гриль");
+assert.equal(d.meals[0].items[1].grams, 200);
+assert.equal(d.meals[0].items[1].kcal_100, 150);
+assert.equal(Math.round(d.meals[0].items[1].totals.p), 50);
 console.log("✓ Mini App API, итого за день:", Math.round(d.totals.kcal), "ккал");
 
 // 8b. Запись еды текстом из дневника

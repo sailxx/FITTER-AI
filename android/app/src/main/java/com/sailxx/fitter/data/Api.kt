@@ -102,6 +102,21 @@ object Api {
     suspend fun mealDelete(token: String, date: String, mealId: String) =
         authed("/api/meal/delete", token, "POST", JSONObject().put("date", date).put("mealId", mealId))
 
+    /** Продукт в приёме пищи вручную: название, вес и КБЖУ порции. */
+    suspend fun itemSet(token: String, date: String, mealId: String, idx: Int, name: String, grams: Int, kcal: Double, p: Double, f: Double, c: Double) =
+        authed(
+            "/api/item/set", token, "POST",
+            JSONObject().put("date", date).put("mealId", mealId).put("idx", idx).put("name", name)
+                .put("grams", grams).put("kcal", kcal).put("p", p).put("f", f).put("c", c),
+        )
+
+    /** Новое название — нейросеть пересчитает КБЖУ продукта. */
+    suspend fun itemRename(token: String, date: String, mealId: String, idx: Int, name: String) =
+        authed("/api/item/rename", token, "POST", JSONObject().put("date", date).put("mealId", mealId).put("idx", idx).put("name", name), timeout = 60_000)
+
+    suspend fun itemDelete(token: String, date: String, mealId: String, idx: Int) =
+        authed("/api/item/delete", token, "POST", JSONObject().put("date", date).put("mealId", mealId).put("idx", idx))
+
     /** Советы ИИ, уже подобранные сегодня: без новых запросов к нейросети. */
     suspend fun tips(token: String) = authed("/api/tips", token)
 

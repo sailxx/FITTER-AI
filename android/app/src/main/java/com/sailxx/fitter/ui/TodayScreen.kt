@@ -156,14 +156,9 @@ fun TodayScreen(st: AppState, onAdd: () -> Unit, onSettings: () -> Unit) {
             }
             macroHint(s, day)?.let { (text, kind) -> item { TipTile(text, kind) } }
             item {
-                Row(
-                    Modifier.padding(start = Side, end = Side, top = Gap).fillMaxWidth().height(IntrinsicSize.Min),
-                    horizontalArrangement = Arrangement.spacedBy(Gap),
-                ) {
-                    WaterTile(s, Modifier.weight(1f).fillMaxHeight()) { delta -> scope.launch { FitterRepository.addWater(context, delta) } }
-                    day?.takeIf { it.pills.isNotEmpty() }?.let { d -> PillsTile(d, Modifier.weight(1f).fillMaxHeight()) }
-                }
+                WaterTile(s, Modifier.padding(start = Side, end = Side, top = Gap).fillMaxWidth()) { delta -> scope.launch { FitterRepository.addWater(context, delta) } }
             }
+            day?.takeIf { it.pills.isNotEmpty() }?.let { d -> item { PillsTile(d, Modifier.padding(start = Side, end = Side, top = Gap).fillMaxWidth()) } }
             day?.weights?.takeIf { it.isNotEmpty() }?.let { w -> item { WeightTile(w) } }
             item {
                 val meals = day?.meals.orEmpty()
@@ -416,29 +411,32 @@ private fun WaterTile(s: Summary, modifier: Modifier, onWater: (Int) -> Unit) {
     val all = maxOf(1, (s.waterGoal + CUP - 1) / CUP)
     val cells = minOf(all, 10)
     val on = if (s.waterGoal > 0) minOf(cells, s.water * cells / s.waterGoal) else 0
-    Column(modifier.rise(240).calCard().padding(14.dp)) {
+    Column(modifier.rise(240).calCard().padding(18.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Icon(painterResource(R.drawable.ic_nav_glass), null, Modifier.size(17.dp), tint = label)
-            Spacer(Modifier.width(6.dp))
-            Text("Вода", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = label, modifier = Modifier.weight(1f))
+            Box(Modifier.size(44.dp).background(c.copy(alpha = 0.16f), CircleShape), contentAlignment = Alignment.Center) {
+                Icon(painterResource(R.drawable.ic_nav_glass), null, Modifier.size(22.dp), tint = label)
+            }
+            Spacer(Modifier.width(12.dp))
+            Column(Modifier.weight(1f)) {
+                Text(
+                    buildAnnotatedString {
+                        append(liters(s.water))
+                        withStyle(SpanStyle(fontSize = 14.sp, color = t.hint, fontWeight = FontWeight.SemiBold)) { append(" / ${liters(s.waterGoal)} л") }
+                    },
+                    fontSize = 24.sp, fontWeight = FontWeight.ExtraBold, color = t.text, letterSpacing = (-0.5).sp, maxLines = 1,
+                )
+                Text("Вода · держи «+», чтобы убрать стакан", fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = t.hint, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            }
+            Spacer(Modifier.width(8.dp))
             Box(
-                Modifier.size(36.dp).clip(CircleShape).background(c)
+                Modifier.size(44.dp).clip(CircleShape).background(c)
                     .combinedClickable(onClick = { onWater(CUP) }, onLongClick = { if (s.water > 0) onWater(-CUP) }),
                 contentAlignment = Alignment.Center,
-            ) { Icon(painterResource(R.drawable.ic_nav_plus), "Добавить стакан", Modifier.size(18.dp), tint = Color(0xFF04263F)) }
+            ) { Icon(painterResource(R.drawable.ic_nav_plus), "Добавить стакан", Modifier.size(20.dp), tint = Color(0xFF04263F)) }
         }
-        Spacer(Modifier.height(4.dp))
-        Text(
-            buildAnnotatedString {
-                append(liters(s.water))
-                withStyle(SpanStyle(fontSize = 13.sp, color = t.hint, fontWeight = FontWeight.SemiBold)) { append(" / ${liters(s.waterGoal)} л") }
-            },
-            fontSize = 26.sp, fontWeight = FontWeight.ExtraBold, color = t.text, letterSpacing = (-0.5).sp, maxLines = 1,
-        )
-        Spacer(Modifier.weight(1f))
-        Spacer(Modifier.height(10.dp))
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(3.dp)) {
-            repeat(cells) { i -> Box(Modifier.weight(1f).height(15.dp).background(if (i < on) c else track(t.dark), RoundedCornerShape(4.dp))) }
+        Spacer(Modifier.height(14.dp))
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+            repeat(cells) { i -> Box(Modifier.weight(1f).height(10.dp).background(if (i < on) c else track(t.dark), RoundedCornerShape(5.dp))) }
         }
     }
 }
@@ -452,36 +450,52 @@ private fun PillsTile(day: Day, modifier: Modifier) {
     val taken = day.pills.count { it.s == "taken" }
     val ctx = LocalContext.current
     val scope = rememberCoroutineScope()
-    Column(modifier.rise(280).calCard().padding(start = 14.dp, end = 10.dp, top = 14.dp, bottom = 10.dp)) {
-        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.height(36.dp)) {
-            Icon(painterResource(R.drawable.ic_nav_pill), null, Modifier.size(17.dp), tint = label)
-            Spacer(Modifier.width(6.dp))
-            Text("Таблетки", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = label, modifier = Modifier.weight(1f), maxLines = 1)
-            Text("$taken/${day.pills.size}", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = t.hint)
+    val bar = remember { Animatable(0f) }
+    LaunchedEffect(taken) { bar.animateTo(taken.toFloat() / day.pills.size, tween(800, easing = Ease)) }
+    Column(modifier.rise(280).calCard().padding(start = 18.dp, end = 18.dp, top = 18.dp, bottom = 8.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Box(Modifier.size(44.dp).background(c.copy(alpha = 0.16f), CircleShape), contentAlignment = Alignment.Center) {
+                Icon(painterResource(R.drawable.ic_nav_pill), null, Modifier.size(22.dp), tint = label)
+            }
+            Spacer(Modifier.width(12.dp))
+            Column(Modifier.weight(1f)) {
+                Text("Таблетки", fontSize = 18.sp, fontWeight = FontWeight.ExtraBold, color = t.text)
+                Text("$taken из ${day.pills.size} принято", fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = t.hint)
+            }
         }
-        day.pills.take(3).forEach { p ->
+        Box(Modifier.padding(top = 14.dp, bottom = 4.dp).fillMaxWidth().height(6.dp).clip(RoundedCornerShape(3.dp)).background(track(t.dark))) {
+            Box(Modifier.fillMaxHeight().fillMaxWidth(bar.value).background(c, RoundedCornerShape(3.dp)))
+        }
+        day.pills.forEachIndexed { i, p ->
             val isTaken = p.s == "taken"
+            if (i > 0) Box(Modifier.padding(start = 40.dp).fillMaxWidth().height(1.dp).background(t.line))
             // Нажатие отмечает таблетку принятой, повторное — снимает отметку
             Row(
-                Modifier.fillMaxWidth().clip(RoundedCornerShape(10.dp))
+                Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp))
                     .clickable { scope.launch { FitterRepository.markPill(ctx, p.id, p.time, if (isTaken) "" else "taken") } }
-                    .padding(vertical = 5.dp),
+                    .padding(vertical = 11.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Box(
-                    Modifier.size(20.dp).background(if (isTaken) c else Color.Transparent, CircleShape)
-                        .border(2.dp, if (isTaken) c else track(t.dark).copy(alpha = 0.25f), CircleShape),
+                    Modifier.size(28.dp).background(if (isTaken) c else Color.Transparent, CircleShape)
+                        .border(2.dp, if (isTaken) c else t.hint.copy(alpha = 0.45f), CircleShape),
                     contentAlignment = Alignment.Center,
-                ) { if (isTaken) Text("✓", color = Color(0xFF1A1033), fontSize = 12.sp, fontWeight = FontWeight.ExtraBold) else if (p.s == "skip") Text("–", color = t.hint, fontSize = 12.sp) }
-                Spacer(Modifier.width(8.dp))
+                ) { if (isTaken) Text("✓", color = Color(0xFF1A1033), fontSize = 15.sp, fontWeight = FontWeight.ExtraBold) else if (p.s == "skip") Text("–", color = t.hint) }
+                Spacer(Modifier.width(12.dp))
+                Column(Modifier.weight(1f)) {
+                    Text(
+                        p.name, fontSize = 15.sp, fontWeight = FontWeight.Bold, lineHeight = 19.sp,
+                        color = if (isTaken) t.hint else t.text, textDecoration = if (isTaken) TextDecoration.LineThrough else null,
+                    )
+                    if (p.dose.isNotBlank()) Text(p.dose, fontSize = 12.sp, color = t.hint)
+                }
+                Spacer(Modifier.width(10.dp))
                 Text(
-                    p.name, fontSize = 14.sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis,
-                    color = if (isTaken) t.hint else t.text, modifier = Modifier.weight(1f),
+                    p.time, fontSize = 13.sp, fontWeight = FontWeight.Bold, color = t.hint,
+                    modifier = Modifier.background(t.fill, RoundedCornerShape(10.dp)).padding(horizontal = 9.dp, vertical = 4.dp),
                 )
-                Text(p.time, fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = t.hint)
             }
         }
-        if (day.pills.size > 3) Text("ещё ${day.pills.size - 3}", fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = t.hint, modifier = Modifier.padding(top = 2.dp))
     }
 }
 
@@ -596,6 +610,8 @@ private fun MacroMini(@DrawableRes icon: Int, color: Color, grams: Int) {
 private fun MealCard(m: Meal, onDelete: () -> Unit) {
     val t = LocalTokens.current
     var ask by remember { mutableStateOf(false) }
+    var edit by remember { mutableStateOf(false) }
+    if (edit) MealSheet(m, onClose = { edit = false }, onDeleteMeal = onDelete)
     if (ask) {
         AlertDialog(
             onDismissRequest = { ask = false },
@@ -607,7 +623,7 @@ private fun MealCard(m: Meal, onDelete: () -> Unit) {
     }
     Row(
         Modifier.padding(start = Side, end = Side, bottom = Gap).rise(80).fillMaxWidth().calCard()
-            .combinedClickable(onClick = {}, onLongClick = { ask = true }).padding(12.dp),
+            .combinedClickable(onClick = { edit = true }, onLongClick = { ask = true }).padding(12.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         FoodThumb(m.title, 86.dp)
