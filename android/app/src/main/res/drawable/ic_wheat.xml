@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Углеводы: колос -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp" android:height="24dp" android:viewportWidth="24" android:viewportHeight="24">
+    <path android:fillColor="#FF000000" android:pathData="M11.2,22V9h1.6v13zM11.4,13.4c-3.2,0.2 -5.5,-1.8 -5.7,-4.8 3.1,-0.2 5.4,1.8 5.7,4.8zM12.6,13.4c3.2,0.2 5.5,-1.8 5.7,-4.8 -3.1,-0.2 -5.4,1.8 -5.7,4.8zM11.4,18.6c-3.2,0.2 -5.5,-1.8 -5.7,-4.8 3.1,-0.2 5.4,1.8 5.7,4.8zM12.6,18.6c3.2,0.2 5.5,-1.8 5.7,-4.8 -3.1,-0.2 -5.4,1.8 -5.7,4.8zM12,9.4c-1.9,-1 -2,-4.1 0,-6.2 2,2.1 1.9,5.2 0,6.2z"/>
+</vector>

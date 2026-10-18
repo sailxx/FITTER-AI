@@ -54,6 +54,15 @@ object Palette {
     val Water2 = Color(0xFF2A7BF0)
     val Water = Water2
     val Pill = Color(0xFF8F5BFF)
+
+    // Экран «Сегодня» в стиле «Ночь»: плитки тонированы цветом своего показателя
+    val MacroP = Color(0xFFEC6A6A)
+    val MacroC = Color(0xFFE3A35E)
+    val MacroF = Color(0xFF5C92E6)
+    val WaterTile = Color(0xFF4FB3FF)
+    val WaterInk = Color(0xFF2A7BF0)
+    val PillTile = Color(0xFFA98BFF)
+    val PillInk = Color(0xFF7B5CF0)
 }
 
 /** Токены поверхности: фон, карточки, подписи — свои для светлой и тёмной темы. */

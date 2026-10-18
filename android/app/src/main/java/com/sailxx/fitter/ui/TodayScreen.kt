@@ -2,25 +2,25 @@ package com.sailxx.fitter.ui
 
 import android.text.format.DateUtils
 import androidx.annotation.DrawableRes
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.CubicBezierEasing
-import androidx.compose.animation.core.LinearEasing
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
-import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -28,24 +28,22 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.navigationBarsPadding
-import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.wrapContentSize
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -53,11 +51,11 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
@@ -65,9 +63,8 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.graphics.drawscope.clipPath
-import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.SpanStyle
@@ -77,6 +74,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.withStyle
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.sailxx.fitter.R
@@ -86,14 +84,12 @@ import com.sailxx.fitter.data.FitterRepository
 import com.sailxx.fitter.data.Meal
 import com.sailxx.fitter.data.Summary
 import com.sailxx.fitter.data.WeekDay
+import com.sailxx.fitter.data.WeightPoint
 import kotlinx.coroutines.launch
 import java.time.LocalDate
 import java.util.Locale
-import kotlin.math.PI
 import kotlin.math.abs
-import kotlin.math.cos
 import kotlin.math.roundToInt
-import kotlin.math.sin
 
 private val Ease = CubicBezierEasing(0.2f, 0.8f, 0.2f, 1f)
 
@@ -103,21 +99,25 @@ private suspend fun deleteMeal(context: android.content.Context, id: String) {
     runCatching { com.sailxx.fitter.data.Api.mealDelete(token, FitterRepository.today(context), id) }
     FitterRepository.refresh(context)
 }
-private val Card = RoundedCornerShape(20.dp)
+private val Tile = RoundedCornerShape(22.dp)
 private val MONTHS = listOf("января", "февраля", "марта", "апреля", "мая", "июня", "июля", "августа", "сентября", "октября", "ноября", "декабря")
+private val MON = listOf("янв", "фев", "мар", "апр", "мая", "июн", "июл", "авг", "сен", "окт", "ноя", "дек")
 private val WD = listOf("Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс")
 private val WDF = listOf("понедельник", "вторник", "среда", "четверг", "пятница", "суббота", "воскресенье")
 private const val CUP = 250
 
-private fun n(x: Int) = String.format(Locale("ru"), "%,d", x).replace(' ', ' ')
-private fun liters(ml: Int) = (Math.round(ml / 10.0) / 100.0).toString().removeSuffix(".0").replace('.', ',') + " л"
-private fun plural(x: Int, a: String, b: String, c: String): String {
-    val m = x % 10
-    val h = x % 100
-    return if (m == 1 && h != 11) a else if (m in 2..4 && (h < 12 || h > 14)) b else c
-}
+private fun n(x: Int) = String.format(Locale("ru"), "%,d", x).replace(' ', ' ')
+private fun liters(ml: Int) = (Math.round(ml / 10.0) / 100.0).toString().removeSuffix(".0").replace('.', ',')
+private fun kg(x: Double) = (Math.round(x * 10) / 10.0).toString().removeSuffix(".0").replace('.', ',')
+private fun short(date: String) = runCatching { LocalDate.parse(date) }.getOrNull()?.let { "${it.dayOfMonth} ${MON[it.monthValue - 1]}" } ?: date
 
-/** Экран дня — как дневник в Telegram: яркая шапка с неделей и кольцом, БЖУ, вода, таблетки, еда. */
+/** Фон плитки: цвет показателя, приглушённый под тему. */
+private fun tint(c: Color, dark: Boolean) = c.copy(alpha = if (dark) 0.15f else 0.13f)
+private fun track(dark: Boolean) = if (dark) Color(0x17FFFFFF) else Color(0x1213201A)
+/** Подпись на тонированной плитке: в светлой теме темнее, чтобы читалась. */
+private fun ink(c: Color, dark: Boolean, light: Color) = if (dark) c else light
+
+/** Экран дня в стиле «Ночь»: остаток калорий с кольцом, плитки БЖУ, воды и таблеток, вес и еда с картинками. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun TodayScreen(st: AppState, onAdd: () -> Unit, onSettings: () -> Unit) {
@@ -133,9 +133,9 @@ fun TodayScreen(st: AppState, onAdd: () -> Unit, onSettings: () -> Unit) {
         onRefresh = { scope.launch { refreshing = true; FitterRepository.refresh(context); refreshing = false } },
         modifier = Modifier.fillMaxSize().background(t.bg),
     ) {
-        LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 140.dp)) {
+        LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 130.dp)) {
             item {
-                Hero(s, day, onRefresh = { scope.launch { FitterRepository.refresh(context) } }, onBot = { openUrl(context, BOT_URL) },
+                Header(s, day, onRefresh = { scope.launch { FitterRepository.refresh(context) } }, onBot = { openUrl(context, BOT_URL) },
                     onLogout = { scope.launch { FitterRepository.logout(context) } }, onSettings = onSettings)
             }
             if (s == null) {
@@ -146,28 +146,34 @@ fun TodayScreen(st: AppState, onAdd: () -> Unit, onSettings: () -> Unit) {
                 }
                 return@LazyColumn
             }
+            item { CalorieTile(s) }
             item {
-                Row(
-                    Modifier.padding(horizontal = 16.dp).offset(y = (-14).dp),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
-                ) {
-                    MacroCard(R.drawable.ic_protein, "Белки", s.p, s.targets.p, Palette.Protein, Modifier.weight(1f), 0)
-                    MacroCard(R.drawable.ic_fat, "Жиры", s.f, s.targets.f, Palette.Fat, Modifier.weight(1f), 60)
-                    MacroCard(R.drawable.ic_carbs, "Углеводы", s.c, s.targets.c, Palette.Carbs, Modifier.weight(1f), 120)
+                Row(Modifier.padding(start = 16.dp, end = 16.dp, top = 10.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    MacroTile(R.drawable.ic_bolt, "белков", s.p, s.targets.p, Palette.MacroP, Modifier.weight(1f), 60)
+                    MacroTile(R.drawable.ic_wheat, "углев.", s.c, s.targets.c, Palette.MacroC, Modifier.weight(1f), 120)
+                    MacroTile(R.drawable.ic_drop, "жиров", s.f, s.targets.f, Palette.MacroF, Modifier.weight(1f), 180)
                 }
             }
-            macroHint(s, day)?.let { (text, kind) -> item { HintCard(text, kind) } }
-            item { WaterCard(s) { delta -> scope.launch { FitterRepository.addWater(context, delta) } } }
-            day?.takeIf { it.pills.isNotEmpty() }?.let { d -> item { PillsCard(d) } }
+            macroHint(s, day)?.let { (text, kind) -> item { TipTile(text, kind) } }
+            item {
+                Row(
+                    Modifier.padding(start = 16.dp, end = 16.dp, top = 10.dp).fillMaxWidth().height(IntrinsicSize.Min),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                ) {
+                    WaterTile(s, Modifier.weight(1f).fillMaxHeight()) { delta -> scope.launch { FitterRepository.addWater(context, delta) } }
+                    day?.takeIf { it.pills.isNotEmpty() }?.let { d -> PillsTile(d, Modifier.weight(1f).fillMaxHeight()) }
+                }
+            }
+            day?.weights?.takeIf { it.isNotEmpty() }?.let { w -> item { WeightTile(w) } }
             item {
                 val meals = day?.meals.orEmpty()
                 Row(Modifier.padding(start = 20.dp, end = 20.dp, top = 24.dp, bottom = 10.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Text("Приёмы пищи", fontSize = 17.sp, fontWeight = FontWeight.ExtraBold, color = t.text, modifier = Modifier.weight(1f))
+                    Text("Недавно добавлено", fontSize = 19.sp, fontWeight = FontWeight.ExtraBold, color = t.text, letterSpacing = (-0.3).sp, modifier = Modifier.weight(1f))
                     if (meals.isNotEmpty()) Text("${n(meals.sumOf { it.kcal })} ккал", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = t.hint)
                 }
             }
             val meals = day?.meals.orEmpty()
-            if (meals.isEmpty()) item { EmptyMeals() } else items(meals, key = { it.id }) { m ->
+            if (meals.isEmpty()) item { EmptyMeals() } else items(meals.reversed(), key = { it.id }) { m ->
                 MealCard(m) { scope.launch { deleteMeal(context, m.id) } }
             }
             item { AddFood(onAdd) }
@@ -185,90 +191,101 @@ fun TodayScreen(st: AppState, onAdd: () -> Unit, onSettings: () -> Unit) {
 
 // ───────────────────────────── Шапка ─────────────────────────────
 
+/** Плитка: тонированная цветом показателя или обычная карточка. */
 @Composable
-private fun Hero(s: Summary?, day: Day?, onRefresh: () -> Unit, onBot: () -> Unit, onLogout: () -> Unit, onSettings: () -> Unit) {
+private fun Modifier.tile(color: Color? = null): Modifier {
     val t = LocalTokens.current
-    val shape = RoundedCornerShape(bottomStart = 30.dp, bottomEnd = 30.dp)
+    return if (color != null) this.clip(Tile).background(tint(color, t.dark))
+    else this
+        .then(if (t.shadow) Modifier.shadow(10.dp, Tile, spotColor = Color(0x2210283C), ambientColor = Color(0x1110283C)) else Modifier)
+        .clip(Tile).background(t.card)
+}
+
+/** Заголовок «Сегодня», справа календарь (раскрывает неделю) и серия дней. */
+@Composable
+private fun Header(s: Summary?, day: Day?, onRefresh: () -> Unit, onBot: () -> Unit, onLogout: () -> Unit, onSettings: () -> Unit) {
+    val t = LocalTokens.current
+    var week by rememberSaveable { mutableStateOf(false) }
     val date = s?.date?.let { runCatching { LocalDate.parse(it) }.getOrNull() }
-    Column(
-        Modifier.fillMaxWidth()
-            .shadow(if (t.dark) 10.dp else 16.dp, shape, spotColor = Color(0xFF12E97C), ambientColor = Color(0x6612E97C))
-            .clip(shape)
-            .background(Brush.linearGradient(listOf(Palette.Hero1, Palette.Hero2, Palette.Hero3), start = Offset(0f, 0f), end = Offset(500f, 1400f)))
-            .drawBehind {
-                // Светлое пятно справа сверху и белый круг — как у шапки дневника
-                drawCircle(
-                    Brush.radialGradient(listOf(Color(0xD9E6FFF0), Color(0x00E6FFF0)), center = Offset(size.width * 0.9f, -size.height * 0.12f), radius = size.width * 0.9f),
-                    radius = size.width * 0.9f, center = Offset(size.width * 0.9f, -size.height * 0.12f),
-                )
-                drawCircle(Color(0x1AFFFFFF), radius = 120.dp.toPx(), center = Offset(size.width + 40.dp.toPx(), 10.dp.toPx()))
-            }
-            .statusBarsPadding()
-            .padding(start = 14.dp, end = 14.dp, top = 14.dp, bottom = 36.dp),
-    ) {
+    Column(Modifier.fillMaxWidth().statusBarsPadding().padding(start = 18.dp, end = 16.dp, top = 14.dp, bottom = 4.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
-                Text("Сегодня", fontSize = 30.sp, fontWeight = FontWeight.ExtraBold, color = Palette.HeroInk, letterSpacing = (-0.6).sp)
+                Text("Сегодня", fontSize = 34.sp, fontWeight = FontWeight.ExtraBold, color = t.text, letterSpacing = (-0.8).sp, lineHeight = 38.sp)
                 Text(
-                    date?.let { "${it.dayOfMonth} ${MONTHS[it.monthValue - 1]}, ${WDF[it.dayOfWeek.value - 1]}" } ?: "FITTER",
-                    fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = Palette.HeroSub,
+                    date?.let { "${WDF[it.dayOfWeek.value - 1]}, ${it.dayOfMonth} ${MONTHS[it.monthValue - 1]}" } ?: "FITTER",
+                    fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = t.hint,
                 )
             }
-            HeroButton("↻", onRefresh)
-            Spacer(Modifier.width(6.dp))
             var menu by remember { mutableStateOf(false) }
             Box {
-                HeroButton("•••") { menu = true }
+                HeaderChip(Modifier.size(40.dp), active = week, onClick = { week = !week }, onLongClick = { menu = true }) {
+                    Icon(painterResource(R.drawable.ic_nav_calendar), "Неделя", Modifier.size(19.dp), tint = if (week) Palette.HeroInk else t.text)
+                }
                 DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
+                    DropdownMenuItem(text = { Text("Обновить") }, onClick = { menu = false; onRefresh() })
                     DropdownMenuItem(text = { Text("Настройки") }, onClick = { menu = false; onSettings() })
                     DropdownMenuItem(text = { Text("Открыть бота") }, onClick = { menu = false; onBot() })
                     DropdownMenuItem(text = { Text("Выйти") }, onClick = { menu = false; onLogout() })
                 }
             }
+            val streak = s?.streak ?: 0
+            if (streak > 0) {
+                Spacer(Modifier.width(8.dp))
+                HeaderChip(Modifier.height(40.dp).padding(horizontal = 13.dp)) {
+                    Text("🔥 $streak", fontSize = 16.sp, fontWeight = FontWeight.ExtraBold, color = t.text)
+                }
+            }
         }
-        day?.week?.takeIf { it.size == 7 }?.let { week -> WeekRow(week, day.date, day.today, s?.targets?.kcal ?: 0) }
-        if (s != null) {
-            Spacer(Modifier.height(6.dp))
-            Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) { Ring(s) }
-            Spacer(Modifier.height(10.dp))
-            Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) { LeftChip(s) }
+        AnimatedVisibility(week && day?.week?.size == 7, enter = expandVertically() + fadeIn(), exit = shrinkVertically() + fadeOut()) {
+            day?.let { WeekRow(it.week, it.date, it.today, s?.targets?.kcal ?: 0) }
         }
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
-private fun HeroButton(label: String, onClick: () -> Unit) {
+private fun HeaderChip(
+    modifier: Modifier,
+    active: Boolean = false,
+    onClick: (() -> Unit)? = null,
+    onLongClick: (() -> Unit)? = null,
+    content: @Composable () -> Unit,
+) {
+    val t = LocalTokens.current
+    val shape = RoundedCornerShape(20.dp)
     Box(
-        Modifier.size(36.dp).clip(RoundedCornerShape(12.dp)).background(Palette.HeroBtn).clickable(onClick = onClick),
+        Modifier
+            .then(if (t.shadow && !active) Modifier.shadow(6.dp, shape, spotColor = Color(0x2210283C), ambientColor = Color(0x1110283C)) else Modifier)
+            .clip(shape)
+            .background(if (active) Palette.G1 else t.card)
+            .then(if (onClick != null) Modifier.combinedClickable(onClick = onClick, onLongClick = onLongClick) else Modifier)
+            .then(modifier),
         contentAlignment = Alignment.Center,
-    ) { Text(label, color = Palette.HeroInk, fontWeight = FontWeight.ExtraBold, fontSize = if (label == "↻") 19.sp else 13.sp) }
+    ) { content() }
 }
 
 /** Неделя Пн–Вс: точка под днём — в норме, меньше или больше нормы. */
 @Composable
 private fun WeekRow(week: List<WeekDay>, sel: String, today: String, goal: Int) {
-    Row(Modifier.fillMaxWidth().padding(top = 16.dp, bottom = 8.dp), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+    val t = LocalTokens.current
+    Row(Modifier.fillMaxWidth().padding(top = 14.dp, bottom = 2.dp), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
         week.forEachIndexed { i, w ->
             val isSel = w.date == sel
             val dot = when {
                 w.meals == 0 || goal == 0 -> Color.Transparent
                 w.kcal > goal * 1.1 -> Palette.OverDot
-                w.kcal >= goal * 0.9 -> if (isSel) Palette.HeroSelInk else Palette.HeroInk
-                else -> if (isSel) Palette.HeroSelInk.copy(alpha = 0.7f) else Palette.HeroInk.copy(alpha = 0.3f)
+                w.kcal >= goal * 0.9 -> if (isSel) Palette.HeroInk else Palette.G1
+                else -> if (isSel) Palette.HeroInk.copy(alpha = 0.4f) else track(t.dark).copy(alpha = 0.5f)
             }
             Column(
-                Modifier.weight(1f)
-                    .then(if (isSel) Modifier.shadow(8.dp, RoundedCornerShape(14.dp), spotColor = Color(0x55052E1C)) else Modifier)
-                    .clip(RoundedCornerShape(14.dp))
-                    .background(if (isSel) Palette.HeroInk else Color.Transparent)
-                    .padding(vertical = 7.dp),
+                Modifier.weight(1f).clip(RoundedCornerShape(14.dp)).background(if (isSel) Palette.G1 else Color.Transparent).padding(vertical = 7.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
                 val alpha = if (w.date > today) 0.4f else 1f
-                Text(WD[i], fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = (if (isSel) Palette.HeroSelInk.copy(alpha = 0.7f) else Palette.HeroSub).copy(alpha = alpha))
+                Text(WD[i], fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = (if (isSel) Palette.HeroSub else t.hint).copy(alpha = alpha))
                 Text(
                     w.date.takeLast(2).trimStart('0'), fontSize = 17.sp, fontWeight = FontWeight.ExtraBold,
-                    color = (if (isSel) Palette.HeroSelInk else Palette.HeroInk).copy(alpha = alpha),
+                    color = (if (isSel) Palette.HeroInk else t.text).copy(alpha = alpha),
                     textDecoration = if (w.date == today && !isSel) TextDecoration.Underline else null,
                 )
                 Spacer(Modifier.height(2.dp))
@@ -278,110 +295,80 @@ private fun WeekRow(week: List<WeekDay>, sel: String, today: String, goal: Int) 
     }
 }
 
-/** Кольцо калорий: светлая дорожка, белая дуга с бегунком, белый диск с числом. Дуга и число набегают при открытии. */
-@Composable
-private fun Ring(s: Summary) {
-    val goal = s.targets.kcal
-    val pct = if (goal > 0) (s.kcal.toFloat() / goal).coerceIn(0f, 1f) else 0f
-    val over = goal > 0 && s.kcal > goal * 1.1
-    val share = if (goal > 0) (s.kcal * 100f / goal).roundToInt() else 0
-    val arc by animateFloatAsState(pct, tween(1200, easing = Ease), label = "arc")
-    val count = remember { Animatable(0f) }
-    LaunchedEffect(s.kcal) { count.animateTo(s.kcal.toFloat(), tween(1100, easing = Ease)) }
+// ───────────────────────────── Плитки ─────────────────────────────
 
-    Box(Modifier.size(204.dp), contentAlignment = Alignment.Center) {
+/** Кольцо прогресса: дуга набегает от нуля при открытии и плавно меняется дальше. */
+@Composable
+private fun ProgressRing(pct: Float, color: Color, size: Dp, stroke: Dp, delay: Int = 0, content: @Composable () -> Unit) {
+    val t = LocalTokens.current
+    val arc = remember { Animatable(0f) }
+    LaunchedEffect(pct) { arc.animateTo(pct.coerceIn(0f, 1f), tween(1100, delayMillis = delay, easing = Ease)) }
+    Box(Modifier.size(size), contentAlignment = Alignment.Center) {
         Canvas(Modifier.fillMaxSize()) {
-            val sw = 14.dp.toPx()
-            val r = 88.dp.toPx()
-            val c = Offset(size.width / 2, size.height / 2)
-            val tl = Offset(c.x - r, c.y - r)
-            val box = Size(r * 2, r * 2)
-            drawCircle(Palette.HeroTrack, r, c, style = Stroke(sw))
-            if (arc > 0f) {
-                val colors = if (over) listOf(Palette.OverDark, Palette.OverLight) else listOf(Color.White, Palette.ArcEnd)
-                // Тень дуги
-                drawArc(Color(0x2203301A), -90f, 360f * arc, false, tl + Offset(0f, 3.dp.toPx()), box, style = Stroke(sw, cap = StrokeCap.Round))
-                drawArc(Brush.linearGradient(colors, tl, tl + Offset(box.width, box.height)), -90f, 360f * arc, false, tl, box, style = Stroke(sw, cap = StrokeCap.Round))
-                if (arc > 0.02f) {
-                    val ang = Math.toRadians((-90 + 360 * arc).toDouble())
-                    val k = Offset(c.x + r * cos(ang).toFloat(), c.y + r * sin(ang).toFloat())
-                    drawCircle(Color.White, 10.dp.toPx(), k)
-                    drawCircle(if (over) Palette.OverDot else Palette.Knob, 6.dp.toPx(), k)
-                }
+            val sw = stroke.toPx()
+            val tl = Offset(sw / 2, sw / 2)
+            val box = Size(this.size.width - sw, this.size.height - sw)
+            drawArc(track(t.dark), 0f, 360f, false, tl, box, style = Stroke(sw))
+            if (arc.value > 0f) drawArc(color, -90f, 360f * arc.value, false, tl, box, style = Stroke(sw, cap = StrokeCap.Butt))
+        }
+        content()
+    }
+}
+
+/** Калории: кольцо слева, остаток крупно справа, плашка «съедено». */
+@Composable
+private fun CalorieTile(s: Summary) {
+    val t = LocalTokens.current
+    val goal = s.targets.kcal
+    val left = s.kcalLeft
+    val over = left < 0
+    val count = remember { Animatable(0f) }
+    LaunchedEffect(left) { count.animateTo(abs(left).toFloat(), tween(1100, easing = Ease)) }
+    Row(
+        Modifier.padding(start = 16.dp, end = 16.dp, top = 12.dp).rise(0).fillMaxWidth().tile().padding(16.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        ProgressRing(s.progress, if (over) Palette.Danger else t.text, 112.dp, 14.dp) {
+            Box(Modifier.size(42.dp).background(t.fill, CircleShape), contentAlignment = Alignment.Center) {
+                Image(painterResource(R.drawable.ic_kcal), null, Modifier.size(22.dp))
             }
         }
-        Column(
-            Modifier.size(136.dp)
-                .shadow(14.dp, CircleShape, spotColor = Color(0x5503301A), ambientColor = Color(0x3316B86A))
-                .background(Color.White, CircleShape),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center,
-        ) {
-            Image(painterResource(R.drawable.ic_kcal), null, Modifier.size(22.dp))
-            Text(n(count.value.roundToInt()), fontSize = 36.sp, fontWeight = FontWeight.ExtraBold, color = Palette.HeroInk, letterSpacing = (-1).sp, lineHeight = 38.sp)
-            Text("из ${n(goal)} ккал", fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = Palette.InSub)
-            Spacer(Modifier.height(5.dp))
+        Spacer(Modifier.width(18.dp))
+        Column(Modifier.weight(1f)) {
             Text(
-                "$share%", fontSize = 12.sp, fontWeight = FontWeight.ExtraBold,
-                color = if (over) Palette.OverDark else Palette.EmInk,
-                modifier = Modifier.background(if (over) Color(0xFFFFE6E2) else Palette.EmBg, RoundedCornerShape(99.dp)).padding(horizontal = 8.dp, vertical = 2.dp),
+                (if (over) "+" else "") + n(count.value.roundToInt()), fontSize = 46.sp, fontWeight = FontWeight.ExtraBold,
+                color = if (over) Palette.Danger else t.text, letterSpacing = (-1.6).sp, lineHeight = 48.sp, maxLines = 1,
+            )
+            Text(if (over) "ккал сверх ${n(goal)}" else "осталось из ${n(goal)}", fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = t.hint)
+            Spacer(Modifier.height(9.dp))
+            Text(
+                "${n(s.kcal)} съедено", fontSize = 13.sp, fontWeight = FontWeight.ExtraBold, color = if (t.dark) Palette.G1 else Palette.G3,
+                modifier = Modifier.background(Palette.G1.copy(alpha = 0.14f), RoundedCornerShape(10.dp)).padding(horizontal = 10.dp, vertical = 5.dp),
             )
         }
     }
 }
 
+/** Плитка БЖУ: кольцо цвета показателя на фоне того же цвета, сколько осталось или сколько сверх. */
 @Composable
-private fun LeftChip(s: Summary) {
-    val left = s.kcalLeft
-    val over = left < 0
-    Text(
-        if (over) "+${n(-left)} ккал сверх нормы" else "Осталось ${n(left)} ккал",
-        fontSize = 14.sp, fontWeight = FontWeight.Bold,
-        color = if (over) Color.White else Palette.HeroInk,
-        modifier = Modifier.background(if (over) Palette.OverDot else Palette.HeroChip, RoundedCornerShape(99.dp)).padding(horizontal = 14.dp, vertical = 7.dp),
-    )
-}
-
-// ───────────────────────────── Карточки ─────────────────────────────
-
-@Composable
-private fun Modifier.card(): Modifier {
+private fun MacroTile(@DrawableRes icon: Int, gen: String, value: Int, max: Int, color: Color, modifier: Modifier, delay: Int) {
     val t = LocalTokens.current
-    return this
-        .then(if (t.shadow) Modifier.shadow(10.dp, Card, spotColor = Color(0x2210283C), ambientColor = Color(0x1110283C)) else Modifier)
-        .background(t.card, Card)
-        .border(1.dp, t.edge, Card)
-}
-
-@Composable
-private fun MacroCard(@DrawableRes icon: Int, label: String, value: Int, max: Int, color: Color, modifier: Modifier, delay: Int) {
-    val t = LocalTokens.current
-    val pct = if (max > 0) (value.toFloat() / max).coerceIn(0f, 1f) else 0f
-    val bar by animateFloatAsState(pct, tween(1000, delayMillis = delay, easing = Ease), label = "bar")
-    val ok = max > 0 && value >= max * 0.9 && value <= max * 1.1
     val left = max - value
-    Column(modifier.rise(delay).card().padding(horizontal = 14.dp, vertical = 16.dp)) {
-        Box(Modifier.size(30.dp).background(color.copy(alpha = 0.14f), RoundedCornerShape(10.dp)), contentAlignment = Alignment.Center) {
-            Image(painterResource(icon), null, Modifier.size(20.dp))
+    val ok = max > 0 && value >= max * 0.9 && value <= max * 1.1
+    val over = max > 0 && !ok && left < 0
+    Column(modifier.rise(delay).tile(color).padding(vertical = 14.dp, horizontal = 6.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+        ProgressRing(if (max > 0) value.toFloat() / max else 0f, color, 58.dp, 8.dp, delay) {
+            Icon(painterResource(icon), null, Modifier.size(19.dp), tint = color)
         }
         Spacer(Modifier.height(10.dp))
-        Text(label, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = t.hint, maxLines = 1)
         Text(
-            buildAnnotatedString {
-                append("$value")
-                withStyle(SpanStyle(fontSize = 12.sp, color = t.hint, fontWeight = FontWeight.SemiBold)) { append(" / $max г") }
-            },
-            fontSize = 20.sp, fontWeight = FontWeight.ExtraBold, color = t.text, maxLines = 1, letterSpacing = (-0.4).sp,
-            modifier = Modifier.padding(top = 1.dp, bottom = 8.dp),
+            when { max == 0 || ok -> "$value г"; over -> "+${-left} г"; else -> "$left г" },
+            fontSize = 19.sp, fontWeight = FontWeight.ExtraBold, color = if (over) Palette.Danger else t.text, maxLines = 1,
         )
-        Box(Modifier.fillMaxWidth().height(5.dp).clip(RoundedCornerShape(9.dp)).background(t.line)) {
-            Box(Modifier.fillMaxHeight().fillMaxWidth(bar).clip(RoundedCornerShape(9.dp)).background(color))
-        }
-        Spacer(Modifier.height(8.dp))
         Text(
-            when { max == 0 -> ""; ok -> "в норме"; left > 0 -> "ещё $left г"; else -> "+${-left} г" },
-            fontSize = 12.sp, fontWeight = FontWeight.Bold, maxLines = 1,
-            color = when { ok -> if (t.dark) Palette.G1 else Palette.G3; left < 0 -> Palette.Danger; else -> t.hint },
+            when { max == 0 -> gen; ok -> "в норме"; over -> "$gen сверх"; else -> "$gen ост." },
+            fontSize = 12.sp, fontWeight = FontWeight.SemiBold, maxLines = 1,
+            color = when { ok -> if (t.dark) Palette.G1 else Palette.G3; over -> Palette.Danger; else -> t.hint },
         )
     }
 }
@@ -411,145 +398,210 @@ private fun macroHint(s: Summary, day: Day?): Pair<String, String>? {
     }
 }
 
+/** Совет по БЖУ: зелёная плитка с искрой, при перекосе — красная. */
 @Composable
-private fun HintCard(text: String, kind: String) {
+private fun TipTile(text: String, kind: String) {
     val t = LocalTokens.current
-    Row(Modifier.padding(start = 16.dp, end = 16.dp).rise(200).fillMaxWidth().card().padding(16.dp)) {
-        Box(
-            Modifier.padding(top = 6.dp).size(8.dp).background(
-                when (kind) { "good" -> Palette.Carbs; "warn" -> Palette.Danger; else -> Palette.Protein }, CircleShape,
-            ),
-        )
-        Spacer(Modifier.width(12.dp))
-        Text(text, fontSize = 14.sp, lineHeight = 19.sp, color = t.text)
-    }
-}
-
-/** Вода: синяя карточка, стакан с волной, стаканчики и кнопки. */
-@Composable
-private fun WaterCard(s: Summary, onWater: (Int) -> Unit) {
-    val t = LocalTokens.current
-    val all = maxOf(1, (s.waterGoal + CUP - 1) / CUP)
-    val on = s.water / CUP
-    val done = s.water >= s.waterGoal
-    val shape = Card
+    val warn = kind == "warn"
     Row(
-        Modifier.padding(start = 16.dp, end = 16.dp, top = 12.dp).rise(260).fillMaxWidth()
-            .then(if (!t.dark || done) Modifier.shadow(14.dp, shape, spotColor = Color(0x882A7BF0), ambientColor = Color(0x442A7BF0)) else Modifier)
-            .clip(shape)
-            .background(Brush.linearGradient(listOf(Palette.Water1, Palette.Water2)))
-            .drawBehind { drawCircle(Color(0x1FFFFFFF), 80.dp.toPx(), Offset(size.width - 30.dp.toPx(), -10.dp.toPx())) }
-            .then(if (done) Modifier.border(2.dp, Color(0xB3FFFFFF), shape) else Modifier)
-            .padding(18.dp),
+        Modifier.padding(start = 16.dp, end = 16.dp, top = 10.dp).rise(200).fillMaxWidth().tile(if (warn) Palette.Danger else Palette.G1).padding(14.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Glass(if (s.waterGoal > 0) (s.water.toFloat() / s.waterGoal).coerceIn(0f, 1f) else 0f)
-        Spacer(Modifier.width(14.dp))
-        Column(Modifier.weight(1f)) {
-            Text("Вода", fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = Color(0xD9FFFFFF))
-            Text(liters(s.water), fontSize = 24.sp, fontWeight = FontWeight.ExtraBold, color = Color.White, letterSpacing = (-0.5).sp)
-            Text("$on из $all ${plural(all, "стакана", "стаканов", "стаканов")} · норма ${liters(s.waterGoal)}", fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = Color(0xD9FFFFFF))
-            Row(Modifier.padding(top = 7.dp), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                repeat(minOf(all, 14)) { i ->
-                    Box(Modifier.size(9.dp, 12.dp).background(if (i < on) Color.White else Color(0x47FFFFFF), RoundedCornerShape(1.dp, 1.dp, 3.dp, 3.dp)))
-                }
-            }
-        }
-        Spacer(Modifier.width(10.dp))
-        Column(Modifier.width(IntrinsicSize.Max), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-            Text(
-                "+ стакан", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Palette.Water2,
-                textAlign = TextAlign.Center,
-                modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(Color.White).clickable { onWater(CUP) }.padding(horizontal = 14.dp, vertical = 9.dp),
-            )
-            Text(
-                "−", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color.White, textAlign = TextAlign.Center,
-                modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(Color(0x38FFFFFF))
-                    .clickable(enabled = s.water > 0) { onWater(-CUP) }.padding(vertical = 7.dp),
-            )
-        }
+        Box(
+            Modifier.size(36.dp).clip(RoundedCornerShape(12.dp))
+                .background(Brush.linearGradient(if (warn) listOf(Palette.OverLight, Palette.OverDark) else listOf(Palette.G1, Palette.G2))),
+            contentAlignment = Alignment.Center,
+        ) { Icon(painterResource(R.drawable.ic_nav_tips), null, Modifier.size(20.dp), tint = Color.White) }
+        Spacer(Modifier.width(12.dp))
+        Text(text, fontSize = 14.sp, lineHeight = 19.sp, fontWeight = FontWeight.Medium, color = t.text)
     }
 }
 
-/** Стакан, который наполняется, с бегущей волной сверху. */
+/** Вода: синяя плитка, «+» добавляет стакан, долгое нажатие убирает. */
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
-private fun Glass(level: Float) {
-    val fill by animateFloatAsState(level, tween(1000, easing = Ease), label = "lvl")
-    val wave = rememberInfiniteTransition(label = "wave")
-    val ph by wave.animateFloat(0f, (2 * PI).toFloat(), infiniteRepeatable(tween(2400, easing = LinearEasing)), label = "ph")
-    Canvas(Modifier.size(52.dp, 70.dp)) {
-        val w = size.width
-        val h = size.height
-        val glass = Path().apply {
-            moveTo(w * 0.06f, h * 0.04f); lineTo(w * 0.94f, h * 0.04f); lineTo(w * 0.82f, h * 0.94f)
-            quadraticTo(w * 0.8f, h, w * 0.72f, h); lineTo(w * 0.28f, h); quadraticTo(w * 0.2f, h, w * 0.18f, h * 0.94f); close()
-        }
-        clipPath(glass) {
-            drawRect(Color(0x26FFFFFF))
-            val top = h * (1f - 0.08f - 0.84f * fill)
-            for ((amp, alpha, shift) in listOf(Triple(3.2f, 0.55f, 1.6f), Triple(2.6f, 1f, 0f))) {
-                val p = Path().apply {
-                    moveTo(0f, h)
-                    var x = 0f
-                    while (x <= w) { lineTo(x, top + sin(x / w * 2 * PI.toFloat() * 1.3f + ph + shift) * amp.dp.toPx()); x += 2f }
-                    lineTo(w, h); close()
-                }
-                drawPath(p, Color.White.copy(alpha = alpha * 0.92f))
-            }
-        }
-        drawPath(glass, Color.White, style = Stroke(2.5.dp.toPx()))
-    }
-}
-
-@Composable
-private fun PillsCard(day: Day) {
+private fun WaterTile(s: Summary, modifier: Modifier, onWater: (Int) -> Unit) {
     val t = LocalTokens.current
-    val taken = day.pills.count { it.s == "taken" }
-    val bar by animateFloatAsState(taken.toFloat() / day.pills.size, tween(800, easing = Ease), label = "pb")
-    Column(Modifier.padding(start = 16.dp, end = 16.dp, top = 12.dp).rise(320).fillMaxWidth().card().padding(horizontal = 18.dp, vertical = 16.dp)) {
+    val c = Palette.WaterTile
+    val label = ink(c, t.dark, Palette.WaterInk)
+    val all = maxOf(1, (s.waterGoal + CUP - 1) / CUP)
+    val cells = minOf(all, 10)
+    val on = if (s.waterGoal > 0) minOf(cells, s.water * cells / s.waterGoal) else 0
+    Column(modifier.rise(240).tile(c).padding(14.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Box(Modifier.size(36.dp).background(Palette.Pill.copy(alpha = 0.1f), RoundedCornerShape(12.dp)), contentAlignment = Alignment.Center) {
-                Image(painterResource(R.drawable.ic_pill), null, Modifier.size(22.dp))
-            }
-            Spacer(Modifier.width(10.dp))
-            Column {
-                Text("Таблетки", fontWeight = FontWeight.ExtraBold, color = t.text)
-                Text("$taken из ${day.pills.size} принято" + if (taken < day.pills.size) " · нажми, чтобы отметить" else "", fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = t.hint)
-            }
+            Icon(painterResource(R.drawable.ic_nav_glass), null, Modifier.size(17.dp), tint = label)
+            Spacer(Modifier.width(6.dp))
+            Text("Вода", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = label, modifier = Modifier.weight(1f))
+            Box(
+                Modifier.size(36.dp).clip(CircleShape).background(c)
+                    .combinedClickable(onClick = { onWater(CUP) }, onLongClick = { if (s.water > 0) onWater(-CUP) }),
+                contentAlignment = Alignment.Center,
+            ) { Icon(painterResource(R.drawable.ic_nav_plus), "Добавить стакан", Modifier.size(18.dp), tint = Color(0xFF04263F)) }
         }
-        Box(Modifier.padding(top = 12.dp, bottom = 4.dp).fillMaxWidth().height(5.dp).clip(RoundedCornerShape(9.dp)).background(t.line)) {
-            Box(Modifier.fillMaxHeight().fillMaxWidth(bar).background(Palette.Pill))
+        Spacer(Modifier.height(4.dp))
+        Text(
+            buildAnnotatedString {
+                append(liters(s.water))
+                withStyle(SpanStyle(fontSize = 13.sp, color = t.hint, fontWeight = FontWeight.SemiBold)) { append(" / ${liters(s.waterGoal)} л") }
+            },
+            fontSize = 26.sp, fontWeight = FontWeight.ExtraBold, color = t.text, letterSpacing = (-0.5).sp, maxLines = 1,
+        )
+        Spacer(Modifier.weight(1f))
+        Spacer(Modifier.height(10.dp))
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(3.dp)) {
+            repeat(cells) { i -> Box(Modifier.weight(1f).height(15.dp).background(if (i < on) c else track(t.dark), RoundedCornerShape(4.dp))) }
         }
-        val ctx = LocalContext.current
-        val scope = rememberCoroutineScope()
-        day.pills.forEachIndexed { i, p ->
-            if (i > 0) Box(Modifier.fillMaxWidth().height(1.dp).background(t.line))
+    }
+}
+
+/** Таблетки: фиолетовая плитка, нажатие на строку отмечает приём. */
+@Composable
+private fun PillsTile(day: Day, modifier: Modifier) {
+    val t = LocalTokens.current
+    val c = Palette.PillTile
+    val label = ink(c, t.dark, Palette.PillInk)
+    val taken = day.pills.count { it.s == "taken" }
+    val ctx = LocalContext.current
+    val scope = rememberCoroutineScope()
+    Column(modifier.rise(280).tile(c).padding(start = 14.dp, end = 10.dp, top = 14.dp, bottom = 10.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.height(36.dp)) {
+            Icon(painterResource(R.drawable.ic_nav_pill), null, Modifier.size(17.dp), tint = label)
+            Spacer(Modifier.width(6.dp))
+            Text("Таблетки", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = label, modifier = Modifier.weight(1f), maxLines = 1)
+            Text("$taken/${day.pills.size}", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = t.hint)
+        }
+        day.pills.take(3).forEach { p ->
+            val isTaken = p.s == "taken"
             // Нажатие отмечает таблетку принятой, повторное — снимает отметку
             Row(
-                Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp))
-                    .clickable { scope.launch { FitterRepository.markPill(ctx, p.id, p.time, if (p.s == "taken") "" else "taken") } }
-                    .padding(vertical = 10.dp),
+                Modifier.fillMaxWidth().clip(RoundedCornerShape(10.dp))
+                    .clickable { scope.launch { FitterRepository.markPill(ctx, p.id, p.time, if (isTaken) "" else "taken") } }
+                    .padding(vertical = 5.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Text(p.time, fontSize = 13.sp, fontWeight = FontWeight.ExtraBold, color = t.hint, modifier = Modifier.width(48.dp))
-                Column(Modifier.weight(1f)) {
-                    Text(
-                        p.name, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis,
-                        color = if (p.s == "taken") t.hint else t.text, textDecoration = if (p.s == "taken") TextDecoration.LineThrough else null,
-                    )
-                    if (p.dose.isNotBlank()) Text(p.dose, fontSize = 12.sp, color = t.hint)
-                }
-                val isTaken = p.s == "taken"
                 Box(
-                    Modifier.size(26.dp).background(if (isTaken) Palette.Pill else Color.Transparent, CircleShape)
-                        .border(2.dp, if (isTaken) Palette.Pill else t.line, CircleShape),
+                    Modifier.size(20.dp).background(if (isTaken) c else Color.Transparent, CircleShape)
+                        .border(2.dp, if (isTaken) c else track(t.dark).copy(alpha = 0.25f), CircleShape),
                     contentAlignment = Alignment.Center,
-                ) { if (isTaken) Text("✓", color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.ExtraBold) else if (p.s == "skip") Text("–", color = t.hint) }
+                ) { if (isTaken) Text("✓", color = Color(0xFF1A1033), fontSize = 12.sp, fontWeight = FontWeight.ExtraBold) else if (p.s == "skip") Text("–", color = t.hint, fontSize = 12.sp) }
+                Spacer(Modifier.width(8.dp))
+                Text(
+                    p.name, fontSize = 14.sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis,
+                    color = if (isTaken) t.hint else t.text, modifier = Modifier.weight(1f),
+                )
+                Text(p.time, fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = t.hint)
             }
+        }
+        if (day.pills.size > 3) Text("ещё ${day.pills.size - 3}", fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = t.hint, modifier = Modifier.padding(top = 2.dp))
+    }
+}
+
+/** Вес: последнее значение, изменение и линия с заливкой. */
+@Composable
+private fun WeightTile(ws: List<WeightPoint>) {
+    val t = LocalTokens.current
+    val last = ws.last()
+    val diff = Math.round((last.kg - ws.first().kg) * 10) / 10.0
+    val line = if (t.dark) Palette.G1 else Palette.G2
+    Row(
+        Modifier.padding(start = 16.dp, end = 16.dp, top = 10.dp).rise(320).fillMaxWidth().tile(Palette.G1).padding(16.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Column {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(painterResource(R.drawable.ic_nav_scale), null, Modifier.size(16.dp), tint = t.hint)
+                Spacer(Modifier.width(6.dp))
+                Text("Вес", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = t.hint)
+            }
+            Text("${kg(last.kg)} кг", fontSize = 26.sp, fontWeight = FontWeight.ExtraBold, color = t.text, letterSpacing = (-0.5).sp)
+            if (ws.size > 1) Text(
+                (if (diff > 0) "+" else if (diff < 0) "−" else "") + "${kg(abs(diff))} кг с ${short(ws.first().date)}",
+                fontSize = 13.sp, fontWeight = FontWeight.ExtraBold, color = if (t.dark) Palette.G1 else Palette.G3,
+            )
+        }
+        Spacer(Modifier.width(16.dp))
+        if (ws.size > 1) Canvas(Modifier.weight(1f).height(60.dp)) {
+            val min = ws.minOf { it.kg }
+            val span = (ws.maxOf { it.kg } - min).takeIf { it > 0 } ?: 1.0
+            val pad = 5.dp.toPx()
+            val pts = ws.mapIndexed { i, w ->
+                Offset(i / (ws.size - 1f) * (size.width - pad) , (pad + (1 - (w.kg - min) / span) * (size.height - pad * 2)).toFloat())
+            }
+            val stroke = Path().apply { pts.forEachIndexed { i, p -> if (i == 0) moveTo(p.x, p.y) else lineTo(p.x, p.y) } }
+            val fill = Path().apply { addPath(stroke); lineTo(pts.last().x, size.height); lineTo(0f, size.height); close() }
+            drawPath(fill, Brush.verticalGradient(listOf(line.copy(alpha = 0.35f), line.copy(alpha = 0f))))
+            drawPath(stroke, line, style = Stroke(2.5.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round))
+            drawCircle(line, 4.dp.toPx(), pts.last())
         }
     }
 }
 
+// ───────────────────────────── Еда ─────────────────────────────
+
+/** Картинка блюда: эмодзи по названию на цветной подложке. Фото на сервере не хранятся. */
+private val FOOD = listOf(
+    listOf("салат", "цезар") to "🥗", listOf("суп", "борщ", "щи", "солянк", "бульон", "рамен") to "🍲",
+    listOf("каш", "овсян", "гречк", "мюсли", "гранол") to "🥣", listOf("яйц", "омлет", "яичниц") to "🍳",
+    listOf("кофе", "капуч", "латте", "американо", "раф") to "☕", listOf("чай") to "🍵",
+    listOf("пицц") to "🍕", listOf("бургер", "шаурм", "хот-дог", "хотдог") to "🍔",
+    listOf("паст", "макарон", "спагет", "лапш") to "🍝", listOf("рис", "плов", "ризотто") to "🍚",
+    listOf("суши", "ролл", "сашими") to "🍣", listOf("рыб", "лосос", "сёмг", "семг", "тунец", "форел", "треск") to "🐟",
+    listOf("кур", "индей", "крыл", "наггетс") to "🍗", listOf("мяс", "говя", "свин", "стейк", "котлет", "фарш", "шашлык") to "🥩",
+    listOf("пельмен", "вареник", "манты", "хинкал") to "🥟", listOf("блин", "сырник", "оладь", "панкейк") to "🥞",
+    listOf("творог", "йогурт", "кефир", "молок", "ряженк", "протеин") to "🥛", listOf("сыр") to "🧀",
+    listOf("хлеб", "бутер", "тост", "сэндв", "лаваш", "батон") to "🥪", listOf("банан") to "🍌", listOf("яблок") to "🍎",
+    listOf("ягод", "клубник", "черник", "малин") to "🍓", listOf("фрукт", "апельсин", "мандарин", "груш", "виноград") to "🍊",
+    listOf("орех", "миндал", "арахис") to "🥜", listOf("шоколад", "конфет", "торт", "печень", "десерт", "пирож", "мороже") to "🍰",
+    listOf("картоф", "пюре", "фри") to "🥔", listOf("овощ", "брокк", "огур", "помидор", "томат", "морков") to "🥦",
+    listOf("сок", "смузи", "лимонад", "кола", "напит") to "🧃",
+    listOf("завтрак") to "🍳", listOf("обед") to "🍲", listOf("ужин") to "🍽", listOf("перекус") to "🍎",
+)
+private val THUMB = mapOf(
+    "🥗" to 0, "🥦" to 0, "🍵" to 0,
+    "🥣" to 1, "🍚" to 1, "🥞" to 1, "🥔" to 1, "🥟" to 1, "🍳" to 1, "🧀" to 1, "🍌" to 1, "🥜" to 1,
+    "🥛" to 2, "🍰" to 2,
+    "🍗" to 3, "🥩" to 3, "🍔" to 3, "🍕" to 3, "🍝" to 3, "🍲" to 3, "🍊" to 3,
+    "🍓" to 4, "🍎" to 4, "🍣" to 4,
+    "🐟" to 5, "🧃" to 5, "☕" to 6, "🥪" to 6,
+)
+private val GRADS = listOf(
+    listOf(Color(0xFFB9E39A), Color(0xFF4F8F3E)), // зелень
+    listOf(Color(0xFFFBE6BD), Color(0xFFC08A45)), // крупы
+    listOf(Color(0xFFF5F2FF), Color(0xFF9F92D0)), // молочное
+    listOf(Color(0xFFFFCBA0), Color(0xFFC9592E)), // горячее
+    listOf(Color(0xFFFFC2B8), Color(0xFFCF4A48)), // ягоды
+    listOf(Color(0xFFCDEBFF), Color(0xFF3F82CF)), // рыба, напитки
+    listOf(Color(0xFFF1D7B4), Color(0xFF8F5B33)), // выпечка, кофе
+)
+private fun foodLook(title: String): Pair<String, List<Color>> {
+    val low = title.lowercase()
+    val emoji = FOOD.firstOrNull { (keys, _) -> keys.any { it in low } }?.second ?: "🍽"
+    return emoji to GRADS[THUMB[emoji] ?: 1]
+}
+
+@Composable
+private fun FoodThumb(title: String, size: Dp) {
+    val (emoji, colors) = remember(title) { foodLook(title) }
+    Box(
+        Modifier.size(size).clip(RoundedCornerShape(18.dp)).background(Brush.linearGradient(colors)),
+        contentAlignment = Alignment.Center,
+    ) {
+        Box(Modifier.matchParentSize().background(Brush.linearGradient(listOf(Color(0x38FFFFFF), Color(0x00FFFFFF)), end = Offset(160f, 160f))))
+        Text(emoji, fontSize = (size.value * 0.46f).sp)
+    }
+}
+
+@Composable
+private fun MacroMini(@DrawableRes icon: Int, color: Color, grams: Int) {
+    val t = LocalTokens.current
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Icon(painterResource(icon), null, Modifier.size(14.dp), tint = color)
+        Spacer(Modifier.width(3.dp))
+        Text("$grams г", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = t.hint)
+    }
+}
+
+/** Приём пищи: картинка слева, название и время, калории, БЖУ. Долгое нажатие — удалить. */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun MealCard(m: Meal, onDelete: () -> Unit) {
@@ -564,33 +616,33 @@ private fun MealCard(m: Meal, onDelete: () -> Unit) {
             dismissButton = { TextButton(onClick = { ask = false }) { Text("Отмена") } },
         )
     }
-    Column(Modifier.padding(start = 16.dp, end = 16.dp, bottom = 12.dp).rise(80).fillMaxWidth().card().clip(Card)
-        .combinedClickable(onClick = {}, onLongClick = { ask = true }).padding(start = 18.dp, end = 18.dp, top = 16.dp, bottom = 12.dp)) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Box(Modifier.size(36.dp).background(Palette.Carbs.copy(alpha = 0.13f), RoundedCornerShape(12.dp)), contentAlignment = Alignment.Center) {
-                Image(painterResource(R.drawable.ic_plate), null, Modifier.size(24.dp))
+    Row(
+        Modifier.padding(start = 16.dp, end = 16.dp, bottom = 10.dp).rise(80).fillMaxWidth().tile()
+            .combinedClickable(onClick = {}, onLongClick = { ask = true }).padding(10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        FoodThumb(m.title, 82.dp)
+        Spacer(Modifier.width(14.dp))
+        Column(Modifier.weight(1f)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(m.title, fontSize = 16.sp, fontWeight = FontWeight.ExtraBold, color = t.text, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
+                Spacer(Modifier.width(6.dp))
+                Text(
+                    m.time, fontSize = 12.sp, fontWeight = FontWeight.Bold, color = t.hint,
+                    modifier = Modifier.background(t.fill, RoundedCornerShape(10.dp)).padding(horizontal = 8.dp, vertical = 3.dp),
+                )
             }
-            Spacer(Modifier.width(10.dp))
-            Column(Modifier.weight(1f)) {
-                Text(m.title, fontWeight = FontWeight.Bold, color = t.text, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                Text("${m.time} · Б ${m.p} · Ж ${m.f} · У ${m.c}", fontSize = 12.sp, color = t.hint)
+            Spacer(Modifier.height(6.dp))
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Image(painterResource(R.drawable.ic_kcal), null, Modifier.size(18.dp))
+                Spacer(Modifier.width(5.dp))
+                Text("${n(m.kcal)} ккал", fontSize = 17.sp, fontWeight = FontWeight.ExtraBold, color = t.text)
             }
-            Spacer(Modifier.width(8.dp))
-            Text(
-                n(m.kcal), fontSize = 14.sp, fontWeight = FontWeight.ExtraBold, color = t.text,
-                modifier = Modifier.background(t.fill, RoundedCornerShape(10.dp)).padding(horizontal = 9.dp, vertical = 5.dp),
-            )
-        }
-        // Полоска БЖУ: доли белков, жиров и углеводов по калориям
-        val kp = m.p * 4f
-        val kf = m.f * 9f
-        val kc = m.c * 4f
-        val sum = kp + kf + kc
-        if (sum > 0) {
-            Row(Modifier.padding(top = 10.dp).fillMaxWidth().height(4.dp), horizontalArrangement = Arrangement.spacedBy(3.dp)) {
-                listOf(kp to Palette.Protein, kf to Palette.Fat, kc to Palette.Carbs).filter { it.first > 0 }.forEach { (v, c) ->
-                    Box(Modifier.weight(v / sum).fillMaxHeight().background(c, RoundedCornerShape(3.dp)))
-                }
+            Spacer(Modifier.height(6.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                MacroMini(R.drawable.ic_bolt, Palette.MacroP, m.p)
+                MacroMini(R.drawable.ic_wheat, Palette.MacroC, m.c)
+                MacroMini(R.drawable.ic_drop, Palette.MacroF, m.f)
             }
         }
     }
@@ -600,35 +652,33 @@ private fun MealCard(m: Meal, onDelete: () -> Unit) {
 private fun EmptyMeals() {
     val t = LocalTokens.current
     Column(
-        Modifier.padding(horizontal = 16.dp).rise(120).fillMaxWidth().card().padding(horizontal = 16.dp, vertical = 26.dp),
+        Modifier.padding(horizontal = 16.dp).rise(120).fillMaxWidth().tile().padding(horizontal = 16.dp, vertical = 26.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        Box(Modifier.size(56.dp).background(Palette.Carbs.copy(alpha = 0.13f), RoundedCornerShape(18.dp)), contentAlignment = Alignment.Center) {
-            Image(painterResource(R.drawable.ic_salad), null, Modifier.size(42.dp))
-        }
+        FoodThumb("салат", 60.dp)
         Spacer(Modifier.height(10.dp))
         Text("Пока пусто", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = t.text)
-        Text("Сфотографируй еду и отправь боту — она появится здесь и на виджетах", color = t.hint, textAlign = TextAlign.Center, fontSize = 14.sp)
+        Text("Сфотографируй еду — она появится здесь и на виджетах", color = t.hint, textAlign = TextAlign.Center, fontSize = 14.sp)
     }
 }
 
-/** Как поле «Добавить еду» в дневнике: ведёт в бота, где фото распознаёт ИИ. */
+/** Записать еду: фото, снимок с камеры или пара слов. */
 @Composable
 private fun AddFood(onClick: () -> Unit) {
     val t = LocalTokens.current
     Row(
-        Modifier.padding(start = 16.dp, end = 16.dp, top = 4.dp).fillMaxWidth().card().clip(Card).clickable(onClick = onClick)
-            .padding(start = 18.dp, end = 8.dp, top = 8.dp, bottom = 8.dp),
+        Modifier.padding(start = 16.dp, end = 16.dp, top = 2.dp).fillMaxWidth().tile().clickable(onClick = onClick)
+            .padding(start = 16.dp, end = 8.dp, top = 8.dp, bottom = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Image(painterResource(R.drawable.ic_camera), null, Modifier.size(24.dp))
-        Spacer(Modifier.width(10.dp))
+        Icon(painterResource(R.drawable.ic_nav_camera), null, Modifier.size(22.dp), tint = t.hint)
+        Spacer(Modifier.width(12.dp))
         Column(Modifier.weight(1f)) {
             Text("Записать еду", fontWeight = FontWeight.Bold, color = t.text)
             Text("Фото, снимок с камеры или пара слов", fontSize = 12.sp, color = t.hint)
         }
-        Box(Modifier.size(44.dp).background(Palette.G2, RoundedCornerShape(14.dp)), contentAlignment = Alignment.Center) {
-            Text("+", color = Color.White, fontSize = 26.sp, fontWeight = FontWeight.SemiBold)
+        Box(Modifier.size(44.dp).background(Palette.G1, RoundedCornerShape(14.dp)), contentAlignment = Alignment.Center) {
+            Icon(painterResource(R.drawable.ic_nav_plus), null, Modifier.size(20.dp), tint = Palette.HeroInk)
         }
     }
 }
