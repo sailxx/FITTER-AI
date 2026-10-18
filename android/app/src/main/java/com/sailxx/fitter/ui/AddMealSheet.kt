@@ -133,7 +133,7 @@ fun AddMealSheet(openCamera: Boolean = false, onClose: () -> Unit) {
         onDismissRequest = { if (stage !is Stage.Busy) onClose() },
         sheetState = sheet,
         containerColor = t.card,
-        dragHandle = { Box(Modifier.padding(top = 10.dp).size(40.dp, 4.dp).background(t.line, RoundedCornerShape(2.dp))) },
+        dragHandle = { SheetHandle() },
     ) {
         AnimatedContent(stage, transitionSpec = { fadeIn(tween(250)) togetherWith fadeOut(tween(150)) }, label = "stage") { s ->
             Column(Modifier.fillMaxWidth().padding(horizontal = 20.dp).padding(top = 12.dp, bottom = 20.dp).navigationBarsPadding().imePadding()) {
@@ -160,10 +160,10 @@ private fun EditStage(
     onCamera: () -> Unit, onGallery: () -> Unit, onSend: () -> Unit,
 ) {
     val t = LocalTokens.current
-    Text("Добавить еду", fontSize = 22.sp, fontWeight = FontWeight.ExtraBold, color = t.text)
+    Text("Добавить еду", fontSize = 26.sp, letterSpacing = (-0.5).sp, fontWeight = FontWeight.ExtraBold, color = t.text)
     Text("Сфотографируй тарелку или опиши словами — посчитаю калории и БЖУ", fontSize = 14.sp, color = t.hint)
-    Spacer(Modifier.height(16.dp))
-    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+    Spacer(Modifier.height(18.dp))
+    Row(horizontalArrangement = Arrangement.spacedBy(Gap)) {
         SourceButton(R.drawable.ic_camera, "Сфотографировать", Modifier.weight(1f), onCamera)
         SourceButton(R.drawable.ic_photo, "Из галереи", Modifier.weight(1f), onGallery)
     }
@@ -172,7 +172,7 @@ private fun EditStage(
         Box {
             Image(
                 photo.asImageBitmap(), null, contentScale = ContentScale.Crop,
-                modifier = Modifier.fillMaxWidth().height(180.dp).clip(RoundedCornerShape(18.dp)),
+                modifier = Modifier.fillMaxWidth().height(190.dp).clip(RoundedCornerShape(22.dp)),
             )
             Text(
                 "✕", color = Color.White, fontWeight = FontWeight.Bold,
@@ -188,31 +188,26 @@ private fun EditStage(
         modifier = Modifier.fillMaxWidth(),
         placeholder = { Text(if (photo != null) "Подсказка: «гречка с курицей, 300 г»" else "Например: 2 яйца, тост и кофе с молоком", color = t.hint) },
         minLines = 2, maxLines = 4,
-        shape = RoundedCornerShape(16.dp),
-        colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = Palette.G2, unfocusedBorderColor = t.line, focusedTextColor = t.text, unfocusedTextColor = t.text, cursorColor = Palette.G2),
+        shape = RoundedCornerShape(20.dp),
+        colors = fieldColors(),
     )
     error?.let {
         Spacer(Modifier.height(10.dp))
         Text(it, color = Palette.Danger, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
     }
-    Spacer(Modifier.height(16.dp))
-    Box(
-        Modifier.fillMaxWidth().height(54.dp).clip(RoundedCornerShape(18.dp))
-            .background(Brush.linearGradient(listOf(Color(0xFF3DF59A), Palette.G2))).clickable(onClick = onSend),
-        contentAlignment = Alignment.Center,
-    ) { Text(if (photo != null) "Посчитать по фото" else "Записать", color = Color.White, fontSize = 17.sp, fontWeight = FontWeight.ExtraBold) }
+    Spacer(Modifier.height(18.dp))
+    PrimaryButton(if (photo != null) "Посчитать по фото" else "Записать", height = 56.dp, onClick = onSend)
 }
 
 @Composable
 private fun SourceButton(icon: Int, label: String, modifier: Modifier, onClick: () -> Unit) {
     val t = LocalTokens.current
     Column(
-        modifier.clip(RoundedCornerShape(18.dp)).background(Palette.G2.copy(alpha = 0.09f)).border(1.dp, Palette.G2.copy(alpha = 0.25f), RoundedCornerShape(18.dp))
-            .clickable(onClick = onClick).padding(vertical = 14.dp),
+        modifier.clip(RoundedCornerShape(22.dp)).background(t.fill).clickable(onClick = onClick).padding(vertical = 16.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        Image(painterResource(icon), null, Modifier.size(34.dp))
-        Spacer(Modifier.height(6.dp))
+        IconBubble(icon, 52.dp, 30.dp)
+        Spacer(Modifier.height(8.dp))
         Text(label, fontSize = 14.sp, fontWeight = FontWeight.Bold, color = t.text)
     }
 }
@@ -242,10 +237,10 @@ private fun DoneStage(s: Stage.Done, onMore: () -> Unit, onClose: () -> Unit) {
         Spacer(Modifier.height(10.dp))
         Text("Записал!", fontSize = 24.sp, fontWeight = FontWeight.ExtraBold, color = t.text)
         Spacer(Modifier.height(12.dp))
-        Column(Modifier.fillMaxWidth().background(t.bg, RoundedCornerShape(18.dp)).padding(16.dp)) {
+        Column(Modifier.fillMaxWidth().background(t.fill, RoundedCornerShape(22.dp)).padding(18.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(s.title, fontWeight = FontWeight.Bold, color = t.text, modifier = Modifier.weight(1f))
-                Text("${s.kcal} ккал", fontWeight = FontWeight.ExtraBold, color = Palette.G3)
+                Text("🔥 ${s.kcal} ккал", fontWeight = FontWeight.ExtraBold, color = t.text)
             }
             Text("Б ${s.p} · Ж ${s.f} · У ${s.c}", fontSize = 13.sp, color = t.hint)
             if (s.comment.isNotBlank()) {
@@ -254,13 +249,9 @@ private fun DoneStage(s: Stage.Done, onMore: () -> Unit, onClose: () -> Unit) {
             }
         }
         Spacer(Modifier.height(16.dp))
-        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            Box(Modifier.weight(1f).height(50.dp).clip(RoundedCornerShape(16.dp)).background(t.fill).clickable(onClick = onMore), contentAlignment = Alignment.Center) {
-                Text("Ещё блюдо", fontWeight = FontWeight.Bold, color = t.text)
-            }
-            Box(Modifier.weight(1f).height(50.dp).clip(RoundedCornerShape(16.dp)).background(Palette.G2).clickable(onClick = onClose), contentAlignment = Alignment.Center) {
-                Text("Готово", fontWeight = FontWeight.ExtraBold, color = Color.White)
-            }
+        Row(horizontalArrangement = Arrangement.spacedBy(Gap)) {
+            SoftButton("Ещё блюдо", Modifier.weight(1f), height = 54.dp, onClick = onMore)
+            PrimaryButton("Готово", Modifier.weight(1f), onClick = onClose)
         }
         Spacer(Modifier.width(1.dp))
     }

@@ -20,6 +20,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
@@ -60,7 +61,7 @@ import com.sailxx.fitter.widget.updateFitterWidgets
 import kotlinx.coroutines.launch
 import java.util.Locale
 
-private val Group = RoundedCornerShape(18.dp)
+private val Group = RoundedCornerShape(24.dp)
 private fun n(x: Int) = String.format(Locale("ru"), "%,d", x).replace(' ', ' ')
 
 /** Настройки: спокойный список — тема, виджеты, аккаунт. Изменения сразу видны на виджетах. */
@@ -81,13 +82,13 @@ fun SettingsScreen(summary: Summary?, onBack: () -> Unit) {
     }
 
     LazyColumn(
-        Modifier.fillMaxSize().background(t.bg),
-        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = 140.dp),
+        Modifier.fillMaxSize().screenBg(),
+        contentPadding = PaddingValues(start = Side, end = Side, bottom = 130.dp),
     ) {
         item {
             Text(
-                "Настройки", fontSize = 32.sp, fontWeight = FontWeight.ExtraBold, color = t.text, letterSpacing = (-0.6).sp,
-                modifier = Modifier.statusBarsPadding().padding(start = 4.dp, top = 20.dp, bottom = 8.dp),
+                "Настройки", fontSize = 34.sp, fontWeight = FontWeight.ExtraBold, color = t.text, letterSpacing = (-0.8).sp,
+                modifier = Modifier.statusBarsPadding().padding(start = 2.dp, top = 14.dp, bottom = 4.dp),
             )
         }
 
@@ -149,12 +150,11 @@ fun SettingsScreen(summary: Summary?, onBack: () -> Unit) {
                         val p = WidgetLook.PRESETS[i]
                         val on = p == cur
                         Box(
-                            Modifier.weight(1f).height(48.dp).clip(RoundedCornerShape(12.dp))
-                                .background(if (on) Palette.G2.copy(alpha = 0.14f) else t.fill)
-                                .border(1.dp, if (on) Palette.G2 else Color.Transparent, RoundedCornerShape(12.dp))
+                            Modifier.weight(1f).height(48.dp).clip(RoundedCornerShape(50))
+                                .background(if (on) t.text else t.fill)
                                 .clickable { saveLook(look.copy(numSize = p.first, textSize = p.second, capSize = p.third)) },
                             contentAlignment = Alignment.Center,
-                        ) { Text(name, fontWeight = FontWeight.Bold, color = if (on) Palette.G2 else t.text) }
+                        ) { Text(name, fontWeight = FontWeight.Bold, color = if (on) t.bg else t.text) }
                     }
                 }
                 Divider()
@@ -187,19 +187,19 @@ fun SettingsScreen(summary: Summary?, onBack: () -> Unit) {
 @Composable
 private fun Section(title: String) {
     val t = LocalTokens.current
-    Text(title, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = t.hint, modifier = Modifier.padding(start = 4.dp, top = 22.dp, bottom = 8.dp))
+    Text(title, fontSize = 20.sp, fontWeight = FontWeight.ExtraBold, color = t.text, letterSpacing = (-0.3).sp, modifier = Modifier.padding(start = 2.dp, top = 26.dp, bottom = 12.dp))
 }
 
 @Composable
 private fun Card(content: @Composable ColumnScope.() -> Unit) {
     val t = LocalTokens.current
-    Column(Modifier.fillMaxWidth().clip(Group).background(t.card).border(1.dp, t.edge, Group), content = content)
+    Column(Modifier.fillMaxWidth().calCard(Group), content = content)
 }
 
 @Composable
 private fun Divider() {
     val t = LocalTokens.current
-    Box(Modifier.padding(start = 16.dp).fillMaxWidth().height(1.dp).background(t.line))
+    Box(Modifier.padding(start = 18.dp).fillMaxWidth().height(1.dp).background(t.line))
 }
 
 @Composable
@@ -236,7 +236,7 @@ private fun ToggleRow(title: String, value: Boolean, onChange: (Boolean) -> Unit
 @Composable
 private fun LinkRow(title: String, color: Color, chevron: Boolean = true, onClick: () -> Unit) {
     val t = LocalTokens.current
-    Row(Modifier.fillMaxWidth().clickable(onClick = onClick).padding(horizontal = 16.dp, vertical = 15.dp), verticalAlignment = Alignment.CenterVertically) {
+    Row(Modifier.fillMaxWidth().clickable(onClick = onClick).padding(horizontal = 18.dp, vertical = 17.dp), verticalAlignment = Alignment.CenterVertically) {
         Text(title, color = color, fontWeight = FontWeight.Medium, modifier = Modifier.weight(1f))
         if (chevron) Text("›", color = t.hint, fontSize = 20.sp)
     }
@@ -246,12 +246,12 @@ private fun LinkRow(title: String, color: Color, chevron: Boolean = true, onClic
 @Composable
 private fun Segmented(options: List<String>, selected: Int, onSelect: (Int) -> Unit) {
     val t = LocalTokens.current
-    Row(Modifier.fillMaxWidth().background(t.fill, RoundedCornerShape(10.dp)).padding(3.dp)) {
+    Row(Modifier.fillMaxWidth().background(t.fill, RoundedCornerShape(50)).padding(3.dp)) {
         options.forEachIndexed { i, o ->
             val on = i == selected
             Box(
-                Modifier.weight(1f).clip(RoundedCornerShape(8.dp))
-                    .background(if (on) (if (t.dark) Color(0xFF2A322E) else Color.White) else Color.Transparent)
+                Modifier.weight(1f).clip(RoundedCornerShape(50))
+                    .background(if (on) (if (t.dark) Color(0xFF3A3A42) else Color.White) else Color.Transparent)
                     .clickable { onSelect(i) }.padding(vertical = 7.dp),
                 contentAlignment = Alignment.Center,
             ) { Text(o, fontSize = 13.sp, fontWeight = if (on) FontWeight.SemiBold else FontWeight.Normal, color = if (on) t.text else t.hint, maxLines = 1) }
@@ -313,7 +313,7 @@ private fun Stepper(title: String, value: Int, range: IntRange, onChange: (Int) 
 private fun StepButton(label: String, enabled: Boolean, onClick: () -> Unit) {
     val t = LocalTokens.current
     Box(
-        Modifier.size(44.dp).clip(RoundedCornerShape(12.dp)).background(t.fill).border(1.dp, t.line, RoundedCornerShape(12.dp))
+        Modifier.size(44.dp).clip(CircleShape).background(t.fill)
             .clickable(enabled = enabled, onClick = onClick),
         contentAlignment = Alignment.Center,
     ) { Text(label, fontSize = 20.sp, fontWeight = FontWeight.Bold, color = if (enabled) t.text else t.hint) }

@@ -113,7 +113,7 @@ private fun short(date: String) = runCatching { LocalDate.parse(date) }.getOrNul
 
 /** Фон плитки: цвет показателя, приглушённый под тему. */
 private fun tint(c: Color, dark: Boolean) = c.copy(alpha = if (dark) 0.15f else 0.13f)
-private fun track(dark: Boolean) = if (dark) Color(0x17FFFFFF) else Color(0x1213201A)
+private fun track(dark: Boolean) = if (dark) Color(0x21FFFFFF) else Color(0x1213201A)
 /** Подпись на тонированной плитке: в светлой теме темнее, чтобы читалась. */
 private fun ink(c: Color, dark: Boolean, light: Color) = if (dark) c else light
 
@@ -131,7 +131,7 @@ fun TodayScreen(st: AppState, onAdd: () -> Unit, onSettings: () -> Unit) {
     PullToRefreshBox(
         isRefreshing = refreshing,
         onRefresh = { scope.launch { refreshing = true; FitterRepository.refresh(context); refreshing = false } },
-        modifier = Modifier.fillMaxSize().background(t.bg),
+        modifier = Modifier.fillMaxSize().screenBg(),
     ) {
         LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 130.dp)) {
             item {
@@ -148,7 +148,7 @@ fun TodayScreen(st: AppState, onAdd: () -> Unit, onSettings: () -> Unit) {
             }
             item { CalorieTile(s) }
             item {
-                Row(Modifier.padding(start = 16.dp, end = 16.dp, top = 10.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                Row(Modifier.padding(start = Side, end = Side, top = Gap), horizontalArrangement = Arrangement.spacedBy(Gap)) {
                     MacroTile(R.drawable.ic_bolt, "белков", s.p, s.targets.p, Palette.MacroP, Modifier.weight(1f), 60)
                     MacroTile(R.drawable.ic_wheat, "углев.", s.c, s.targets.c, Palette.MacroC, Modifier.weight(1f), 120)
                     MacroTile(R.drawable.ic_drop, "жиров", s.f, s.targets.f, Palette.MacroF, Modifier.weight(1f), 180)
@@ -157,8 +157,8 @@ fun TodayScreen(st: AppState, onAdd: () -> Unit, onSettings: () -> Unit) {
             macroHint(s, day)?.let { (text, kind) -> item { TipTile(text, kind) } }
             item {
                 Row(
-                    Modifier.padding(start = 16.dp, end = 16.dp, top = 10.dp).fillMaxWidth().height(IntrinsicSize.Min),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    Modifier.padding(start = Side, end = Side, top = Gap).fillMaxWidth().height(IntrinsicSize.Min),
+                    horizontalArrangement = Arrangement.spacedBy(Gap),
                 ) {
                     WaterTile(s, Modifier.weight(1f).fillMaxHeight()) { delta -> scope.launch { FitterRepository.addWater(context, delta) } }
                     day?.takeIf { it.pills.isNotEmpty() }?.let { d -> PillsTile(d, Modifier.weight(1f).fillMaxHeight()) }
@@ -167,10 +167,7 @@ fun TodayScreen(st: AppState, onAdd: () -> Unit, onSettings: () -> Unit) {
             day?.weights?.takeIf { it.isNotEmpty() }?.let { w -> item { WeightTile(w) } }
             item {
                 val meals = day?.meals.orEmpty()
-                Row(Modifier.padding(start = 20.dp, end = 20.dp, top = 24.dp, bottom = 10.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Text("Недавно добавлено", fontSize = 19.sp, fontWeight = FontWeight.ExtraBold, color = t.text, letterSpacing = (-0.3).sp, modifier = Modifier.weight(1f))
-                    if (meals.isNotEmpty()) Text("${n(meals.sumOf { it.kcal })} ккал", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = t.hint)
-                }
+                BlockTitle("Недавно добавлено", meals.takeIf { it.isNotEmpty() }?.let { "${n(it.sumOf { m -> m.kcal })} ккал" })
             }
             val meals = day?.meals.orEmpty()
             if (meals.isEmpty()) item { EmptyMeals() } else items(meals.reversed(), key = { it.id }) { m ->
@@ -191,23 +188,13 @@ fun TodayScreen(st: AppState, onAdd: () -> Unit, onSettings: () -> Unit) {
 
 // ───────────────────────────── Шапка ─────────────────────────────
 
-/** Плитка: тонированная цветом показателя или обычная карточка. */
-@Composable
-private fun Modifier.tile(color: Color? = null): Modifier {
-    val t = LocalTokens.current
-    return if (color != null) this.clip(Tile).background(tint(color, t.dark))
-    else this
-        .then(if (t.shadow) Modifier.shadow(10.dp, Tile, spotColor = Color(0x2210283C), ambientColor = Color(0x1110283C)) else Modifier)
-        .clip(Tile).background(t.card)
-}
-
 /** Заголовок «Сегодня», справа календарь (раскрывает неделю) и серия дней. */
 @Composable
 private fun Header(s: Summary?, day: Day?, onRefresh: () -> Unit, onBot: () -> Unit, onLogout: () -> Unit, onSettings: () -> Unit) {
     val t = LocalTokens.current
     var week by rememberSaveable { mutableStateOf(false) }
     val date = s?.date?.let { runCatching { LocalDate.parse(it) }.getOrNull() }
-    Column(Modifier.fillMaxWidth().statusBarsPadding().padding(start = 18.dp, end = 16.dp, top = 14.dp, bottom = 4.dp)) {
+    Column(Modifier.fillMaxWidth().statusBarsPadding().padding(start = Side, end = 16.dp, top = 14.dp, bottom = 4.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
                 Text("Сегодня", fontSize = 34.sp, fontWeight = FontWeight.ExtraBold, color = t.text, letterSpacing = (-0.8).sp, lineHeight = 38.sp)
@@ -257,7 +244,7 @@ private fun HeaderChip(
         Modifier
             .then(if (t.shadow && !active) Modifier.shadow(6.dp, shape, spotColor = Color(0x2210283C), ambientColor = Color(0x1110283C)) else Modifier)
             .clip(shape)
-            .background(if (active) Palette.G1 else t.card)
+            .background(if (active) Palette.G1 else chipColor())
             .then(if (onClick != null) Modifier.combinedClickable(onClick = onClick, onLongClick = onLongClick) else Modifier)
             .then(modifier),
         contentAlignment = Alignment.Center,
@@ -315,7 +302,7 @@ private fun ProgressRing(pct: Float, color: Color, size: Dp, stroke: Dp, delay: 
     }
 }
 
-/** Калории: кольцо слева, остаток крупно справа, плашка «съедено». */
+/** Калории как в Cal AI: крупный остаток слева, кольцо с огоньком справа. */
 @Composable
 private fun CalorieTile(s: Summary) {
     val t = LocalTokens.current
@@ -325,51 +312,53 @@ private fun CalorieTile(s: Summary) {
     val count = remember { Animatable(0f) }
     LaunchedEffect(left) { count.animateTo(abs(left).toFloat(), tween(1100, easing = Ease)) }
     Row(
-        Modifier.padding(start = 16.dp, end = 16.dp, top = 12.dp).rise(0).fillMaxWidth().tile().padding(16.dp),
+        Modifier.padding(start = Side, end = Side, top = 10.dp).rise(0).fillMaxWidth().calCard()
+            .padding(start = 24.dp, end = 18.dp, top = 20.dp, bottom = 20.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        ProgressRing(s.progress, if (over) Palette.Danger else t.text, 112.dp, 14.dp) {
+        Column(Modifier.weight(1f)) {
+            Text(
+                (if (over) "+" else "") + n(count.value.roundToInt()), fontSize = 50.sp, fontWeight = FontWeight.ExtraBold,
+                color = if (over) Palette.Danger else t.text, letterSpacing = (-1.8).sp, lineHeight = 52.sp, maxLines = 1,
+            )
+            Text(if (over) "Ккал сверх нормы" else "Ккал осталось", fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = t.text.copy(alpha = 0.85f))
+            Spacer(Modifier.height(4.dp))
+            Text("${n(s.kcal)} из ${n(goal)} съедено", fontSize = 13.sp, fontWeight = FontWeight.Medium, color = t.hint)
+        }
+        Spacer(Modifier.width(12.dp))
+        ProgressRing(s.progress, if (over) Palette.Danger else t.text, 118.dp, 15.dp) {
             Box(Modifier.size(42.dp).background(t.fill, CircleShape), contentAlignment = Alignment.Center) {
                 Image(painterResource(R.drawable.ic_kcal), null, Modifier.size(22.dp))
             }
         }
-        Spacer(Modifier.width(18.dp))
-        Column(Modifier.weight(1f)) {
-            Text(
-                (if (over) "+" else "") + n(count.value.roundToInt()), fontSize = 46.sp, fontWeight = FontWeight.ExtraBold,
-                color = if (over) Palette.Danger else t.text, letterSpacing = (-1.6).sp, lineHeight = 48.sp, maxLines = 1,
-            )
-            Text(if (over) "ккал сверх ${n(goal)}" else "осталось из ${n(goal)}", fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = t.hint)
-            Spacer(Modifier.height(9.dp))
-            Text(
-                "${n(s.kcal)} съедено", fontSize = 13.sp, fontWeight = FontWeight.ExtraBold, color = if (t.dark) Palette.G1 else Palette.G3,
-                modifier = Modifier.background(Palette.G1.copy(alpha = 0.14f), RoundedCornerShape(10.dp)).padding(horizontal = 10.dp, vertical = 5.dp),
-            )
-        }
     }
 }
 
-/** Плитка БЖУ: кольцо цвета показателя на фоне того же цвета, сколько осталось или сколько сверх. */
+/** БЖУ как в Cal AI: сверху число и подпись, ниже кольцо с иконкой в тёмном кружке. */
 @Composable
 private fun MacroTile(@DrawableRes icon: Int, gen: String, value: Int, max: Int, color: Color, modifier: Modifier, delay: Int) {
     val t = LocalTokens.current
     val left = max - value
     val ok = max > 0 && value >= max * 0.9 && value <= max * 1.1
     val over = max > 0 && !ok && left < 0
-    Column(modifier.rise(delay).tile(color).padding(vertical = 14.dp, horizontal = 6.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-        ProgressRing(if (max > 0) value.toFloat() / max else 0f, color, 58.dp, 8.dp, delay) {
-            Icon(painterResource(icon), null, Modifier.size(19.dp), tint = color)
+    Column(modifier.rise(delay).calCard().padding(start = 14.dp, end = 10.dp, top = 16.dp, bottom = 16.dp)) {
+        Text(
+            when { max == 0 || ok -> "$value г"; over -> "${-left} г"; else -> "$left г" },
+            fontSize = 20.sp, fontWeight = FontWeight.ExtraBold, color = t.text, maxLines = 1, letterSpacing = (-0.3).sp,
+        )
+        Text(
+            when { max == 0 -> gen.replaceFirstChar { it.uppercase() }; ok -> "в норме"; over -> "${gen.replaceFirstChar { it.uppercase() }} сверх"; else -> "${gen.replaceFirstChar { it.uppercase() }} ост." },
+            fontSize = 13.sp, fontWeight = FontWeight.SemiBold, maxLines = 1,
+            color = when { ok -> if (t.dark) Palette.G1 else Palette.G3; over -> Palette.Danger; else -> t.text.copy(alpha = 0.8f) },
+        )
+        Spacer(Modifier.height(14.dp))
+        Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+            ProgressRing(if (max > 0) value.toFloat() / max else 0f, if (over) Palette.Danger else color, 66.dp, 9.dp, delay) {
+                Box(Modifier.size(28.dp).background(t.fill, CircleShape), contentAlignment = Alignment.Center) {
+                    Icon(painterResource(icon), null, Modifier.size(15.dp), tint = color)
+                }
+            }
         }
-        Spacer(Modifier.height(10.dp))
-        Text(
-            when { max == 0 || ok -> "$value г"; over -> "+${-left} г"; else -> "$left г" },
-            fontSize = 19.sp, fontWeight = FontWeight.ExtraBold, color = if (over) Palette.Danger else t.text, maxLines = 1,
-        )
-        Text(
-            when { max == 0 -> gen; ok -> "в норме"; over -> "$gen сверх"; else -> "$gen ост." },
-            fontSize = 12.sp, fontWeight = FontWeight.SemiBold, maxLines = 1,
-            color = when { ok -> if (t.dark) Palette.G1 else Palette.G3; over -> Palette.Danger; else -> t.hint },
-        )
     }
 }
 
@@ -404,7 +393,7 @@ private fun TipTile(text: String, kind: String) {
     val t = LocalTokens.current
     val warn = kind == "warn"
     Row(
-        Modifier.padding(start = 16.dp, end = 16.dp, top = 10.dp).rise(200).fillMaxWidth().tile(if (warn) Palette.Danger else Palette.G1).padding(14.dp),
+        Modifier.padding(start = Side, end = Side, top = Gap).rise(200).fillMaxWidth().calCard().padding(16.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Box(
@@ -427,7 +416,7 @@ private fun WaterTile(s: Summary, modifier: Modifier, onWater: (Int) -> Unit) {
     val all = maxOf(1, (s.waterGoal + CUP - 1) / CUP)
     val cells = minOf(all, 10)
     val on = if (s.waterGoal > 0) minOf(cells, s.water * cells / s.waterGoal) else 0
-    Column(modifier.rise(240).tile(c).padding(14.dp)) {
+    Column(modifier.rise(240).calCard().padding(14.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Icon(painterResource(R.drawable.ic_nav_glass), null, Modifier.size(17.dp), tint = label)
             Spacer(Modifier.width(6.dp))
@@ -463,7 +452,7 @@ private fun PillsTile(day: Day, modifier: Modifier) {
     val taken = day.pills.count { it.s == "taken" }
     val ctx = LocalContext.current
     val scope = rememberCoroutineScope()
-    Column(modifier.rise(280).tile(c).padding(start = 14.dp, end = 10.dp, top = 14.dp, bottom = 10.dp)) {
+    Column(modifier.rise(280).calCard().padding(start = 14.dp, end = 10.dp, top = 14.dp, bottom = 10.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.height(36.dp)) {
             Icon(painterResource(R.drawable.ic_nav_pill), null, Modifier.size(17.dp), tint = label)
             Spacer(Modifier.width(6.dp))
@@ -504,7 +493,7 @@ private fun WeightTile(ws: List<WeightPoint>) {
     val diff = Math.round((last.kg - ws.first().kg) * 10) / 10.0
     val line = if (t.dark) Palette.G1 else Palette.G2
     Row(
-        Modifier.padding(start = 16.dp, end = 16.dp, top = 10.dp).rise(320).fillMaxWidth().tile(Palette.G1).padding(16.dp),
+        Modifier.padding(start = Side, end = Side, top = Gap).rise(320).fillMaxWidth().calCard().padding(16.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Column {
@@ -617,11 +606,11 @@ private fun MealCard(m: Meal, onDelete: () -> Unit) {
         )
     }
     Row(
-        Modifier.padding(start = 16.dp, end = 16.dp, bottom = 10.dp).rise(80).fillMaxWidth().tile()
-            .combinedClickable(onClick = {}, onLongClick = { ask = true }).padding(10.dp),
+        Modifier.padding(start = Side, end = Side, bottom = Gap).rise(80).fillMaxWidth().calCard()
+            .combinedClickable(onClick = {}, onLongClick = { ask = true }).padding(12.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        FoodThumb(m.title, 82.dp)
+        FoodThumb(m.title, 86.dp)
         Spacer(Modifier.width(14.dp))
         Column(Modifier.weight(1f)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -652,7 +641,7 @@ private fun MealCard(m: Meal, onDelete: () -> Unit) {
 private fun EmptyMeals() {
     val t = LocalTokens.current
     Column(
-        Modifier.padding(horizontal = 16.dp).rise(120).fillMaxWidth().tile().padding(horizontal = 16.dp, vertical = 26.dp),
+        Modifier.padding(horizontal = Side).rise(120).fillMaxWidth().calCard().padding(horizontal = 16.dp, vertical = 26.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         FoodThumb("салат", 60.dp)
@@ -667,7 +656,7 @@ private fun EmptyMeals() {
 private fun AddFood(onClick: () -> Unit) {
     val t = LocalTokens.current
     Row(
-        Modifier.padding(start = 16.dp, end = 16.dp, top = 2.dp).fillMaxWidth().tile().clickable(onClick = onClick)
+        Modifier.padding(start = Side, end = Side, top = 2.dp).fillMaxWidth().calCard().clickable(onClick = onClick)
             .padding(start = 16.dp, end = 8.dp, top = 8.dp, bottom = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
