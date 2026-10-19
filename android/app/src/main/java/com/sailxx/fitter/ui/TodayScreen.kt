@@ -4,6 +4,7 @@ import android.text.format.DateUtils
 import androidx.annotation.DrawableRes
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.animateIntAsState
 import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.expandVertically
@@ -169,7 +170,6 @@ fun TodayScreen(st: AppState, onAdd: () -> Unit, onSettings: () -> Unit) {
             if (meals.isEmpty()) item { EmptyMeals() } else items(meals.reversed(), key = { it.id }) { m ->
                 MealCard(m) { scope.launch { deleteMeal(context, m.id) } }
             }
-            item { AddFood(onAdd) }
             item {
                 val ago = if (st.updatedAt > 0) DateUtils.getRelativeTimeSpanString(st.updatedAt).toString() else ""
                 Text(
@@ -428,7 +428,9 @@ private fun WaterTile(s: Summary, modifier: Modifier, onWater: (Int) -> Unit) {
     val label = ink(c, t.dark, Palette.WaterInk)
     val all = maxOf(1, (s.waterGoal + CUP - 1) / CUP)
     val cells = minOf(all, 10)
-    val on = if (s.waterGoal > 0) minOf(cells, s.water * cells / s.waterGoal) else 0
+    // Число и стаканчики плавно добегают до нового значения, а не перескакивают
+    val shown by animateIntAsState(s.water, tween(450, easing = Ease), label = "water")
+    val on = if (s.waterGoal > 0) minOf(cells, shown * cells / s.waterGoal) else 0
     Column(modifier.rise(240).calCard().padding(18.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Box(Modifier.size(44.dp).background(c.copy(alpha = 0.16f), CircleShape), contentAlignment = Alignment.Center) {
@@ -438,7 +440,7 @@ private fun WaterTile(s: Summary, modifier: Modifier, onWater: (Int) -> Unit) {
             Column(Modifier.weight(1f)) {
                 Text(
                     buildAnnotatedString {
-                        append(liters(s.water))
+                        append(liters(shown))
                         withStyle(SpanStyle(fontSize = 14.sp, color = t.hint, fontWeight = FontWeight.SemiBold)) { append(" / ${liters(s.waterGoal)} л") }
                     },
                     fontSize = 24.sp, fontWeight = FontWeight.ExtraBold, color = t.text, letterSpacing = (-0.5).sp, maxLines = 1,
@@ -685,23 +687,3 @@ private fun EmptyMeals() {
     }
 }
 
-/** Записать еду: фото, снимок с камеры или пара слов. */
-@Composable
-private fun AddFood(onClick: () -> Unit) {
-    val t = LocalTokens.current
-    Row(
-        Modifier.padding(start = Side, end = Side, top = 2.dp).fillMaxWidth().calCard().clickable(onClick = onClick)
-            .padding(start = 16.dp, end = 8.dp, top = 8.dp, bottom = 8.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Icon(painterResource(R.drawable.ic_nav_camera), null, Modifier.size(22.dp), tint = t.hint)
-        Spacer(Modifier.width(12.dp))
-        Column(Modifier.weight(1f)) {
-            Text("Записать еду", fontWeight = FontWeight.Bold, color = t.text)
-            Text("Фото, снимок с камеры или пара слов", fontSize = 12.sp, color = t.hint)
-        }
-        Box(Modifier.size(44.dp).background(Palette.G1, RoundedCornerShape(14.dp)), contentAlignment = Alignment.Center) {
-            Icon(painterResource(R.drawable.ic_nav_plus), null, Modifier.size(20.dp), tint = Palette.HeroInk)
-        }
-    }
-}

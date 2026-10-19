@@ -77,7 +77,7 @@ object FitterRepository {
                 w.await() to d.await()
             }
             prefs(context).edit()
-                .putString("summary", w.toString())
+                .putString("summary", keepWater(context, w).toString())
                 .putString("day", d.toString())
                 .putLong("updatedAt", System.currentTimeMillis())
                 .apply()
@@ -108,23 +108,37 @@ object FitterRepository {
         raw.put("water", (raw.optInt("water") + delta).coerceAtLeast(0))
         p.edit().putString("summary", raw.toString()).apply()
         load(context)
-        updateFitterWidgets(context)
+        // Нажатия подряд уходят на сервер по очереди; сверяемся с ним только после последнего,
+        // иначе ответ на первое нажатие откатывал число назад и оно прыгало
+        waterPending++
         try {
-            Api.water(token, date, delta)
+            waterLock.withLock { Api.water(token, date, delta) }
         } catch (e: UnauthorizedException) {
+            waterPending--
             clear(context)
             return
         } catch (e: Exception) {
             Log.w(TAG, "water failed", e)
         }
-        refresh(context)
+        waterPending--
+        if (waterPending == 0) refresh(context)
+    }
+
+    private val waterLock = Mutex()
+    @Volatile private var waterPending = 0
+
+    /** Пока стаканы ещё отправляются, воду с сервера не берём — оставляем то, что уже на экране. */
+    private fun keepWater(context: Context, w: JSONObject): JSONObject {
+        if (waterPending == 0) return w
+        val local = prefs(context).getString("summary", null)?.let { runCatching { JSONObject(it).optInt("water") }.getOrNull() } ?: return w
+        return w.put("water", local)
     }
 
     /** Данные из живой синхронизации: сохраняем как ответ /api/widget и /api/day и перерисовываем всё. */
     suspend fun applyLive(context: Context, widget: JSONObject, day: JSONObject) {
         if (token(context) == null) return
         prefs(context).edit()
-            .putString("summary", widget.toString())
+            .putString("summary", keepWater(context, widget).toString())
             .putString("day", day.toString())
             .putLong("updatedAt", System.currentTimeMillis())
             .apply()
