@@ -17,6 +17,9 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.core.app.NotificationManagerCompat
 import androidx.lifecycle.compose.LifecycleResumeEffect
+import com.sailxx.fitter.R
+import com.sailxx.fitter.data.AppIcon
+import com.sailxx.fitter.data.AppIconStyle
 import com.sailxx.fitter.data.MealSlot
 import com.sailxx.fitter.data.ReminderPrefs
 import com.sailxx.fitter.data.ReminderSettings
@@ -61,7 +64,10 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -91,6 +97,8 @@ fun SettingsScreen(summary: Summary?, onBack: () -> Unit) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val mode by ThemePref.mode.collectAsState()
+    val icon by AppIcon.style.collectAsState()
+    remember { AppIcon.load(context) }
     val look by WidgetPrefs.look.collectAsState()
     // Ползунок двигается плавно, а сохраняем и перерисовываем виджеты, когда палец отпущен
     var opacity by remember(look.opacity) { mutableFloatStateOf(look.opacity.toFloat()) }
@@ -135,8 +143,15 @@ fun SettingsScreen(summary: Summary?, onBack: () -> Unit) {
                         scope.launch { updateFitterWidgets(context) }
                     }
                 }
+                Divider()
+                Row(Modifier.padding(horizontal = 16.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Text("Иконка", color = t.text, fontWeight = FontWeight.Medium, modifier = Modifier.weight(1f))
+                }
+                Row(Modifier.padding(start = 16.dp, end = 16.dp, bottom = 14.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    for (s in AppIconStyle.entries) IconChoice(s, s == icon) { AppIcon.set(context, s) }
+                }
             }
-            Note("Виджеты повторяют тему: белые при светлой, чёрные при тёмной")
+            Note("Виджеты повторяют тему: белые при светлой, чёрные при тёмной. Новая иконка появится на рабочем столе через несколько секунд")
         }
 
         item {
@@ -237,6 +252,26 @@ private fun Divider() {
 private fun Note(text: String) {
     val t = LocalTokens.current
     Text(text, fontSize = 12.sp, color = t.hint, lineHeight = 16.sp, modifier = Modifier.padding(start = 4.dp, end = 4.dp, top = 8.dp))
+}
+
+/** Вариант иконки приложения: те же слои, что у адаптивной иконки, обрезанные скруглённым квадратом. */
+@Composable
+private fun IconChoice(style: AppIconStyle, on: Boolean, onClick: () -> Unit) {
+    val t = LocalTokens.current
+    val (bg, fg) = when (style) {
+        AppIconStyle.GREEN -> R.drawable.ic_launcher_background to R.drawable.ic_launcher_foreground
+        AppIconStyle.DARK -> R.drawable.ic_launcher_dark_background to R.drawable.ic_launcher_dark_foreground
+    }
+    val shape = RoundedCornerShape(18.dp)
+    Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.clip(RoundedCornerShape(22.dp)).clickable(onClick = onClick).padding(4.dp)) {
+        Box(
+            Modifier.size(64.dp).border(2.dp, if (on) Palette.G2 else Color.Transparent, RoundedCornerShape(22.dp)).padding(4.dp).clip(shape),
+        ) {
+            // Слои 108 dp, видимая часть — 72 dp в центре: увеличиваем в 1,5 раза
+            for (id in listOf(bg, fg)) Image(painterResource(id), null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize().graphicsLayer { scaleX = 1.5f; scaleY = 1.5f })
+        }
+        Text(style.title, fontSize = 13.sp, fontWeight = if (on) FontWeight.SemiBold else FontWeight.Normal, color = if (on) t.text else t.hint, modifier = Modifier.padding(top = 6.dp))
+    }
 }
 
 /** Строка: название слева, компактный выбор справа. */

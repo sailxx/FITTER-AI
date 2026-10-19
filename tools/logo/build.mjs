@@ -1,11 +1,11 @@
 // Логотип FITTER из tools/logo/logo.mjs: docs/logo.svg, иконки сайта docs/icon-*.png, большие PNG в assets/logo/,
-// значок и адаптивная иконка Android (android/app/src/main/res). PNG рендерит Chrome.
+// значок и адаптивные иконки Android (зелёная и тёмная) (android/app/src/main/res). PNG рендерит Chrome.
 // Запуск из корня: node tools/logo/build.mjs
 import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { CROP, FACE, FG_LEAF, FG_SCALE, LEAF, botAvatar, launcherBg, launcherFg, logoSvg } from "./logo.mjs";
+import { CROP, FACE, FG_LEAF, FG_SCALE, LEAF, botAvatar, launcherBg, launcherDarkBg, launcherDarkFg, launcherFg, logoSvg } from "./logo.mjs";
 
 const CHROME = process.env.CHROME || "C:/Program Files/Google/Chrome/Application/chrome.exe";
 const root = path.resolve(import.meta.dirname, "../..");
@@ -30,6 +30,9 @@ const PNG = [
   [`${RES}/drawable-nodpi/ic_logo.png`, small, 480, "transparent"],
   [`${RES}/drawable-nodpi/ic_launcher_background.png`, launcherBg(), 432, "transparent"],
   [`${RES}/drawable-nodpi/ic_launcher_foreground.png`, launcherFg(), 432, "transparent"],
+  // Тёмная иконка: логотип целиком на чёрном фоне (Настройки → Оформление → Иконка)
+  [`${RES}/drawable-nodpi/ic_launcher_dark_background.png`, launcherDarkBg(), 432, "transparent"],
+  [`${RES}/drawable-nodpi/ic_launcher_dark_foreground.png`, launcherDarkFg(), 432, "transparent"],
 ];
 
 // Монохромная иконка Android 13+: силуэт объективов, вспышки и листика (vector, 108 dp)
