@@ -56,6 +56,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
@@ -281,7 +282,7 @@ private fun WeekRow(week: List<WeekDay>, sel: String, today: String, goal: Int) 
 
 /** Кольцо прогресса: дуга набегает от нуля при открытии и плавно меняется дальше. */
 @Composable
-private fun ProgressRing(pct: Float, color: Color, size: Dp, stroke: Dp, delay: Int = 0, content: @Composable () -> Unit) {
+private fun ProgressRing(pct: Float, color: Color, size: Dp, stroke: Dp, delay: Int = 0, trackColor: Color? = null, content: @Composable () -> Unit) {
     val t = LocalTokens.current
     val arc = remember { Animatable(0f) }
     LaunchedEffect(pct) { arc.animateTo(pct.coerceIn(0f, 1f), tween(1100, delayMillis = delay, easing = Ease)) }
@@ -290,7 +291,7 @@ private fun ProgressRing(pct: Float, color: Color, size: Dp, stroke: Dp, delay: 
             val sw = stroke.toPx()
             val tl = Offset(sw / 2, sw / 2)
             val box = Size(this.size.width - sw, this.size.height - sw)
-            drawArc(track(t.dark), 0f, 360f, false, tl, box, style = Stroke(sw))
+            drawArc(trackColor ?: track(t.dark), 0f, 360f, false, tl, box, style = Stroke(sw))
             if (arc.value > 0f) drawArc(color, -90f, 360f * arc.value, false, tl, box, style = Stroke(sw, cap = StrokeCap.Butt))
         }
         content()
@@ -307,26 +308,43 @@ private fun CalorieTile(s: Summary) {
     val count = remember { Animatable(0f) }
     LaunchedEffect(left) { count.animateTo(abs(left).toFloat(), tween(1100, easing = Ease)) }
     Row(
-        Modifier.padding(start = Side, end = Side, top = 10.dp).rise(0).fillMaxWidth().calCard()
+        Modifier.padding(start = Side, end = Side, top = 10.dp).rise(0).fillMaxWidth()
+            .shadow(18.dp, CardShape, spotColor = Color(0xFF1ED38A), ambientColor = Color(0x661ED38A))
+            .clip(CardShape)
+            .background(Brush.linearGradient(listOf(Color(0xFF5BEF5E), Color(0xFF22D97A), Color(0xFF2CD3B4)), start = Offset.Zero, end = Offset.Infinite))
+            .drawBehind { drawGlow(); drawGrain() }
             .padding(start = 24.dp, end = 18.dp, top = 20.dp, bottom = 20.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Column(Modifier.weight(1f)) {
             Text(
                 (if (over) "+" else "") + n(count.value.roundToInt()), fontSize = 50.sp, fontWeight = FontWeight.ExtraBold,
-                color = if (over) Palette.Danger else t.text, letterSpacing = (-1.8).sp, lineHeight = 52.sp, maxLines = 1,
+                color = Color.White, letterSpacing = (-1.8).sp, lineHeight = 52.sp, maxLines = 1,
             )
-            Text(if (over) "Ккал сверх нормы" else "Ккал осталось", fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = t.text.copy(alpha = 0.85f))
+            Text(if (over) "Ккал сверх нормы" else "Ккал осталось", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = Color.White.copy(alpha = 0.95f))
             Spacer(Modifier.height(4.dp))
-            Text("${n(s.kcal)} из ${n(goal)} съедено", fontSize = 13.sp, fontWeight = FontWeight.Medium, color = t.hint)
+            Text("${n(s.kcal)} из ${n(goal)} съедено", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = Color.White.copy(alpha = 0.78f))
         }
         Spacer(Modifier.width(12.dp))
-        ProgressRing(s.progress, if (over) Palette.Danger else t.text, 118.dp, 15.dp) {
-            Box(Modifier.size(42.dp).background(t.fill, CircleShape), contentAlignment = Alignment.Center) {
+        ProgressRing(s.progress, if (over) Palette.OverDark else Color.White, 118.dp, 15.dp, trackColor = Color.White.copy(alpha = 0.28f)) {
+            Box(Modifier.size(42.dp).background(Color.White.copy(alpha = 0.24f), CircleShape), contentAlignment = Alignment.Center) {
                 Image(painterResource(R.drawable.ic_kcal), null, Modifier.size(22.dp))
             }
         }
     }
+}
+
+/** Светлое пятно сверху слева — как блик на глянцевом зелёном. */
+private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawGlow() {
+    val c = Offset(size.width * 0.18f, size.height * 0.05f)
+    drawCircle(Brush.radialGradient(listOf(Color(0x66E9FFD8), Color(0x00E9FFD8)), center = c, radius = size.width * 0.6f), radius = size.width * 0.6f, center = c)
+}
+
+/** Мелкое искристое зерно: точки в одних и тех же местах при каждой отрисовке. */
+private val GRAIN = java.util.Random(7).let { r -> List(420) { floatArrayOf(r.nextFloat(), r.nextFloat(), 0.25f + r.nextFloat() * 0.55f, 0.5f + r.nextFloat()) } }
+private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawGrain() {
+    val d = density
+    GRAIN.forEach { (x, y, a, r) -> drawCircle(Color.White.copy(alpha = a), r * d * 0.75f, Offset(x * size.width, y * size.height)) }
 }
 
 /** БЖУ как в Cal AI: сверху число и подпись, ниже кольцо с иконкой в тёмном кружке. */
