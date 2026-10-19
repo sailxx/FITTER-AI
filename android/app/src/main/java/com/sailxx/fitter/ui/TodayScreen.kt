@@ -341,7 +341,7 @@ private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawGlow() {
 }
 
 /** Мелкое искристое зерно: точки в одних и тех же местах при каждой отрисовке. */
-private val GRAIN = java.util.Random(7).let { r -> List(420) { floatArrayOf(r.nextFloat(), r.nextFloat(), 0.25f + r.nextFloat() * 0.55f, 0.5f + r.nextFloat()) } }
+private val GRAIN = java.util.Random(7).let { r -> List(150) { floatArrayOf(r.nextFloat(), r.nextFloat(), 0.1f + r.nextFloat() * 0.22f, 0.4f + r.nextFloat() * 0.6f) } }
 private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawGrain() {
     val d = density
     GRAIN.forEach { (x, y, a, r) -> drawCircle(Color.White.copy(alpha = a), r * d * 0.75f, Offset(x * size.width, y * size.height)) }
