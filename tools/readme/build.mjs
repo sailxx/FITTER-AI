@@ -6,6 +6,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createKit, ICONS } from './kit.mjs';
+import { logoAt } from '../logo/logo.mjs';
 
 const DIR = path.dirname(fileURLToPath(import.meta.url));
 const OUT = path.resolve(DIR, '../../assets/readme');
@@ -21,9 +22,8 @@ const K = createKit({
 });
 const { P, T, card, chip, sectionHead, badge, iconBox, lines, wrap, one, fitSize, fitText, delay, svg } = K;
 
-// Значок FITTER: рамка видоискателя и яблоко
-const MARK = '<path d="M3.5 8V6.5a3 3 0 0 1 3-3H8"/><path d="M16 3.5h1.5a3 3 0 0 1 3 3V8"/><path d="M20.5 16v1.5a3 3 0 0 1-3 3H16"/><path d="M8 20.5H6.5a3 3 0 0 1-3-3V16"/><path d="M12 9.3c-1.2-.9-3.9-1.1-4.4 1.9-.4 2.4 1.2 5.4 2.9 5.4.6 0 1-.3 1.5-.3s.9.3 1.5.3c1.7 0 3.3-3 2.9-5.4-.5-3-3.2-2.8-4.4-1.9z"/><path d="M12 9.3c0-1.3.6-2.2 1.7-2.6"/>';
-const logo = (x, y) => `<rect x="${x}" y="${y}" width="36" height="36" rx="10" fill="${G}"/><g transform="translate(${x + 6} ${y + 6})" fill="none" stroke="#03210C" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">${MARK}</g>`;
+// Значок FITTER: плитка-яблоко с глазами-объективами (tools/logo/logo.mjs)
+const logo = (x, y) => logoAt(x - 4, y - 6, 44, 'lg', { shadow: false });
 
 const RING = '.arc{stroke-dasharray:440;stroke-dashoffset:150;animation:fill 1.8s cubic-bezier(.2,.8,.2,1) .4s backwards}@keyframes fill{from{stroke-dashoffset:440}}@media (prefers-reduced-motion:reduce){.arc{animation:none}}';
 
