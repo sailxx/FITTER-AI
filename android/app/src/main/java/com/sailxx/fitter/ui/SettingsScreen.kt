@@ -1,6 +1,26 @@
 package com.sailxx.fitter.ui
 
+import android.Manifest
+import android.content.Intent
+import android.os.Build
+import android.provider.Settings
 import androidx.activity.compose.BackHandler
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.TimePicker
+import androidx.compose.material3.TimePickerDefaults
+import androidx.compose.material3.rememberTimePickerState
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.core.app.NotificationManagerCompat
+import androidx.lifecycle.compose.LifecycleResumeEffect
+import com.sailxx.fitter.data.MealSlot
+import com.sailxx.fitter.data.ReminderPrefs
+import com.sailxx.fitter.data.ReminderSettings
+import com.sailxx.fitter.notify.Reminders
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -74,7 +94,10 @@ fun SettingsScreen(summary: Summary?, onBack: () -> Unit) {
     val look by WidgetPrefs.look.collectAsState()
     // Ползунок двигается плавно, а сохраняем и перерисовываем виджеты, когда палец отпущен
     var opacity by remember(look.opacity) { mutableFloatStateOf(look.opacity.toFloat()) }
+    val reminders by ReminderPrefs.settings.collectAsState()
+    var remindersOpen by rememberSaveable { mutableStateOf(false) }
     BackHandler(onBack = onBack)
+    if (remindersOpen) return RemindersScreen(onBack = { remindersOpen = false })
 
     fun saveLook(l: WidgetLook) {
         WidgetPrefs.save(context, l)
@@ -90,6 +113,14 @@ fun SettingsScreen(summary: Summary?, onBack: () -> Unit) {
                 "Настройки", fontSize = 34.sp, fontWeight = FontWeight.ExtraBold, color = t.text, letterSpacing = (-0.8).sp,
                 modifier = Modifier.statusBarsPadding().padding(start = 2.dp, top = 14.dp, bottom = 4.dp),
             )
+        }
+
+        item {
+            Section("Напоминания")
+            Card {
+                LinkRow("Напоминания", t.text, sub = remindersLabel(reminders)) { remindersOpen = true }
+            }
+            Note("Вода, еда и таблетки — уведомления с кнопками: записать стакан или отметить таблетку можно, не открывая приложение")
         }
 
         item {
@@ -234,11 +265,180 @@ private fun ToggleRow(title: String, value: Boolean, onChange: (Boolean) -> Unit
 }
 
 @Composable
-private fun LinkRow(title: String, color: Color, chevron: Boolean = true, onClick: () -> Unit) {
+private fun LinkRow(title: String, color: Color, chevron: Boolean = true, sub: String? = null, onClick: () -> Unit) {
     val t = LocalTokens.current
-    Row(Modifier.fillMaxWidth().clickable(onClick = onClick).padding(horizontal = 18.dp, vertical = 17.dp), verticalAlignment = Alignment.CenterVertically) {
-        Text(title, color = color, fontWeight = FontWeight.Medium, modifier = Modifier.weight(1f))
+    Row(Modifier.fillMaxWidth().clickable(onClick = onClick).padding(horizontal = 18.dp, vertical = if (sub == null) 17.dp else 13.dp), verticalAlignment = Alignment.CenterVertically) {
+        Column(Modifier.weight(1f)) {
+            Text(title, color = color, fontWeight = FontWeight.Medium)
+            if (sub != null) Text(sub, color = t.hint, fontSize = 13.sp, maxLines = 1)
+        }
         if (chevron) Text("›", color = t.hint, fontSize = 20.sp)
+    }
+}
+
+/** Подпись под кнопкой «Напоминания»: что включено. */
+private fun remindersLabel(s: ReminderSettings): String {
+    val on = listOfNotNull(
+        if (s.water) "вода каждые ${hours(s.waterEvery)}" else null,
+        if (s.meals) "еда" else null,
+        if (s.pills) "таблетки" else null,
+    )
+    return if (on.isEmpty()) "Выключены" else on.joinToString(" · ").replaceFirstChar { it.uppercase() }
+}
+
+private fun hours(min: Int) = if (min % 60 == 0) "${min / 60} ч" else "${min / 60},${min % 60 * 10 / 60} ч"
+private fun clock(min: Int) = String.format(Locale.ROOT, "%02d:%02d", min / 60, min % 60)
+
+/**
+ * «Настройки → Напоминания»: что и когда напоминать. Каждое изменение сразу пересчитывает будильники.
+ * Включение любого напоминания на Android 13+ спрашивает разрешение на уведомления.
+ */
+@Composable
+private fun RemindersScreen(onBack: () -> Unit) {
+    val t = LocalTokens.current
+    val context = LocalContext.current
+    val s by ReminderPrefs.settings.collectAsState()
+    var allowed by remember { mutableStateOf(NotificationManagerCompat.from(context).areNotificationsEnabled()) }
+    // Вернулись из системных настроек — проверяем разрешение заново
+    LifecycleResumeEffect(Unit) {
+        allowed = NotificationManagerCompat.from(context).areNotificationsEnabled()
+        onPauseOrDispose { }
+    }
+    val ask = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { allowed = it }
+    BackHandler(onBack = onBack)
+
+    fun save(n: ReminderSettings) {
+        if (n.any && !allowed && Build.VERSION.SDK_INT >= 33) ask.launch(Manifest.permission.POST_NOTIFICATIONS)
+        ReminderPrefs.save(context, n)
+        Reminders.schedule(context)
+    }
+
+    LazyColumn(
+        Modifier.fillMaxSize().screenBg(),
+        contentPadding = PaddingValues(start = Side, end = Side, bottom = 130.dp),
+    ) {
+        item {
+            Text(
+                "‹ Настройки", color = t.hint, fontWeight = FontWeight.SemiBold, fontSize = 15.sp,
+                modifier = Modifier.statusBarsPadding().padding(top = 10.dp).clip(RoundedCornerShape(10.dp)).clickable(onClick = onBack).padding(vertical = 6.dp, horizontal = 2.dp),
+            )
+            Text("Напоминания", fontSize = 34.sp, fontWeight = FontWeight.ExtraBold, color = t.text, letterSpacing = (-0.8).sp, modifier = Modifier.padding(start = 2.dp, top = 2.dp, bottom = 4.dp))
+        }
+
+        if (s.any && !allowed) item {
+            Spacer(Modifier.height(12.dp))
+            Card {
+                Column(Modifier.padding(16.dp)) {
+                    Text("Уведомления выключены", color = Palette.Danger, fontWeight = FontWeight.Bold)
+                    Text("Без разрешения напоминания не придут. Включи уведомления для Fitter в настройках телефона.", color = t.hint, fontSize = 13.sp, lineHeight = 17.sp, modifier = Modifier.padding(top = 4.dp, bottom = 12.dp))
+                    SoftButton("Открыть настройки уведомлений") {
+                        context.startActivity(Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+                    }
+                }
+            }
+        }
+
+        item {
+            Section("💧 Вода")
+            Card {
+                ToggleRow("Напоминать пить воду", s.water) { save(s.copy(water = it)) }
+                if (s.water) {
+                    Divider()
+                    val steps = ReminderSettings.WATER_STEPS
+                    ChoiceRow("Как часто", steps.map { hours(it) }, steps.indexOf(s.waterEvery).coerceAtLeast(0)) { save(s.copy(waterEvery = steps[it])) }
+                    Divider()
+                    TimeRow("Первое", s.waterFrom) { save(s.copy(waterFrom = it)) }
+                    Divider()
+                    TimeRow("Последнее", s.waterTo) { save(s.copy(waterTo = it)) }
+                    Divider()
+                    ToggleRow("Молчать, когда норма выпита", s.waterQuietDone) { save(s.copy(waterQuietDone = it)) }
+                }
+            }
+            Note("В уведомлении — сколько выпито и кнопка «＋ Стакан 250 мл»: вода запишется сразу. «Через 30 мин» — напомнить позже")
+        }
+
+        item {
+            Section("🍽 Еда")
+            Card {
+                ToggleRow("Напоминать записать еду", s.meals) { save(s.copy(meals = it)) }
+                if (s.meals) {
+                    Divider()
+                    MealRow("Завтрак", s.breakfast) { save(s.copy(breakfast = it)) }
+                    Divider()
+                    MealRow("Обед", s.lunch) { save(s.copy(lunch = it)) }
+                    Divider()
+                    MealRow("Ужин", s.dinner) { save(s.copy(dinner = it)) }
+                    Divider()
+                    ToggleRow("Молчать, если уже записал", s.mealQuietLogged) { save(s.copy(mealQuietLogged = it)) }
+                }
+            }
+            Note("Кнопка «📸 Сфотографировать» в уведомлении сразу открывает камеру. Если еду записали за 2 часа до напоминания, оно не придёт")
+        }
+
+        item {
+            Section("💊 Таблетки")
+            Card {
+                ToggleRow("Напоминать о таблетках", s.pills) { save(s.copy(pills = it)) }
+            }
+            Note("Список и время — те же, что в боте (/pills). В уведомлении сразу можно нажать «✓ Принял» или «Пропустить»")
+        }
+
+        if (s.any) item {
+            Spacer(Modifier.height(24.dp))
+            PrimaryButton("Прислать пример уведомления") {
+                if (!allowed && Build.VERSION.SDK_INT >= 33) ask.launch(Manifest.permission.POST_NOTIFICATIONS) else Reminders.test(context)
+            }
+        }
+    }
+}
+
+/** Строка со временем: нажатие открывает часы. */
+@Composable
+private fun TimeRow(title: String, minutes: Int, onPick: (Int) -> Unit) {
+    val t = LocalTokens.current
+    Row(Modifier.padding(horizontal = 16.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+        Text(title, color = t.text, fontWeight = FontWeight.Medium, modifier = Modifier.weight(1f))
+        TimeChip(minutes, true, onPick)
+    }
+}
+
+/** Приём пищи: время и переключатель. */
+@Composable
+private fun MealRow(title: String, slot: MealSlot, onChange: (MealSlot) -> Unit) {
+    val t = LocalTokens.current
+    Row(Modifier.padding(start = 16.dp, end = 16.dp, top = 6.dp, bottom = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+        Text(title, color = if (slot.on) t.text else t.hint, fontWeight = FontWeight.Medium, modifier = Modifier.weight(1f))
+        TimeChip(slot.at, slot.on) { onChange(slot.copy(at = it, on = true)) }
+        Spacer(Modifier.width(10.dp))
+        Switch(
+            checked = slot.on, onCheckedChange = { onChange(slot.copy(on = it)) },
+            colors = SwitchDefaults.colors(
+                checkedTrackColor = Palette.G2, checkedThumbColor = Color.White, checkedBorderColor = Color.Transparent,
+                uncheckedTrackColor = t.fill, uncheckedThumbColor = t.hint, uncheckedBorderColor = t.line,
+            ),
+        )
+    }
+}
+
+/** Плашка «13:30»; нажатие — выбор времени в 24-часовых часах. */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun TimeChip(minutes: Int, on: Boolean, onPick: (Int) -> Unit) {
+    val t = LocalTokens.current
+    var open by remember { mutableStateOf(false) }
+    Text(
+        clock(minutes), fontSize = 17.sp, fontWeight = FontWeight.SemiBold, color = if (on) t.text else t.hint,
+        modifier = Modifier.clip(RoundedCornerShape(50)).background(t.fill).clickable { open = true }.padding(horizontal = 16.dp, vertical = 9.dp),
+    )
+    if (open) {
+        val state = rememberTimePickerState(minutes / 60, minutes % 60, is24Hour = true)
+        AlertDialog(
+            onDismissRequest = { open = false },
+            confirmButton = { TextButton({ open = false; onPick(state.hour * 60 + state.minute) }) { Text("Готово", color = Palette.G2, fontWeight = FontWeight.Bold) } },
+            dismissButton = { TextButton({ open = false }) { Text("Отмена", color = t.hint) } },
+            text = { TimePicker(state, colors = TimePickerDefaults.colors(selectorColor = Palette.G2, timeSelectorSelectedContainerColor = Palette.G2.copy(alpha = 0.18f))) },
+            containerColor = t.card,
+        )
     }
 }
 
