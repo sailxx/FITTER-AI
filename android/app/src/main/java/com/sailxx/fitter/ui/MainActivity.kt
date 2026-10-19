@@ -66,6 +66,22 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.lifecycleScope
+import android.os.Build
+import androidx.compose.material3.Icon
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.BlurEffect
+import androidx.compose.ui.graphics.TileMode
+import androidx.compose.ui.graphics.drawscope.translate
+import androidx.compose.ui.graphics.layer.GraphicsLayer
+import androidx.compose.ui.graphics.layer.drawLayer
+import androidx.compose.ui.graphics.rememberGraphicsLayer
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInRoot
+import androidx.compose.ui.platform.LocalView
+import androidx.core.view.WindowCompat
 import com.sailxx.fitter.data.AppState
 import com.sailxx.fitter.data.FitterRepository
 import com.sailxx.fitter.data.LiveSync
@@ -149,7 +165,7 @@ class MainActivity : ComponentActivity() {
 
 private enum class Tab { Today, Tips, Workouts, Settings }
 
-/** Главный экран: вкладки «Сегодня», «Советы», «Тренировки», «Настройки»; внизу панель с вырезом и зелёной кнопкой «+». */
+/** Главный экран: вкладки «Сегодня», «Советы», «Тренировки», «Настройки»; внизу стеклянная панель с камерой посередине. */
 @Composable
 private fun Home(st: AppState) {
     var tab by rememberSaveable { mutableStateOf(Tab.Today) }
@@ -160,104 +176,140 @@ private fun Home(st: AppState) {
     LaunchedEffect(request) {
         if (request != null) { tab = Tab.Today; camera = request == "camera"; adding = true; Launch.add.value = null }
     }
+    StatusBarIcons()
+    // Всё, что под панелью, пишем в слой — панель рисует его размытым у себя
+    val backdrop = rememberGraphicsLayer()
     Box(Modifier.fillMaxSize()) {
-        Crossfade(tab, animationSpec = tween(250), label = "tab") { t ->
-            when (t) {
-                Tab.Today -> TodayScreen(st, onAdd = { adding = true }, onSettings = { tab = Tab.Settings })
-                Tab.Tips -> TipsScreen()
-                Tab.Workouts -> WorkoutsScreen(onEditing = { editing = it })
-                Tab.Settings -> SettingsScreen(st.summary, onBack = { tab = Tab.Today })
+        Box(Modifier.fillMaxSize().drawWithContent { backdrop.record { this@drawWithContent.drawContent() }; drawLayer(backdrop) }) {
+            Crossfade(tab, animationSpec = tween(250), label = "tab") { t ->
+                when (t) {
+                    Tab.Today -> TodayScreen(st, onAdd = { adding = true }, onSettings = { tab = Tab.Settings })
+                    Tab.Tips -> TipsScreen()
+                    Tab.Workouts -> WorkoutsScreen(onEditing = { editing = it })
+                    Tab.Settings -> SettingsScreen(st.summary, onBack = { tab = Tab.Today })
+                }
             }
         }
-        if (!(editing && tab == Tab.Workouts)) BottomBar(tab, onTab = { tab = it }, onAdd = { adding = true }, modifier = Modifier.align(Alignment.BottomCenter))
+        if (!(editing && tab == Tab.Workouts)) GlassBar(tab, backdrop, onTab = { tab = it }, onCamera = { camera = true; adding = true }, modifier = Modifier.align(Alignment.BottomCenter))
         if (adding) AddMealSheet(openCamera = camera, onClose = { adding = false; camera = false })
     }
 }
 
-private val BarHeight = 68.dp
-private val PlusSize = 62.dp
-private val NotchGap = 6.dp
-private val NotchDrop = 4.dp // центр кнопки и выреза чуть ниже верхнего края панели
-
-/** Форма панели: скруглённые верхние углы и полукруглый вырез посередине под кнопку «+». */
-private class NotchShape(private val d: Density) : Shape {
-    override fun createOutline(size: Size, layoutDirection: LayoutDirection, density: Density): Outline = with(d) {
-        val corner = 20.dp.toPx()
-        val r = (PlusSize / 2 + NotchGap).toPx()
-        val cy = NotchDrop.toPx()
-        val shoulder = 10.dp.toPx()
-        val cx = size.width / 2
-        val p = Path().apply {
-            moveTo(0f, corner)
-            quadraticTo(0f, 0f, corner, 0f)
-            lineTo(cx - r - shoulder, 0f)
-            // Мягкое «плечо» перед вырезом, чтобы край не был острым
-            quadraticTo(cx - r, 0f, cx - r, cy)
-            arcTo(Rect(cx - r, cy - r, cx + r, cy + r), 180f, -180f, false)
-            quadraticTo(cx + r, 0f, cx + r + shoulder, 0f)
-            lineTo(size.width - corner, 0f)
-            quadraticTo(size.width, 0f, size.width, corner)
-            lineTo(size.width, size.height)
-            lineTo(0f, size.height)
-            close()
-        }
-        Outline.Generic(p)
+/** Значки строки состояния: на тёмной теме светлые, на светлой тёмные. */
+@Composable
+private fun StatusBarIcons() {
+    val dark = LocalTokens.current.dark
+    val view = LocalView.current
+    val window = (LocalContext.current as? android.app.Activity)?.window ?: return
+    DisposableEffect(dark) {
+        WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = !dark
+        onDispose { WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = true }
     }
 }
 
+private val BarHeight = 68.dp
+private val CamSize = 58.dp
+
+/**
+ * Панель в стиле liquid glass: размытый контент под ней, полупрозрачная заливка,
+ * светлый ободок и блик сверху. Размытие — с Android 12, раньше панель просто плотнее.
+ */
 @Composable
-private fun BottomBar(tab: Tab, onTab: (Tab) -> Unit, onAdd: () -> Unit, modifier: Modifier) {
+private fun GlassBar(tab: Tab, backdrop: GraphicsLayer, onTab: (Tab) -> Unit, onCamera: () -> Unit, modifier: Modifier) {
     val t = LocalTokens.current
-    val density = LocalDensity.current
-    val shape = remember(density) { NotchShape(density) }
-    Box(modifier.fillMaxWidth()) {
+    val shape = RoundedCornerShape(50)
+    val blur = Build.VERSION.SDK_INT >= 31
+    var pos by remember { mutableStateOf(Offset.Zero) }
+    Box(
+        modifier.navigationBarsPadding().padding(start = 16.dp, end = 16.dp, bottom = 10.dp).fillMaxWidth().height(BarHeight)
+            .onGloballyPositioned { pos = it.positionInRoot() }
+            .shadow(20.dp, shape, spotColor = Color(if (t.dark) 0x99000000 else 0x4410283C), ambientColor = Color(if (t.dark) 0x66000000 else 0x2210283C))
+            .clip(shape),
+    ) {
+        // Размытая подложка: тот же кадр, сдвинутый под панель
+        Box(
+            Modifier.matchParentSize()
+                .graphicsLayer { if (blur) renderEffect = BlurEffect(22.dp.toPx(), 22.dp.toPx(), TileMode.Clamp) }
+                .drawBehind { drawRect(t.bg); translate(-pos.x, -pos.y) { drawLayer(backdrop) } },
+        )
+        val fill = when {
+            !blur -> if (t.dark) listOf(Color(0xF52A2A31), Color(0xF71E1E23)) else listOf(Color(0xF7FFFFFF), Color(0xF2F4F7F5))
+            t.dark -> listOf(Color(0xB32C2C33), Color(0xD1141418))
+            else -> listOf(Color(0x9EFFFFFF), Color(0x52FFFFFF))
+        }
+        val rim = if (t.dark) listOf(Color(0x47FFFFFF), Color(0x0AFFFFFF), Color(0x00FFFFFF), Color(0x29FFFFFF))
+            else listOf(Color(0xF2FFFFFF), Color(0x26FFFFFF), Color(0x00FFFFFF), Color(0xBFFFFFFF))
+        Box(Modifier.matchParentSize().background(Brush.verticalGradient(fill)).border(1.2.dp, Brush.linearGradient(rim), shape))
+        // Блик по верхнему краю
+        Box(
+            Modifier.padding(start = 26.dp, top = 3.dp).fillMaxWidth(0.5f).height(13.dp)
+                .background(Brush.verticalGradient(listOf(Color.White.copy(alpha = if (t.dark) 0.1f else 0.6f), Color.Transparent)), RoundedCornerShape(7.dp)),
+        )
         Row(
-            Modifier.padding(top = PlusSize / 2 - NotchDrop).fillMaxWidth()
-                .shadow(16.dp, shape, spotColor = Color(0x3310283C), ambientColor = Color(0x2210283C))
-                .background(t.card, shape)
-                .navigationBarsPadding().height(BarHeight).padding(horizontal = 4.dp),
+            Modifier.fillMaxSize().padding(horizontal = 9.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            TabItem(R.drawable.ic_plate, "Сегодня", tab == Tab.Today, Modifier.weight(1f)) { onTab(Tab.Today) }
-            TabItem(R.drawable.ic_sparkles, "Советы", tab == Tab.Tips, Modifier.weight(1f)) { onTab(Tab.Tips) }
-            Spacer(Modifier.width(PlusSize + NotchGap * 4))
-            TabItem(R.drawable.ic_muscle, "Тренировки", tab == Tab.Workouts, Modifier.weight(1f)) { onTab(Tab.Workouts) }
-            TabItem(R.drawable.ic_gear, "Настройки", tab == Tab.Settings, Modifier.weight(1f)) { onTab(Tab.Settings) }
+            GlassTab(R.drawable.ic_nav_home, "Сегодня", tab == Tab.Today) { onTab(Tab.Today) }
+            GlassTab(R.drawable.ic_nav_tips, "Советы", tab == Tab.Tips) { onTab(Tab.Tips) }
+            CameraButton(onCamera)
+            GlassTab(R.drawable.ic_nav_dumbbell, "Тренировки", tab == Tab.Workouts) { onTab(Tab.Workouts) }
+            GlassTab(R.drawable.ic_nav_gear, "Настройки", tab == Tab.Settings) { onTab(Tab.Settings) }
         }
-        AddButton(onAdd, Modifier.align(Alignment.TopCenter))
     }
 }
 
+/** Вкладка: у активной — стеклянный пузырь под иконкой. */
 @Composable
-private fun TabItem(@DrawableRes icon: Int, label: String, active: Boolean, modifier: Modifier, onClick: () -> Unit) {
+private fun GlassTab(@DrawableRes icon: Int, label: String, active: Boolean, onClick: () -> Unit) {
     val t = LocalTokens.current
-    val scale by animateFloatAsState(if (active) 1.1f else 0.92f, spring(dampingRatio = 0.45f, stiffness = Spring.StiffnessMedium), label = "s")
-    val dot by animateFloatAsState(if (active) 1f else 0f, spring(dampingRatio = 0.5f, stiffness = Spring.StiffnessMediumLow), label = "d")
+    val scale by animateFloatAsState(if (active) 1f else 0.92f, spring(dampingRatio = 0.45f, stiffness = Spring.StiffnessMedium), label = "s")
+    val bubble by animateFloatAsState(if (active) 1f else 0f, spring(dampingRatio = 0.6f, stiffness = Spring.StiffnessMediumLow), label = "b")
     val press = remember { MutableInteractionSource() }
-    Column(
-        modifier.fillMaxHeight().clickable(interactionSource = press, indication = null, onClick = onClick),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center,
+    Box(
+        Modifier.size(50.dp).clip(CircleShape).clickable(interactionSource = press, indication = null, onClick = onClick),
+        contentAlignment = Alignment.Center,
     ) {
-        Image(painterResource(icon), null, Modifier.size(26.dp).graphicsLayer { scaleX = scale; scaleY = scale }.alpha(if (active) 1f else 0.55f))
-        Text(label, fontSize = 11.sp, maxLines = 1, softWrap = false, fontWeight = if (active) FontWeight.ExtraBold else FontWeight.SemiBold, color = if (active) t.text else t.hint)
-        Box(Modifier.padding(top = 3.dp).size(5.dp).graphicsLayer { scaleX = dot; scaleY = dot }.background(Palette.G2, CircleShape))
+        Box(
+            Modifier.matchParentSize().graphicsLayer { alpha = bubble; scaleX = 0.7f + 0.3f * bubble; scaleY = 0.7f + 0.3f * bubble }
+                .background(
+                    Brush.verticalGradient(if (t.dark) listOf(Color(0x33FFFFFF), Color(0x14FFFFFF)) else listOf(Color(0xF2FFFFFF), Color(0x8CFFFFFF))),
+                    CircleShape,
+                )
+                .border(1.dp, Color.White.copy(alpha = if (t.dark) 0.28f else 0.9f), CircleShape),
+        )
+        Icon(
+            painterResource(icon), label, Modifier.size(24.dp).graphicsLayer { scaleX = scale; scaleY = scale },
+            tint = if (active) t.text else t.text.copy(alpha = 0.55f),
+        )
     }
 }
 
-/** Зелёная «+», приподнятая над панелью и сидящая в вырезе. Пружинит при нажатии. */
+/** Камера посередине — тоже стекло: тёмное на светлой теме, светлое на тёмной. Пружинит при нажатии. */
 @Composable
-private fun AddButton(onClick: () -> Unit, modifier: Modifier) {
+private fun CameraButton(onClick: () -> Unit) {
+    val t = LocalTokens.current
     val press = remember { MutableInteractionSource() }
     val pressed by press.collectIsPressedAsState()
     val scale by animateFloatAsState(if (pressed) 0.9f else 1f, spring(dampingRatio = 0.4f, stiffness = Spring.StiffnessMedium), label = "p")
+    val body = if (t.dark) listOf(Color(0xF0484852), Color(0xF22A2A31)) else listOf(Color(0xD92A2D35), Color(0xF00A0B0E))
     Box(
-        modifier.size(PlusSize)
+        Modifier.size(CamSize)
             .graphicsLayer { scaleX = scale; scaleY = scale }
-            .shadow(14.dp, CircleShape, spotColor = Color(0xAA12E97C), ambientColor = Color(0x5512E97C))
+            .shadow(10.dp, CircleShape, spotColor = Color(0x88000000), ambientColor = Color(0x44000000))
             .clip(CircleShape)
-            .background(Brush.linearGradient(listOf(Color(0xFF3DF59A), Palette.G2)))
+            .background(Brush.verticalGradient(body))
+            .drawBehind {
+                // Блик сверху
+                drawCircle(
+                    Brush.radialGradient(listOf(Color.White.copy(alpha = if (t.dark) 0.32f else 0.38f), Color.Transparent), center = Offset(size.width / 2, 0f), radius = size.width * 0.62f),
+                    radius = size.width, center = center,
+                )
+            }
+            .border(1.dp, Color.White.copy(alpha = if (t.dark) 0.2f else 0.22f), CircleShape)
             .clickable(interactionSource = press, indication = null, onClick = onClick),
         contentAlignment = Alignment.Center,
-    ) { Text("+", color = Color.White, fontSize = 34.sp, fontWeight = FontWeight.Medium, modifier = Modifier.padding(bottom = 3.dp)) }
+    ) {
+        Icon(painterResource(R.drawable.ic_nav_camera), "Сфотографировать еду", Modifier.size(26.dp), tint = Color.White)
+    }
 }

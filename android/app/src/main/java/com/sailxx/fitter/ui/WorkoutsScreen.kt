@@ -188,10 +188,16 @@ private fun WorkoutList(list: List<Workout>, loaded: Boolean, today: String, onN
     val t = LocalTokens.current
     val weekFrom = runCatching { LocalDate.parse(today).minusDays(6).toString() }.getOrDefault(today)
     val week = list.count { it.date >= weekFrom }
-    LazyColumn(Modifier.fillMaxSize().background(t.bg), contentPadding = PaddingValues(bottom = 140.dp)) {
-        item { WorkoutsHero(week, list.size) }
+    LazyColumn(Modifier.fillMaxSize().screenBg(), contentPadding = PaddingValues(bottom = 130.dp)) {
+        item { ScreenHeader("Тренировки", "Подходы, веса и как далось каждое упражнение") }
         item {
-            Box(Modifier.padding(horizontal = 16.dp).padding(top = 16.dp).rise(0)) { MainButton("＋ Новая тренировка", onNew) }
+            Row(Modifier.padding(horizontal = Side).padding(top = 10.dp).rise(0), horizontalArrangement = Arrangement.spacedBy(Gap)) {
+                StatCard("$week", "за 7 дней", Modifier.weight(1f))
+                StatCard("${list.size}", "всего", Modifier.weight(1f))
+            }
+        }
+        item {
+            Box(Modifier.padding(horizontal = Side).padding(top = Gap).rise(60)) { PrimaryButton("＋ Новая тренировка", onClick = onNew) }
         }
         if (list.isEmpty() && loaded) {
             item {
@@ -208,53 +214,28 @@ private fun WorkoutList(list: List<Workout>, loaded: Boolean, today: String, onN
         }
         itemsIndexed(list, key = { _, w -> w.id }) { i, w ->
             val head = i == 0 || list[i - 1].date != w.date
-            Column(Modifier.padding(horizontal = 16.dp).rise(60 + i.coerceAtMost(6) * 40)) {
+            Column(Modifier.padding(horizontal = Side).rise(60 + i.coerceAtMost(6) * 40)) {
                 if (head) Text(
-                    dateLabel(w.date, today), fontSize = 13.sp, fontWeight = FontWeight.ExtraBold, color = t.hint,
-                    modifier = Modifier.padding(start = 4.dp, top = 20.dp, bottom = 8.dp),
-                ) else Spacer(Modifier.height(10.dp))
+                    dateLabel(w.date, today), fontSize = 20.sp, fontWeight = FontWeight.ExtraBold, color = t.text, letterSpacing = (-0.3).sp,
+                    modifier = Modifier.padding(start = 2.dp, top = 26.dp, bottom = 12.dp),
+                ) else Spacer(Modifier.height(Gap))
                 WorkoutCard(w) { onOpen(w) }
             }
         }
     }
 }
 
+/** Счётчик тренировок: число крупно, подпись ниже. */
 @Composable
-private fun WorkoutsHero(week: Int, total: Int) {
-    val inf = rememberInfiniteTransition(label = "hero")
-    val ph by inf.animateFloat(0f, 6.283f, infiniteRepeatable(tween(3000, easing = LinearEasing)), label = "ph")
-    val shape = RoundedCornerShape(bottomStart = 30.dp, bottomEnd = 30.dp)
-    Column(
-        Modifier.fillMaxWidth()
-            .shadow(14.dp, shape, spotColor = Color(0xFF12E97C), ambientColor = Color(0x6612E97C))
-            .clip(shape)
-            .background(Brush.linearGradient(listOf(Palette.Hero1, Palette.Hero2, Palette.Hero3), start = Offset.Zero, end = Offset(500f, 900f)))
-            .drawBehind { drawCircle(Color(0x1AFFFFFF), 120.dp.toPx(), Offset(size.width + 30.dp.toPx(), 0f)) }
-            .statusBarsPadding().padding(start = 18.dp, end = 18.dp, top = 18.dp, bottom = 22.dp),
-    ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Column(Modifier.weight(1f)) {
-                Text("Тренировки", fontSize = 30.sp, fontWeight = FontWeight.ExtraBold, color = Palette.HeroInk, letterSpacing = (-0.6).sp)
-                Text("Подходы, веса и как далось каждое упражнение", fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = Palette.HeroSub)
-            }
-            Image(
-                painterResource(R.drawable.ic_muscle), null,
-                Modifier.size(56.dp).graphicsLayer { rotationZ = -8f + 8f * sin(ph); scaleX = 1f + 0.05f * sin(ph * 2); scaleY = scaleX },
-            )
+private fun StatCard(value: String, label: String, modifier: Modifier) {
+    val t = LocalTokens.current
+    Row(modifier.calCard().padding(horizontal = 18.dp, vertical = 16.dp), verticalAlignment = Alignment.CenterVertically) {
+        Image(painterResource(R.drawable.ic_muscle), null, Modifier.size(30.dp))
+        Spacer(Modifier.width(12.dp))
+        Column {
+            Text(value, fontSize = 24.sp, fontWeight = FontWeight.ExtraBold, color = t.text, lineHeight = 26.sp)
+            Text(label, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = t.hint)
         }
-        Spacer(Modifier.height(14.dp))
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            HeroStat("$week", "за 7 дней")
-            HeroStat("$total", "всего")
-        }
-    }
-}
-
-@Composable
-private fun HeroStat(value: String, label: String) {
-    Row(Modifier.background(Palette.HeroChip, RoundedCornerShape(14.dp)).padding(horizontal = 12.dp, vertical = 7.dp), verticalAlignment = Alignment.Bottom) {
-        Text(value, fontSize = 18.sp, fontWeight = FontWeight.ExtraBold, color = Palette.HeroInk)
-        Text(" $label", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = Palette.HeroSub, modifier = Modifier.padding(bottom = 2.dp))
     }
 }
 
@@ -262,16 +243,14 @@ private fun HeroStat(value: String, label: String) {
 private fun WorkoutCard(w: Workout, onClick: () -> Unit) {
     val t = LocalTokens.current
     Column(
-        Modifier.fillMaxWidth()
-            .then(if (t.shadow) Modifier.shadow(10.dp, Card, spotColor = Color(0x2210283C), ambientColor = Color(0x1110283C)) else Modifier)
-            .clip(Card).background(t.card).border(1.dp, t.edge, Card).clickable(onClick = onClick).padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(6.dp),
+        Modifier.fillMaxWidth().calCard().clickable(onClick = onClick).padding(18.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         Text(w.title.ifBlank { w.ex.take(2).joinToString(" и ") { it.name } }, fontSize = 17.sp, fontWeight = FontWeight.ExtraBold, color = t.text, maxLines = 2, overflow = TextOverflow.Ellipsis)
         val meta = listOfNotNull(
             "${w.ex.size} упр.", "${w.sets} подх.", if (w.volume > 0) "${spaced(w.volume)} кг" else null,
         ).joinToString(" · ")
-        Text(meta, fontSize = 12.sp, color = Palette.G3, fontWeight = FontWeight.Bold)
+        Text(meta, fontSize = 13.sp, color = t.hint, fontWeight = FontWeight.Bold)
         w.ex.forEach { e ->
             Column {
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -340,10 +319,10 @@ private fun WorkoutEditor(d: Draft, history: List<Workout>, custom: List<Exercis
     Box(Modifier.fillMaxSize().background(t.bg)) {
         LazyColumn(Modifier.fillMaxSize().imePadding(), contentPadding = PaddingValues(bottom = 110.dp)) {
             item {
-                Row(Modifier.statusBarsPadding().padding(horizontal = 12.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+                Row(Modifier.statusBarsPadding().padding(horizontal = 16.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
                     RoundIcon("←") { if (d.ex.isNotEmpty()) askLeave = true else onClose() }
                     Text(
-                        if (existing) "Тренировка" else "Новая тренировка", fontSize = 22.sp, fontWeight = FontWeight.ExtraBold, color = t.text,
+                        if (existing) "Тренировка" else "Новая тренировка", fontSize = 24.sp, fontWeight = FontWeight.ExtraBold, color = t.text, letterSpacing = (-0.4).sp,
                         modifier = Modifier.weight(1f).padding(start = 12.dp),
                     )
                     if (existing) RoundIcon("🗑") { askDelete = true }
@@ -353,30 +332,22 @@ private fun WorkoutEditor(d: Draft, history: List<Workout>, custom: List<Exercis
             item {
                 OutlinedTextField(
                     value = d.title, onValueChange = { if (it.length <= 60) d.title = it },
-                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = Side, vertical = 10.dp),
                     placeholder = { Text("Название, например «Грудь и трицепс»", color = t.hint) },
-                    singleLine = true, shape = RoundedCornerShape(16.dp),
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = Palette.G2, unfocusedBorderColor = t.line, focusedTextColor = t.text, unfocusedTextColor = t.text,
-                        cursorColor = Palette.G2, focusedContainerColor = t.card, unfocusedContainerColor = t.card,
-                    ),
+                    singleLine = true, shape = RoundedCornerShape(20.dp),
+                    colors = fieldColors(),
                 )
             }
             itemsIndexed(d.ex, key = { i, e -> "$i-${e.id}" }) { i, e ->
-                ExerciseCard(e, Modifier.padding(horizontal = 16.dp, vertical = 6.dp), onRemove = { d.ex.removeAt(i) })
+                ExerciseCard(e, Modifier.padding(horizontal = Side, vertical = 6.dp), onRemove = { d.ex.removeAt(i) })
             }
             item {
-                Box(
-                    Modifier.padding(horizontal = 16.dp, vertical = 8.dp).fillMaxWidth().height(54.dp).clip(RoundedCornerShape(18.dp))
-                        .background(Palette.G2.copy(alpha = 0.09f)).border(1.dp, Palette.G2.copy(alpha = 0.3f), RoundedCornerShape(18.dp))
-                        .clickable { picking = true },
-                    contentAlignment = Alignment.Center,
-                ) { Text("＋ Добавить упражнение", color = Palette.G3, fontWeight = FontWeight.ExtraBold, fontSize = 16.sp) }
+                SoftButton("＋ Добавить упражнение", Modifier.padding(horizontal = Side, vertical = 8.dp).fillMaxWidth(), height = 54.dp) { picking = true }
             }
             error?.let { item { Text(it, color = Palette.Danger, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(horizontal = 20.dp, vertical = 4.dp)) } }
         }
-        Box(Modifier.align(Alignment.BottomCenter).fillMaxWidth().background(t.bg).navigationBarsPadding().imePadding().padding(horizontal = 16.dp, vertical = 12.dp)) {
-            MainButton(if (busy) "Сохраняю…" else "Сохранить тренировку") { if (!busy) save() }
+        Box(Modifier.align(Alignment.BottomCenter).fillMaxWidth().background(t.bg).navigationBarsPadding().imePadding().padding(horizontal = Side, vertical = 12.dp)) {
+            PrimaryButton(if (busy) "Сохраняю…" else "Сохранить тренировку") { if (!busy) save() }
         }
     }
 
@@ -405,7 +376,7 @@ private fun DateRow(d: Draft, today: String) {
     val date = runCatching { LocalDate.parse(d.date) }.getOrNull() ?: return
     val canNext = d.date < today
     Row(
-        Modifier.padding(horizontal = 16.dp).fillMaxWidth().background(t.card, RoundedCornerShape(16.dp)).border(1.dp, t.edge, RoundedCornerShape(16.dp)).padding(6.dp),
+        Modifier.padding(horizontal = Side).fillMaxWidth().calCard(RoundedCornerShape(50)).padding(6.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         RoundIcon("‹") { d.date = date.minusDays(1).toString() }
@@ -426,10 +397,8 @@ private fun RoundIcon(text: String, onClick: () -> Unit) {
 private fun ExerciseCard(e: ExDraft, modifier: Modifier, onRemove: () -> Unit) {
     val t = LocalTokens.current
     Column(
-        modifier.fillMaxWidth()
-            .then(if (t.shadow) Modifier.shadow(8.dp, Card, spotColor = Color(0x2210283C), ambientColor = Color(0x1110283C)) else Modifier)
-            .background(t.card, Card).border(1.dp, t.edge, Card).padding(14.dp),
-        verticalArrangement = Arrangement.spacedBy(10.dp),
+        modifier.fillMaxWidth().calCard().padding(18.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
@@ -444,9 +413,9 @@ private fun ExerciseCard(e: ExDraft, modifier: Modifier, onRemove: () -> Unit) {
                 val on = e.effort == ef
                 val c = effortColor(ef)
                 Row(
-                    Modifier.weight(1f).height(38.dp).clip(RoundedCornerShape(12.dp))
+                    Modifier.weight(1f).height(40.dp).clip(RoundedCornerShape(50))
                         .background(if (on) c.copy(alpha = 0.16f) else t.fill)
-                        .border(1.5.dp, if (on) c else Color.Transparent, RoundedCornerShape(12.dp))
+                        .border(1.5.dp, if (on) c else Color.Transparent, RoundedCornerShape(50))
                         .clickable { e.effort = if (on) null else ef },
                     horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically,
                 ) {
@@ -464,8 +433,8 @@ private fun ExerciseCard(e: ExDraft, modifier: Modifier, onRemove: () -> Unit) {
         }
         e.sets.forEachIndexed { i, s ->
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Box(Modifier.size(26.dp).background(Palette.G2.copy(alpha = 0.14f), CircleShape), contentAlignment = Alignment.Center) {
-                    Text("${i + 1}", fontSize = 12.sp, fontWeight = FontWeight.ExtraBold, color = Palette.G3)
+                Box(Modifier.size(28.dp).background(t.fill, CircleShape), contentAlignment = Alignment.Center) {
+                    Text("${i + 1}", fontSize = 12.sp, fontWeight = FontWeight.ExtraBold, color = t.text)
                 }
                 Spacer(Modifier.width(10.dp))
                 NumField(s.a, { s.a = it }, la, decimal = e.kind == Kind.W, modifier = Modifier.weight(1f))
@@ -481,7 +450,7 @@ private fun ExerciseCard(e: ExDraft, modifier: Modifier, onRemove: () -> Unit) {
         }
         // Новый подход — копия предыдущего: обычно меняют одно число
         Box(
-            Modifier.fillMaxWidth().height(40.dp).clip(RoundedCornerShape(12.dp)).background(t.fill)
+            Modifier.fillMaxWidth().height(44.dp).clip(RoundedCornerShape(50)).background(t.fill)
                 .clickable { e.sets.add(e.sets.lastOrNull()?.let { SetDraft(it.a, it.b) } ?: SetDraft()) },
             contentAlignment = Alignment.Center,
         ) { Text("＋ Подход", fontWeight = FontWeight.Bold, color = t.text) }
@@ -498,10 +467,10 @@ private fun NumField(value: String, onValue: (String) -> Unit, hint: String, dec
         singleLine = true,
         keyboardOptions = KeyboardOptions(keyboardType = if (decimal) KeyboardType.Decimal else KeyboardType.Number),
         textStyle = TextStyle(color = t.text, fontSize = 17.sp, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center),
-        cursorBrush = SolidColor(Palette.G2),
+        cursorBrush = SolidColor(t.text),
         modifier = modifier,
         decorationBox = { inner ->
-            Box(Modifier.height(44.dp).fillMaxWidth().background(t.fill, RoundedCornerShape(12.dp)).padding(horizontal = 10.dp), contentAlignment = Alignment.Center) {
+            Box(Modifier.height(46.dp).fillMaxWidth().background(t.fill, RoundedCornerShape(14.dp)).padding(horizontal = 10.dp), contentAlignment = Alignment.Center) {
                 if (value.isEmpty()) Text(hint, color = t.hint, fontSize = 14.sp)
                 else Text(hint, color = t.hint, fontSize = 11.sp, modifier = Modifier.align(Alignment.CenterEnd))
                 inner()
@@ -543,7 +512,7 @@ private fun ExercisePicker(custom: List<Exercise>, history: List<Workout>, onPic
         onDismissRequest = onClose,
         sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
         containerColor = t.card,
-        dragHandle = { Box(Modifier.padding(top = 10.dp).size(40.dp, 4.dp).background(t.line, RoundedCornerShape(2.dp))) },
+        dragHandle = { SheetHandle() },
     ) {
         Column(Modifier.fillMaxWidth().fillMaxHeight(0.92f).imePadding()) {
             if (creating) {
@@ -557,33 +526,25 @@ private fun ExercisePicker(custom: List<Exercise>, history: List<Workout>, onPic
                 )
                 return@Column
             }
-            Text("Упражнение", fontSize = 22.sp, fontWeight = FontWeight.ExtraBold, color = t.text, modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp))
+            Text("Упражнение", fontSize = 26.sp, fontWeight = FontWeight.ExtraBold, color = t.text, letterSpacing = (-0.5).sp, modifier = Modifier.padding(horizontal = Side, vertical = 8.dp))
             OutlinedTextField(
                 value = query, onValueChange = { query = it },
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+                modifier = Modifier.fillMaxWidth().padding(horizontal = Side),
                 placeholder = { Text("🔍 Поиск: жим, присед, планка…", color = t.hint) },
-                singleLine = true, shape = RoundedCornerShape(16.dp),
-                colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = Palette.G2, unfocusedBorderColor = t.line, focusedTextColor = t.text, unfocusedTextColor = t.text, cursorColor = Palette.G2),
+                singleLine = true, shape = RoundedCornerShape(50),
+                colors = fieldColors(),
             )
-            LazyRow(contentPadding = PaddingValues(horizontal = 16.dp, vertical = 10.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                items(listOf(ALL, HOME, MINE) + GROUPS) { g ->
-                    val on = g == group
-                    Text(
-                        if (g == HOME) "🏠 Дома" else g,
-                        fontSize = 14.sp, fontWeight = FontWeight.Bold, color = if (on) Color.White else t.text,
-                        modifier = Modifier.clip(RoundedCornerShape(12.dp)).background(if (on) Palette.G2 else t.fill).clickable { group = g }
-                            .padding(horizontal = 14.dp, vertical = 8.dp),
-                    )
-                }
+            LazyRow(contentPadding = PaddingValues(horizontal = Side, vertical = 12.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                items(listOf(ALL, HOME, MINE) + GROUPS) { g -> ChoiceChip(if (g == HOME) "🏠 Дома" else g, g == group) { group = g } }
             }
-            LazyColumn(Modifier.weight(1f), contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = 24.dp)) {
+            LazyColumn(Modifier.weight(1f), contentPadding = PaddingValues(start = Side, end = Side, bottom = 24.dp)) {
                 item {
                     Row(
-                        Modifier.fillMaxWidth().padding(bottom = 6.dp).clip(RoundedCornerShape(14.dp)).background(Palette.G2.copy(alpha = 0.09f))
+                        Modifier.fillMaxWidth().padding(bottom = 6.dp).clip(RoundedCornerShape(20.dp)).background(t.fill)
                             .clickable { creating = true }.padding(14.dp),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        Text("＋", fontSize = 20.sp, fontWeight = FontWeight.ExtraBold, color = Palette.G3)
+                        Text("＋", fontSize = 20.sp, fontWeight = FontWeight.ExtraBold, color = t.text)
                         Spacer(Modifier.width(10.dp))
                         Column {
                             Text(if (q.isEmpty()) "Своё упражнение" else "Добавить «${query.trim()}»", fontWeight = FontWeight.ExtraBold, color = t.text)
@@ -606,7 +567,7 @@ private fun ExercisePicker(custom: List<Exercise>, history: List<Workout>, onPic
                             )
                         }
                         if (e.home) Text("🏠", fontSize = 14.sp)
-                        used[e.id]?.let { Text("  ×$it", fontSize = 12.sp, color = Palette.G3, fontWeight = FontWeight.Bold) }
+                        used[e.id]?.let { Text("  ×$it", fontSize = 12.sp, color = t.hint, fontWeight = FontWeight.Bold) }
                     }
                 }
                 if (shown.isEmpty()) item {
@@ -643,15 +604,15 @@ private fun CustomForm(initialName: String, initialGroup: String, onCancel: () -
         item {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 RoundIcon("←", onCancel)
-                Text("Своё упражнение", fontSize = 22.sp, fontWeight = FontWeight.ExtraBold, color = t.text, modifier = Modifier.padding(start = 12.dp))
+                Text("Своё упражнение", fontSize = 24.sp, fontWeight = FontWeight.ExtraBold, color = t.text, modifier = Modifier.padding(start = 12.dp))
             }
         }
         item {
             OutlinedTextField(
                 value = name, onValueChange = { if (it.length <= 60) { name = it; error = null } },
                 modifier = Modifier.fillMaxWidth(), placeholder = { Text("Название", color = t.hint) },
-                singleLine = true, shape = RoundedCornerShape(16.dp),
-                colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = Palette.G2, unfocusedBorderColor = t.line, focusedTextColor = t.text, unfocusedTextColor = t.text, cursorColor = Palette.G2),
+                singleLine = true, shape = RoundedCornerShape(20.dp),
+                colors = fieldColors(),
             )
         }
         item { Text("Как записывать подходы", fontWeight = FontWeight.ExtraBold, color = t.text) }
@@ -660,9 +621,9 @@ private fun CustomForm(initialName: String, initialGroup: String, onCancel: () -
         item { Chips(GROUPS, group) { group = if (group == it) "" else it } }
         error?.let { item { Text(it, color = Palette.Danger, fontWeight = FontWeight.SemiBold) } }
         item {
-            MainButton(if (busy) "Сохраняю…" else "Добавить") {
-                if (busy) return@MainButton
-                if (name.trim().length < 2) { error = "Напиши название"; return@MainButton }
+            PrimaryButton(if (busy) "Сохраняю…" else "Добавить") {
+                if (busy) return@PrimaryButton
+                if (name.trim().length < 2) { error = "Напиши название"; return@PrimaryButton }
                 busy = true
                 scope.launch {
                     try {
@@ -677,28 +638,13 @@ private fun CustomForm(initialName: String, initialGroup: String, onCancel: () -
     }
 }
 
-/** Чипы с переносом строк: выбранный — зелёный. */
+/** Чипы с переносом строк: выбранный — контрастный. */
 @OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
 @Composable
 private fun Chips(options: List<String>, selected: String, onSelect: (String) -> Unit) {
     val t = LocalTokens.current
     androidx.compose.foundation.layout.FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        options.forEach { o ->
-            val on = o == selected
-            Text(
-                o, fontSize = 14.sp, fontWeight = FontWeight.Bold, color = if (on) Color.White else t.text,
-                modifier = Modifier.clip(RoundedCornerShape(12.dp)).background(if (on) Palette.G2 else t.fill).clickable { onSelect(o) }
-                    .padding(horizontal = 14.dp, vertical = 8.dp),
-            )
-        }
+        options.forEach { o -> ChoiceChip(o, o == selected) { onSelect(o) } }
     }
 }
 
-@Composable
-private fun MainButton(text: String, onClick: () -> Unit) {
-    Box(
-        Modifier.fillMaxWidth().height(54.dp).clip(RoundedCornerShape(18.dp))
-            .background(Brush.linearGradient(listOf(Color(0xFF3DF59A), Palette.G2))).clickable(onClick = onClick),
-        contentAlignment = Alignment.Center,
-    ) { Text(text, color = Color.White, fontWeight = FontWeight.ExtraBold, fontSize = 17.sp) }
-}

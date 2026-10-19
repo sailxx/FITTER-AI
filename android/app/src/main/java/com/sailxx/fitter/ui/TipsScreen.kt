@@ -194,32 +194,32 @@ fun TipsScreen() {
         )
     }
 
-    LazyColumn(Modifier.fillMaxSize().background(t.bg), contentPadding = PaddingValues(bottom = 140.dp)) {
-        item { TipsHero() }
+    LazyColumn(Modifier.fillMaxSize().screenBg(), contentPadding = PaddingValues(bottom = 130.dp)) {
+        item { ScreenHeader("Советы ИИ", "Нейросеть смотрит на дневник и подсказывает") }
         item {
-            Section(R.drawable.ic_salad, "Что съесть сейчас", "3 варианта под остаток твоей нормы", Modifier.padding(top = 16.dp).rise(0)) {
+            Section(R.drawable.ic_salad, "Что съесть сейчас", "3 варианта под остаток твоей нормы", Modifier.padding(top = 10.dp).rise(0)) {
                 when {
                     advBusy -> Thinking("Подбираю варианты…")
                     advice != null -> {
                         val a = advice!!
                         if (a.intro.isNotBlank()) Note(a.intro)
                         a.options.forEachIndexed { i, o -> OptionCard(i, o, onOpen = { openOption(i) }) { eat(i, o.title) } }
-                        GhostButton("🔄 Другие варианты") { pickAdvice() }
+                        SoftButton("🔄 Другие варианты") { pickAdvice() }
                     }
                     else -> {
                         eaten?.let { Note("Записал «$it» в дневник ✅") }
-                        MainButton("✨ Подобрать варианты") { pickAdvice() }
+                        PrimaryButton("✨ Подобрать варианты") { pickAdvice() }
                     }
                 }
                 advErr?.let { Err(it) }
             }
         }
         item {
-            Section(R.drawable.ic_brain, "Разбор недели", "Что получилось и что улучшить за 7 дней", Modifier.padding(top = 12.dp).rise(120)) {
+            Section(R.drawable.ic_brain, "Разбор недели", "Что получилось и что улучшить за 7 дней", Modifier.padding(top = Gap).rise(120)) {
                 when {
                     anBusy -> Thinking("Разбираю твою неделю…")
                     analysis != null -> AnalysisView(analysis!!)
-                    else -> MainButton("🧠 Разобрать неделю") { analyze() }
+                    else -> PrimaryButton("🧠 Разобрать неделю") { analyze() }
                 }
                 anErr?.let { Err(it) }
             }
@@ -235,43 +235,14 @@ fun TipsScreen() {
 }
 
 @Composable
-private fun TipsHero() {
-    val inf = rememberInfiniteTransition(label = "hero")
-    val ph by inf.animateFloat(0f, 6.283f, infiniteRepeatable(tween(4000, easing = LinearEasing)), label = "ph")
-    val shape = RoundedCornerShape(bottomStart = 30.dp, bottomEnd = 30.dp)
-    Row(
-        Modifier.fillMaxWidth()
-            .shadow(14.dp, shape, spotColor = Color(0xFF12E97C), ambientColor = Color(0x6612E97C))
-            .clip(shape)
-            .background(Brush.linearGradient(listOf(Palette.Hero1, Palette.Hero2, Palette.Hero3), start = Offset.Zero, end = Offset(500f, 900f)))
-            .drawBehind { drawCircle(Color(0x1AFFFFFF), 120.dp.toPx(), Offset(size.width + 30.dp.toPx(), 0f)) }
-            .statusBarsPadding().padding(start = 18.dp, end = 18.dp, top = 18.dp, bottom = 26.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Column(Modifier.weight(1f)) {
-            Text("Советы ИИ", fontSize = 30.sp, fontWeight = FontWeight.ExtraBold, color = Palette.HeroInk, letterSpacing = (-0.6).sp)
-            Text("Нейросеть смотрит на твой дневник и подсказывает", fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = Palette.HeroSub)
-        }
-        Image(
-            painterResource(R.drawable.ic_sparkles), null,
-            Modifier.size(56.dp).graphicsLayer { rotationZ = 10f * sin(ph); scaleX = 1f + 0.06f * sin(ph * 2); scaleY = scaleX },
-        )
-    }
-}
-
-@Composable
 private fun Section(@DrawableRes icon: Int, title: String, sub: String, modifier: Modifier, content: @Composable () -> Unit) {
     val t = LocalTokens.current
     Column(
-        modifier.padding(horizontal = 16.dp).fillMaxWidth()
-            .then(if (t.shadow) Modifier.shadow(10.dp, Card, spotColor = Color(0x2210283C), ambientColor = Color(0x1110283C)) else Modifier)
-            .background(t.card, Card).border(1.dp, t.edge, Card).padding(18.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
+        modifier.padding(horizontal = Side).fillMaxWidth().calCard().padding(20.dp),
+        verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Box(Modifier.size(40.dp).background(Palette.G2.copy(alpha = 0.12f), RoundedCornerShape(13.dp)), contentAlignment = Alignment.Center) {
-                Image(painterResource(icon), null, Modifier.size(26.dp))
-            }
+            IconBubble(icon, 44.dp, 26.dp)
             Spacer(Modifier.width(12.dp))
             Column {
                 Text(title, fontSize = 17.sp, fontWeight = FontWeight.ExtraBold, color = t.text)
@@ -285,23 +256,21 @@ private fun Section(@DrawableRes icon: Int, title: String, sub: String, modifier
 @Composable
 private fun OptionCard(i: Int, o: Option, onOpen: () -> Unit, onEat: () -> Unit) {
     val t = LocalTokens.current
-    Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(t.bg).clickable(onClick = onOpen).padding(14.dp)) {
+    Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(20.dp)).background(t.fill).clickable(onClick = onOpen).padding(16.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Box(Modifier.size(22.dp).background(Palette.G2, RoundedCornerShape(11.dp)), contentAlignment = Alignment.Center) {
-                Text("${i + 1}", fontWeight = FontWeight.ExtraBold, color = Color.White, fontSize = 13.sp, lineHeight = 13.sp,
+            Box(Modifier.size(24.dp).background(t.text, RoundedCornerShape(12.dp)), contentAlignment = Alignment.Center) {
+                Text("${i + 1}", fontWeight = FontWeight.ExtraBold, color = t.bg, fontSize = 13.sp, lineHeight = 13.sp,
                     style = TextStyle(platformStyle = PlatformTextStyle(includeFontPadding = false)))
             }
             Spacer(Modifier.width(8.dp))
             Text(o.title, fontWeight = FontWeight.Bold, color = t.text, modifier = Modifier.weight(1f))
-            Text("${o.kcal} ккал", fontWeight = FontWeight.ExtraBold, color = Palette.G3, fontSize = 14.sp)
+            Text("🔥 ${o.kcal}", fontWeight = FontWeight.ExtraBold, color = t.text, fontSize = 15.sp)
         }
         Spacer(Modifier.height(6.dp))
         Text(o.items, fontSize = 13.sp, color = t.text)
         Text("Б ${o.p} · Ж ${o.f} · У ${o.c}" + (if (o.why.isNotBlank()) " — ${o.why}" else ""), fontSize = 12.sp, color = t.hint)
         Spacer(Modifier.height(10.dp))
-        Box(
-            Modifier.clip(RoundedCornerShape(12.dp)).background(Palette.G2).clickable(onClick = onEat).padding(horizontal = 14.dp, vertical = 8.dp),
-        ) { Text("✅ Съел это", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 13.sp) }
+        PrimaryButton("Съел это", Modifier.width(150.dp), height = 40.dp) { onEat() }
         Text("Нажми — рецепт и похожее", fontSize = 11.sp, color = t.hint, modifier = Modifier.padding(top = 8.dp))
     }
 }
@@ -314,7 +283,7 @@ private fun RecipeSheet(o: Option, recipe: Recipe?, busy: Boolean, similarBusy: 
         onDismissRequest = onClose,
         sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
         containerColor = t.card,
-        dragHandle = { Box(Modifier.padding(top = 10.dp).size(40.dp, 4.dp).background(t.line, RoundedCornerShape(2.dp))) },
+        dragHandle = { SheetHandle() },
     ) {
         Column(
             Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(horizontal = 20.dp).padding(top = 12.dp, bottom = 20.dp).navigationBarsPadding(),
@@ -322,7 +291,7 @@ private fun RecipeSheet(o: Option, recipe: Recipe?, busy: Boolean, similarBusy: 
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(o.title, fontSize = 20.sp, fontWeight = FontWeight.ExtraBold, color = t.text, modifier = Modifier.weight(1f))
-                Text("${o.kcal} ккал", fontWeight = FontWeight.ExtraBold, color = Palette.G3)
+                Text("🔥 ${o.kcal} ккал", fontWeight = FontWeight.ExtraBold, color = t.text)
             }
             Text("Б ${o.p} · Ж ${o.f} · У ${o.c}" + (if (o.why.isNotBlank()) " — ${o.why}" else ""), fontSize = 12.sp, color = t.hint)
             Text(o.items, fontSize = 13.sp, color = t.text)
@@ -331,7 +300,7 @@ private fun RecipeSheet(o: Option, recipe: Recipe?, busy: Boolean, similarBusy: 
                 recipe != null -> {
                     if (recipe.time.isNotBlank()) Text("⏱ ${recipe.time}", fontWeight = FontWeight.Bold, color = t.text)
                     Bullets(R.drawable.ic_salad, "Ингредиенты", recipe.ingredients)
-                    Column(Modifier.fillMaxWidth().background(t.bg, RoundedCornerShape(16.dp)).padding(14.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Column(Modifier.fillMaxWidth().background(t.fill, RoundedCornerShape(20.dp)).padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                         Text("Приготовление", fontWeight = FontWeight.ExtraBold, color = t.text)
                         recipe.steps.forEachIndexed { k, st -> Text("${k + 1}. $st", fontSize = 14.sp, color = t.text, lineHeight = 19.sp) }
                     }
@@ -339,8 +308,8 @@ private fun RecipeSheet(o: Option, recipe: Recipe?, busy: Boolean, similarBusy: 
                 }
             }
             err?.let { Err(it) }
-            if (similarBusy) Thinking("Ищу похожее…") else GhostButton("🔍 Найти похожее") { onSimilar() }
-            MainButton("✅ Съел это") { onEat() }
+            if (similarBusy) Thinking("Ищу похожее…") else SoftButton("🔍 Найти похожее") { onSimilar() }
+            PrimaryButton("✅ Съел это") { onEat() }
         }
     }
 }
@@ -356,7 +325,7 @@ private fun AnalysisView(a: Analysis) {
     }
     Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
         repeat(10) { i ->
-            Box(Modifier.weight(1f).height(8.dp).background(if (i < a.score) Palette.G2 else t.line, RoundedCornerShape(4.dp)))
+            Box(Modifier.weight(1f).height(8.dp).background(if (i < a.score) t.text else t.line, RoundedCornerShape(4.dp)))
         }
     }
     if (a.summary.isNotBlank()) Text(a.summary, fontSize = 14.sp, color = t.text, lineHeight = 20.sp)
@@ -369,7 +338,7 @@ private fun AnalysisView(a: Analysis) {
 private fun Bullets(@DrawableRes icon: Int, title: String, items: List<String>) {
     if (items.isEmpty()) return
     val t = LocalTokens.current
-    Column(Modifier.fillMaxWidth().background(t.bg, RoundedCornerShape(16.dp)).padding(14.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+    Column(Modifier.fillMaxWidth().background(t.fill, RoundedCornerShape(20.dp)).padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Image(painterResource(icon), null, Modifier.size(20.dp))
             Spacer(Modifier.width(8.dp))
@@ -394,26 +363,9 @@ private fun Thinking(text: String) {
 @Composable
 private fun Note(text: String) {
     val t = LocalTokens.current
-    Text(text, fontSize = 14.sp, color = t.text, modifier = Modifier.fillMaxWidth().background(Palette.G2.copy(alpha = 0.08f), RoundedCornerShape(14.dp)).padding(12.dp))
+    Text(text, fontSize = 14.sp, color = t.text, modifier = Modifier.fillMaxWidth().background(t.fill, RoundedCornerShape(18.dp)).padding(14.dp))
 }
 
 @Composable
 private fun Err(text: String) = Text(text, fontSize = 14.sp, color = Palette.Danger, fontWeight = FontWeight.SemiBold)
 
-@Composable
-private fun MainButton(text: String, onClick: () -> Unit) {
-    Box(
-        Modifier.fillMaxWidth().height(50.dp).clip(RoundedCornerShape(16.dp))
-            .background(Brush.linearGradient(listOf(Color(0xFF3DF59A), Palette.G2))).clickable(onClick = onClick),
-        contentAlignment = Alignment.Center,
-    ) { Text(text, color = Color.White, fontWeight = FontWeight.ExtraBold, fontSize = 16.sp) }
-}
-
-@Composable
-private fun GhostButton(text: String, onClick: () -> Unit) {
-    val t = LocalTokens.current
-    Box(
-        Modifier.fillMaxWidth().height(46.dp).clip(RoundedCornerShape(14.dp)).background(t.fill).clickable(onClick = onClick),
-        contentAlignment = Alignment.Center,
-    ) { Text(text, color = t.text, fontWeight = FontWeight.Bold) }
-}

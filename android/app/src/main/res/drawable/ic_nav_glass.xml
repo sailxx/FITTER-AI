@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Стакан воды -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp" android:height="24dp" android:viewportWidth="24" android:viewportHeight="24">
+    <path android:strokeColor="#FF000000" android:strokeWidth="2" android:strokeLineCap="round" android:strokeLineJoin="round" android:fillColor="#00000000" android:pathData="M5.5,3h13l-1.6,17.1a1,1 0,0 1,-1 0.9H8.1a1,1 0,0 1,-1 -0.9zM6.6,10.5c2,-0.9 3.6,-0.9 5.4,0s3.4,0.9 5.4,0"/>
+</vector>

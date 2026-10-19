@@ -3073,6 +3073,24 @@ async function api(request, url, env) {
       await saveDay(env, u.id, body.date, day);
       return json({ ok: true });
     }
+    // Ручная правка продукта из приложения: название, вес и КБЖУ порции; храним пересчитанными на 100 г
+    if (url.pathname === "/api/item/set") {
+      const it = meal.items[Number(body.idx)];
+      const g = Number(body.grams);
+      if (!it || !(g > 0 && g <= 3000)) return json({ error: "bad grams" }, 400);
+      const per100 = (x, max) => {
+        const n = Number(x);
+        return Number.isFinite(n) && n >= 0 && (n * 100) / g <= max ? r1((n * 100) / g) : null;
+      };
+      const vals = [per100(body.kcal, 900), per100(body.p, 100), per100(body.f, 100), per100(body.c, 100)];
+      if (vals.includes(null)) return json({ error: "bad values" }, 400);
+      const name = String(body.name || "").trim().slice(0, 60);
+      if (name) it.name = name;
+      it.grams = round(g);
+      [it.kcal_100, it.protein_100, it.fat_100, it.carbs_100] = vals;
+      await saveDay(env, u.id, body.date, day);
+      return json({ ok: true });
+    }
     if (url.pathname === "/api/item/rename") {
       const idx = Number(body.idx);
       const name = String(body.name || "").trim().slice(0, 60);

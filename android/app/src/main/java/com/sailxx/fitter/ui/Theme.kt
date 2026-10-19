@@ -54,6 +54,15 @@ object Palette {
     val Water2 = Color(0xFF2A7BF0)
     val Water = Water2
     val Pill = Color(0xFF8F5BFF)
+
+    // Экран «Сегодня» в стиле «Ночь»: плитки тонированы цветом своего показателя
+    val MacroP = Color(0xFFEC6A6A)
+    val MacroC = Color(0xFFE3A35E)
+    val MacroF = Color(0xFF5C92E6)
+    val WaterTile = Color(0xFF4FB3FF)
+    val WaterInk = Color(0xFF2A7BF0)
+    val PillTile = Color(0xFFA98BFF)
+    val PillInk = Color(0xFF7B5CF0)
 }
 
 /** Токены поверхности: фон, карточки, подписи — свои для светлой и тёмной темы. */
@@ -69,13 +78,14 @@ data class Tokens(
     val dark: Boolean,
 )
 
+// Нейтральные цвета в духе Cal AI: графитовый фон и карточки чуть светлее, в светлой теме — белые карточки на сером
 private val LightTokens = Tokens(
-    bg = Color(0xFFF6FAF7), card = Color.White, text = Color(0xFF13201A), hint = Color(0xFF7F8C85),
-    line = Color(0x1413201A), edge = Color(0x0B13201A), fill = Color(0x0A13201A), shadow = true, dark = false,
+    bg = Color(0xFFF3F3F6), card = Color.White, text = Color(0xFF111114), hint = Color(0xFF8A8A94),
+    line = Color(0x14111114), edge = Color(0x0A111114), fill = Color(0x0D111114), shadow = true, dark = false,
 )
 private val DarkTokens = Tokens(
-    bg = Color(0xFF0C100E), card = Color(0xFF161C19), text = Color(0xFFEEF3F0), hint = Color(0xFF8B968F),
-    line = Color(0x14FFFFFF), edge = Color(0x0FFFFFFF), fill = Color(0x12FFFFFF), shadow = false, dark = true,
+    bg = Color(0xFF1B1B20), card = Color(0xFF26262D), text = Color(0xFFF4F4F6), hint = Color(0xFF9A9AA6),
+    line = Color(0x14FFFFFF), edge = Color(0x0DFFFFFF), fill = Color(0x14FFFFFF), shadow = false, dark = true,
 )
 
 val LocalTokens = staticCompositionLocalOf { LightTokens }

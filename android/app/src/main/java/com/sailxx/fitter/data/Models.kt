@@ -48,7 +48,10 @@ data class Summary(
 }
 
 /** Приём пищи из дневника — часть ответа /api/day. */
-data class Meal(val id: String, val time: String, val title: String, val kcal: Int, val p: Int, val f: Int, val c: Int)
+data class Meal(val id: String, val time: String, val title: String, val kcal: Int, val p: Int, val f: Int, val c: Int, val items: List<MealItem> = emptyList())
+
+/** Продукт в приёме пищи: вес и КБЖУ порции (не на 100 г). */
+data class MealItem(val name: String, val grams: Int, val kcal: Double, val p: Double, val f: Double, val c: Double)
 
 /** Таблетка на сегодня: s = "taken" | "skip" | "" (ещё не отмечена). */
 data class PillDose(val id: String, val name: String, val dose: String, val time: String, val s: String)
@@ -56,12 +59,23 @@ data class PillDose(val id: String, val name: String, val dose: String, val time
 /** День недели в шапке: сколько калорий и были ли записи. */
 data class WeekDay(val date: String, val kcal: Int, val meals: Int)
 
-data class Day(val date: String, val today: String, val meals: List<Meal>, val pills: List<PillDose>, val week: List<WeekDay>) {
+/** Запись веса: дата и килограммы. */
+data class WeightPoint(val date: String, val kg: Double)
+
+data class Day(
+    val date: String,
+    val today: String,
+    val meals: List<Meal>,
+    val pills: List<PillDose>,
+    val week: List<WeekDay>,
+    val weights: List<WeightPoint> = emptyList(),
+) {
     companion object {
         fun parse(j: JSONObject): Day {
             val meals = j.optJSONArray("meals")
             val pills = j.optJSONArray("pills")
             val week = j.optJSONArray("week")
+            val weights = j.optJSONArray("weights")
             return Day(
                 date = j.optString("date"),
                 today = j.optString("today"),
@@ -72,6 +86,16 @@ data class Day(val date: String, val today: String, val meals: List<Meal>, val p
                         id = m.optString("id"), time = m.optString("time"), title = m.optString("title"),
                         kcal = t.optDouble("kcal", 0.0).roundToInt(), p = t.optDouble("p", 0.0).roundToInt(),
                         f = t.optDouble("f", 0.0).roundToInt(), c = t.optDouble("c", 0.0).roundToInt(),
+                        items = m.optJSONArray("items").let { arr ->
+                            (0 until (arr?.length() ?: 0)).map { k ->
+                                val it = arr!!.getJSONObject(k)
+                                val tt = it.optJSONObject("totals") ?: JSONObject()
+                                MealItem(
+                                    it.optString("name"), it.optDouble("grams", 0.0).roundToInt(),
+                                    tt.optDouble("kcal", 0.0), tt.optDouble("p", 0.0), tt.optDouble("f", 0.0), tt.optDouble("c", 0.0),
+                                )
+                            }
+                        },
                     )
                 },
                 pills = (0 until (pills?.length() ?: 0)).map { i ->
@@ -81,6 +105,10 @@ data class Day(val date: String, val today: String, val meals: List<Meal>, val p
                 week = (0 until (week?.length() ?: 0)).map { i ->
                     val w = week!!.getJSONObject(i)
                     WeekDay(w.optString("date"), w.optInt("kcal"), w.optInt("meals"))
+                },
+                weights = (0 until (weights?.length() ?: 0)).mapNotNull { i ->
+                    val w = weights!!.getJSONObject(i)
+                    w.optDouble("kg").takeIf { !it.isNaN() }?.let { WeightPoint(w.optString("date"), it) }
                 },
             )
         }
