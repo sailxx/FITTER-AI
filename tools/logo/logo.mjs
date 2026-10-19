@@ -103,3 +103,15 @@ export const launcherFg = () => svg1024(fgBody());
 
 // Аватар бота в Telegram: иконка приложения без полей, Telegram сам обрежет кругом
 export const botAvatar = () => `<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="171 171 682 682">${bgBody('.35')}${fgBody()}</svg>\n`;
+
+// Тёмная иконка Android (выбирается в настройках приложения): тот же логотип целиком — плитка с листиком —
+// на чёрном фоне. DARK_SCALE подобран так, чтобы углы плитки и листик остались в безопасной зоне.
+export const DARK_SCALE = 0.6;
+const darkBgBody = () => `<defs><radialGradient id="db" cx="512" cy="560" r="560" gradientUnits="userSpaceOnUse">
+  <stop offset="0" stop-color="#0C2A1D"/><stop offset=".55" stop-color="#05110C"/><stop offset="1" stop-color="#000"/></radialGradient></defs>
+<rect width="1024" height="1024" fill="url(#db)"/>`;
+// Центр логотипа с листиком — около (512, 500): опускаем на 12, чтобы стоял по центру
+const darkFgBody = () => `<g transform="translate(512 512) scale(${DARK_SCALE}) translate(-512 -500)">${logoBody('dk')}</g>`;
+
+export const launcherDarkBg = () => svg1024(darkBgBody());
+export const launcherDarkFg = () => svg1024(darkFgBody());
