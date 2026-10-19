@@ -5,7 +5,7 @@ import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { CROP, FACE, FG_LEAF, FG_SCALE, LEAF, launcherBg, launcherFg, logoSvg } from "./logo.mjs";
+import { CROP, FACE, FG_LEAF, FG_SCALE, LEAF, botAvatar, launcherBg, launcherFg, logoSvg } from "./logo.mjs";
 
 const CHROME = process.env.CHROME || "C:/Program Files/Google/Chrome/Application/chrome.exe";
 const root = path.resolve(import.meta.dirname, "../..");
@@ -25,7 +25,7 @@ const PNG = [
   ["docs/icon-120.png", small, 120, "transparent"],
   ["docs/icon-180.png", small, 180, "#000"],
   ["assets/logo/fitter-logo-1024.png", full, 1024, "transparent"],
-  ["assets/logo/fitter-avatar-640.png", full, 640, "#fff"],
+  ["assets/logo/fitter-avatar-640.png", botAvatar(), 640, "transparent"],
   // Android: значок экрана входа (120 dp) и виджета, слои адаптивной иконки (108 dp × xxxhdpi)
   [`${RES}/drawable-nodpi/ic_logo.png`, small, 480, "transparent"],
   [`${RES}/drawable-nodpi/ic_launcher_background.png`, launcherBg(), 432, "transparent"],

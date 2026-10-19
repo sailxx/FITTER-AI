@@ -87,13 +87,19 @@ export const FG_LEAF = { x: 475, y: 315, s: 0.66 };
 const svg1024 = body => `<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">${body}</svg>\n`;
 
 // Фон: градиент плитки, блик и зерно на весь квадрат (зерно крупнее — иконка рендерится мелко)
-export const launcherBg = () => svg1024(fill(`${DEFS}
+const bgBody = (freq = '.22') => fill(`${DEFS}
 <rect width="1024" height="1024" fill="url(#$body)"/>
 <ellipse cx="560" cy="1060" rx="640" ry="300" fill="#0E9E8C" opacity=".35" filter="url(#$shadow)"/>
 <ellipse cx="460" cy="250" rx="320" ry="110" fill="url(#$gloss)" filter="url(#$soft)"/>
-<rect width="1024" height="1024" filter="url(#$grain)" opacity=".9"/>`, 'ab', '.22'));
+<rect width="1024" height="1024" filter="url(#$grain)" opacity=".9"/>`, 'ab', freq);
 
 // Передний план: светлый листик (на зелёном фоне), вспышка и объективы
-export const launcherFg = () => svg1024(fill(`${DEFS}
+const fgBody = () => fill(`${DEFS}
 ${leaf(FG_LEAF.x, FG_LEAF.y, FG_LEAF.s, ['#E4FFCC', '#8FDB6E'])}
-<g transform="translate(512 512) scale(${FG_SCALE}) translate(-512 -512)">${face()}</g>`, 'af'));
+<g transform="translate(512 512) scale(${FG_SCALE}) translate(-512 -512)">${face()}</g>`, 'af');
+
+export const launcherBg = () => svg1024(bgBody());
+export const launcherFg = () => svg1024(fgBody());
+
+// Аватар бота в Telegram: иконка приложения без полей, Telegram сам обрежет кругом
+export const botAvatar = () => `<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="171 171 682 682">${bgBody('.35')}${fgBody()}</svg>\n`;
