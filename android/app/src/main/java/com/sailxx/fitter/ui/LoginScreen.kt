@@ -302,8 +302,7 @@ private fun Logo() {
         Image(
             painterResource(R.drawable.ic_logo), "FITTER",
             Modifier.size(120.dp)
-                .graphicsLayer { val s = enter.value * breathe; scaleX = s; scaleY = s; alpha = enter.value.coerceIn(0f, 1f) }
-                .shadow(22.dp, RoundedCornerShape(28.dp), spotColor = Color(0x8812E97C), ambientColor = Color(0x4412E97C)),
+                .graphicsLayer { val s = enter.value * breathe; scaleX = s; scaleY = s; alpha = enter.value.coerceIn(0f, 1f) },
         )
     }
 }
