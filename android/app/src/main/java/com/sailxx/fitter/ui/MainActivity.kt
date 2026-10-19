@@ -87,6 +87,7 @@ import com.sailxx.fitter.data.FitterRepository
 import com.sailxx.fitter.data.LiveSync
 import com.sailxx.fitter.data.ThemePref
 import com.sailxx.fitter.data.WidgetPrefs
+import com.sailxx.fitter.notify.Reminders
 import com.sailxx.fitter.widget.SyncWorker
 import com.sailxx.fitter.widget.updateFitterWidgets
 import com.sailxx.fitter.R
@@ -119,6 +120,7 @@ class MainActivity : ComponentActivity() {
         Launch.read(intent)
         ThemePref.load(this)
         WidgetPrefs.load(this)
+        Reminders.schedule(this)
         setContent {
             val mode by ThemePref.mode.collectAsState()
             FitterTheme(mode) {

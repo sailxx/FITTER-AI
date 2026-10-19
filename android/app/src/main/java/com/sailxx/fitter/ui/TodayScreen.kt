@@ -354,7 +354,8 @@ private fun MacroTile(@DrawableRes icon: Int, gen: String, value: Int, max: Int,
     val left = max - value
     val ok = max > 0 && value >= max * 0.9 && value <= max * 1.1
     val over = max > 0 && !ok && left < 0
-    Column(modifier.rise(delay).calCard().padding(start = 14.dp, end = 10.dp, top = 16.dp, bottom = 16.dp)) {
+    // Лёгкий оттенок цвета нутриента поверх карточки: белки, углеводы и жиры различаются с первого взгляда
+    Column(modifier.rise(delay).calCard().background(color.copy(alpha = if (t.dark) 0.13f else 0.10f)).padding(start = 14.dp, end = 10.dp, top = 16.dp, bottom = 16.dp)) {
         Text(
             when { max == 0 || ok -> "$value г"; over -> "${-left} г"; else -> "$left г" },
             fontSize = 20.sp, fontWeight = FontWeight.ExtraBold, color = t.text, maxLines = 1, letterSpacing = (-0.3).sp,
@@ -367,7 +368,7 @@ private fun MacroTile(@DrawableRes icon: Int, gen: String, value: Int, max: Int,
         Spacer(Modifier.height(14.dp))
         Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
             ProgressRing(if (max > 0) value.toFloat() / max else 0f, if (over) Palette.Danger else color, 66.dp, 9.dp, delay) {
-                Box(Modifier.size(28.dp).background(t.fill, CircleShape), contentAlignment = Alignment.Center) {
+                Box(Modifier.size(28.dp).background(color.copy(alpha = 0.18f), CircleShape), contentAlignment = Alignment.Center) {
                     Icon(painterResource(icon), null, Modifier.size(15.dp), tint = color)
                 }
             }

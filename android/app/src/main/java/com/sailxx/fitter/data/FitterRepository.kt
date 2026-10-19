@@ -4,6 +4,7 @@ import android.content.Context
 import android.content.SharedPreferences
 import android.os.Build
 import android.util.Log
+import com.sailxx.fitter.notify.Reminders
 import com.sailxx.fitter.widget.SyncWorker
 import com.sailxx.fitter.widget.updateFitterWidgets
 import kotlinx.coroutines.async
@@ -93,6 +94,8 @@ object FitterRepository {
         } finally {
             load(context)
             updateFitterWidgets(context)
+            // Таблетки и вход могли измениться — пересчитываем будильники напоминаний
+            Reminders.schedule(context)
         }
     }
 
@@ -145,6 +148,7 @@ object FitterRepository {
         _state.value = _state.value.copy(error = null)
         load(context)
         updateFitterWidgets(context)
+        Reminders.schedule(context)
     }
 
     /** Сегодняшняя дата по часовому поясу из анкеты: её знает сервер, иначе — дата телефона. */
@@ -197,5 +201,6 @@ object FitterRepository {
         SyncWorker.cancel(context)
         load(context)
         updateFitterWidgets(context)
+        Reminders.schedule(context)
     }
 }
