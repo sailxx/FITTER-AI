@@ -78,13 +78,13 @@ data class Tokens(
     val dark: Boolean,
 )
 
-// Нейтральные цвета в духе Cal AI: графитовый фон и карточки чуть светлее, в светлой теме — белые карточки на сером
+// Чистый белый фон в светлой теме и OLED-чёрный в тёмной; карточки чуть отличаются от фона
 private val LightTokens = Tokens(
-    bg = Color(0xFFF3F3F6), card = Color.White, text = Color(0xFF111114), hint = Color(0xFF8A8A94),
-    line = Color(0x14111114), edge = Color(0x0A111114), fill = Color(0x0D111114), shadow = true, dark = false,
+    bg = Color.White, card = Color(0xFFF4F4F6), text = Color(0xFF111114), hint = Color(0xFF8A8A94),
+    line = Color(0x14111114), edge = Color(0x0A111114), fill = Color(0x0D111114), shadow = false, dark = false,
 )
 private val DarkTokens = Tokens(
-    bg = Color(0xFF1B1B20), card = Color(0xFF26262D), text = Color(0xFFF4F4F6), hint = Color(0xFF9A9AA6),
+    bg = Color.Black, card = Color(0xFF141417), text = Color(0xFFF4F4F6), hint = Color(0xFF9A9AA6),
     line = Color(0x14FFFFFF), edge = Color(0x0DFFFFFF), fill = Color(0x14FFFFFF), shadow = false, dark = true,
 )
 
