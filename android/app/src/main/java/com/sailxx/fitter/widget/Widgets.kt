@@ -394,10 +394,12 @@ class WaterWidget : FitterWidget() {
         }
 
         if (wide) {
-            Row(GlanceModifier.fillMaxSize(), verticalAlignment = Alignment.CenterVertically) {
+            // Стакан и текст — одной группой по центру; колонка не шире, чем нужно стаканчикам
+            val gap = dp(16f, k)
+            val col = minOf(w - glassW - gap, dp(170f, k))
+            Row(GlanceModifier.fillMaxSize(), horizontalAlignment = Alignment.CenterHorizontally, verticalAlignment = Alignment.CenterVertically) {
                 Bmp(glass, glassW, glassH)
-                Spacer(GlanceModifier.width(dp(16f, k)))
-                val col = w - glassW - dp(16f, k)
+                Spacer(GlanceModifier.width(gap))
                 Column(GlanceModifier.width(col)) {
                     info()
                     Spacer(GlanceModifier.height(dp(8f, k)))
@@ -407,8 +409,8 @@ class WaterWidget : FitterWidget() {
                 }
             }
         } else {
-            Column(GlanceModifier.fillMaxSize()) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
+            Column(GlanceModifier.fillMaxSize(), horizontalAlignment = Alignment.CenterHorizontally) {
+                Row(GlanceModifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally, verticalAlignment = Alignment.CenterVertically) {
                     Bmp(glass, glassW, glassH)
                     Spacer(GlanceModifier.width(dp(12f, k)))
                     Column { info() }
