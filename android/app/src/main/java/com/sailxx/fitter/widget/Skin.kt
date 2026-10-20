@@ -56,11 +56,8 @@ fun bgBitmap(s: Skin, wPx: Int, hPx: Int, density: Float): Bitmap {
     val c = Canvas(bmp)
     val a = s.look.opacity / 100f
     val r = s.look.corners * density
-    val inset = density / 2
-    val rect = RectF(inset, inset, wPx - inset, hPx - inset)
+    val rect = RectF(0f, 0f, wPx.toFloat(), hPx.toFloat())
     c.drawRoundRect(rect, r, r, paint(s.base.copy(alpha = a)))
-    // Тонкая рамка видна и у прозрачного виджета: края не теряются на обоях
-    c.drawRoundRect(rect, r, r, paint(s.edge.copy(alpha = s.edge.alpha * (0.5f + a / 2)), density).apply { strokeCap = Paint.Cap.BUTT })
     return bmp
 }
 
