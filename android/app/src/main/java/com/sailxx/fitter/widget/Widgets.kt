@@ -345,16 +345,30 @@ class TodayWidget : FitterWidget() {
     }
 }
 
-// ───────────────────────────── «Вода» 2×2 (растягивается) ─────────────────────────────
+// ───────────────────────────── «Вода» 1×1 и 2×2 (растягивается) ─────────────────────────────
 
 class WaterWidget : FitterWidget() {
+    override val pad = 8.dp
+
     @Composable
     override fun Content(g: Skin, s: Summary, st: AppState) {
         val ctx = LocalContext.current
         val size = LocalSize.current
-        val w = size.width - 28.dp
-        val h = size.height - 28.dp
+        val w = size.width - 16.dp
+        val h = size.height - 16.dp
         val water = if (g.dark) Color(0xFF8FD0FF) else Palette.Water2
+        if (minOf(size.width, size.height) < 100.dp) {
+            // 1×1: стакан и литры под ним
+            val lvl = if (s.waterGoal > 0) s.water.toFloat() / s.waterGoal else 0f
+            val gh = (minOf(w, h).value * 0.58f).dp
+            val gw = gh / 1.35f
+            Column(GlanceModifier.fillMaxSize(), horizontalAlignment = Alignment.CenterHorizontally, verticalAlignment = Alignment.CenterVertically) {
+                Bmp(glassBitmap(lvl, water, gw.px(ctx), gh.px(ctx)), gw, gh)
+                Spacer(GlanceModifier.height(2.dp))
+                T(liters(s.water), (minOf(w, h).value * 0.26f).sp, g.ink, bold = true)
+            }
+            return
+        }
         val all = maxOf(1, (s.waterGoal + CUP - 1) / CUP)
         val on = s.water / CUP
         val level = if (s.waterGoal > 0) s.water.toFloat() / s.waterGoal else 0f
