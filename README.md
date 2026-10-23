@@ -4,9 +4,9 @@
 
 <br>
 
-<img src="assets/readme/hero-ru.svg" width="100%" alt="FITTER — Сфоткай еду. ИИ посчитает калории. Счётчик калорий и БЖУ прямо в Telegram.">
+<img src="assets/readme/hero-ru.svg" width="100%" alt="FITTER — Сфоткай еду. ИИ посчитает калории. Приложение с виджетами: калории и БЖУ по фото. Есть и бот в Telegram.">
 
-<a href="https://t.me/FitterFoodBot?start=github"><img src="assets/readme/cta-bot.svg" height="52" alt="Открыть @FitterFoodBot в Telegram"></a>&nbsp;&nbsp;<a href="https://sailxx.github.io/FITTER-AI/"><img src="assets/readme/cta-site.svg" height="52" alt="Сайт FITTER"></a>
+<a href="https://github.com/sailxx/FITTER-AI/releases/latest/download/Fitter.apk"><img src="assets/readme/cta-app.svg" height="52" alt="Скачать Fitter.apk"></a>&nbsp;&nbsp;<a href="https://t.me/FitterFoodBot?start=github"><img src="assets/readme/cta-bot.svg" height="52" alt="Открыть @FitterFoodBot в Telegram"></a>&nbsp;&nbsp;<a href="https://sailxx.github.io/FITTER-AI/"><img src="assets/readme/cta-site.svg" height="52" alt="Сайт FITTER"></a>
 
 <sub><a href="#-возможности">Возможности</a> · <a href="#-как-это-работает">Как работает</a> · <a href="#-скриншоты">Скриншоты</a> · <a href="https://t.me/arkhitkovv">Связь</a></sub>
 
@@ -21,20 +21,6 @@
 
 ---
 
-## 📸 Скриншоты
-
-<div align="center" id="-скриншоты">
-  <img src="assets/readme/screens-ru.svg" width="100%" alt="Чат с ботом FITTER и дневник питания в Telegram Mini App">
-</div>
-
----
-
-## ✨ Возможности
-
-<p align="center"><img src="assets/readme/features-ru.svg" width="100%" alt="FITTER"></p>
-
----
-
 ## 📱 Приложение для Android
 
 **[Скачать Fitter.apk](https://github.com/sailxx/FITTER-AI/releases/latest/download/Fitter.apk)** · Android 8.0+
@@ -46,6 +32,22 @@
 - Живая синхронизация с ботом: записи появляются сразу
 - «Советы ИИ»: что съесть сейчас и разбор недели
 - «Тренировки»: дневник занятий — 140+ упражнений для зала и дома, свои упражнения, подходы с весом и повторами, отметка «легко / средне / сложно»
+
+---
+
+## 📸 Скриншоты
+
+<div align="center" id="-скриншоты">
+  <img src="assets/readme/screens-ru.svg" width="100%" alt="Приложение Fitter для Android: экран «Сегодня» в светлой и тёмной теме, вода, таблетки и еда">
+</div>
+
+---
+
+## ✨ Возможности
+
+<p align="center"><img src="assets/readme/features-ru.svg" width="100%" alt="FITTER"></p>
+
+---
 
 ## 🤖 Команды
 

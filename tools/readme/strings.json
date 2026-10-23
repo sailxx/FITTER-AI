@@ -1,70 +1,70 @@
 {
   "ru": {
-    "tag": "TELEGRAM-БОТ · ИИ · БЕСПЛАТНО", "l1": "Сфоткай еду.", "l2": "ИИ посчитает калории.",
-    "sub": "Счётчик калорий и БЖУ прямо в Telegram. Без установки и регистрации.", "kcal": "ККАЛ",
+    "tag": "ПРИЛОЖЕНИЕ ДЛЯ ANDROID · ИИ · БЕСПЛАТНО", "l1": "Сфоткай еду.", "l2": "ИИ посчитает калории.",
+    "sub": "Приложение с виджетами: калории и БЖУ по фото. Есть и бот в Telegram.", "kcal": "ККАЛ",
     "s1": "Фото или текст", "s1b": "«2 яйца и тост»",
     "s2": "ИИ находит продукты", "s2b": "вес и КБЖУ за ~8 секунд",
     "s3": "Запись в дневник", "s3b": "кольцо, вода, вес"
   },
   "en": {
-    "tag": "TELEGRAM BOT · AI · FREE", "l1": "Snap your meal.", "l2": "AI counts the calories.",
-    "sub": "A calorie and macro tracker that lives in Telegram. Nothing to install.", "kcal": "KCAL",
+    "tag": "ANDROID APP · AI · FREE", "l1": "Snap your meal.", "l2": "AI counts the calories.",
+    "sub": "An app with widgets: calories and macros from a photo. Also available as a Telegram bot.", "kcal": "KCAL",
     "s1": "Photo or text", "s1b": "“2 eggs and toast”",
     "s2": "AI finds the food", "s2b": "grams and macros in ~8 s",
     "s3": "Saved to your diary", "s3b": "ring, water, weight"
   },
   "es": {
-    "tag": "BOT DE TELEGRAM · IA · GRATIS", "l1": "Fotografía tu comida.", "l2": "La IA cuenta las calorías.",
-    "sub": "Contador de calorías y macros dentro de Telegram. Sin instalar nada.", "kcal": "KCAL",
+    "tag": "APP PARA ANDROID · IA · GRATIS", "l1": "Fotografía tu comida.", "l2": "La IA cuenta las calorías.",
+    "sub": "App con widgets: calorías y macros a partir de una foto. También como bot de Telegram.", "kcal": "KCAL",
     "s1": "Foto o texto", "s1b": "«2 huevos y una tostada»",
     "s2": "La IA reconoce la comida", "s2b": "gramos y macros en ~8 s",
     "s3": "Guardado en tu diario", "s3b": "anillo, agua, peso"
   },
   "pt": {
-    "tag": "BOT DO TELEGRAM · IA · GRÁTIS", "l1": "Fotografe sua refeição.", "l2": "A IA conta as calorias.",
-    "sub": "Contador de calorias e macros dentro do Telegram. Sem instalar nada.", "kcal": "KCAL",
+    "tag": "APP PARA ANDROID · IA · GRÁTIS", "l1": "Fotografe sua refeição.", "l2": "A IA conta as calorias.",
+    "sub": "App com widgets: calorias e macros a partir de uma foto. Também como bot do Telegram.", "kcal": "KCAL",
     "s1": "Foto ou texto", "s1b": "“2 ovos e uma torrada”",
     "s2": "A IA reconhece a comida", "s2b": "gramas e macros em ~8 s",
     "s3": "Salvo no seu diário", "s3b": "anel, água, peso"
   },
   "de": {
-    "tag": "TELEGRAM-BOT · KI · KOSTENLOS", "l1": "Fotografiere dein Essen.", "l2": "Die KI zählt die Kalorien.",
-    "sub": "Kalorien- und Makro-Tracker direkt in Telegram. Ohne Installation.", "kcal": "KCAL",
+    "tag": "ANDROID-APP · KI · KOSTENLOS", "l1": "Fotografiere dein Essen.", "l2": "Die KI zählt die Kalorien.",
+    "sub": "App mit Widgets: Kalorien und Makros per Foto. Auch als Telegram-Bot verfügbar.", "kcal": "KCAL",
     "s1": "Foto oder Text", "s1b": "„2 Eier und Toast“",
     "s2": "Die KI erkennt das Essen", "s2b": "Gramm und Makros in ~8 s",
     "s3": "Im Tagebuch gespeichert", "s3b": "Ring, Wasser, Gewicht"
   },
   "fr": {
-    "tag": "BOT TELEGRAM · IA · GRATUIT", "l1": "Prends ton repas en photo.", "l2": "L’IA compte les calories.",
-    "sub": "Compteur de calories et de macros dans Telegram. Rien à installer.", "kcal": "KCAL",
+    "tag": "APPLI ANDROID · IA · GRATUIT", "l1": "Prends ton repas en photo.", "l2": "L’IA compte les calories.",
+    "sub": "Appli avec widgets : calories et macros depuis une photo. Aussi en bot Telegram.", "kcal": "KCAL",
     "s1": "Photo ou texte", "s1b": "« 2 œufs et un toast »",
     "s2": "L’IA reconnaît les plats", "s2b": "grammes et macros en ~8 s",
     "s3": "Enregistré dans ton journal", "s3b": "anneau, eau, poids"
   },
   "it": {
-    "tag": "BOT TELEGRAM · IA · GRATIS", "l1": "Fotografa il tuo piatto.", "l2": "L’IA conta le calorie.",
-    "sub": "Contacalorie e macro direttamente in Telegram. Niente da installare.", "kcal": "KCAL",
+    "tag": "APP PER ANDROID · IA · GRATIS", "l1": "Fotografa il tuo piatto.", "l2": "L’IA conta le calorie.",
+    "sub": "App con widget: calorie e macro da una foto. Disponibile anche come bot Telegram.", "kcal": "KCAL",
     "s1": "Foto o testo", "s1b": "«2 uova e un toast»",
     "s2": "L’IA riconosce il cibo", "s2b": "grammi e macro in ~8 s",
     "s3": "Salvato nel tuo diario", "s3b": "anello, acqua, peso"
   },
   "tr": {
-    "tag": "TELEGRAM BOTU · YZ · ÜCRETSİZ", "l1": "Yemeğinin fotoğrafını çek.", "l2": "Kalorileri YZ saysın.",
-    "sub": "Telegram içinde kalori ve makro takibi. Kurulum gerekmez.", "kcal": "KCAL",
+    "tag": "ANDROID UYGULAMASI · YZ · ÜCRETSİZ", "l1": "Yemeğinin fotoğrafını çek.", "l2": "Kalorileri YZ saysın.",
+    "sub": "Widget’lı uygulama: fotoğraftan kalori ve makro. Telegram botu olarak da var.", "kcal": "KCAL",
     "s1": "Fotoğraf veya metin", "s1b": "“2 yumurta ve tost”",
     "s2": "YZ yemeği tanır", "s2b": "~8 sn'de gram ve makrolar",
     "s3": "Günlüğüne kaydedilir", "s3b": "halka, su, kilo"
   },
   "uk": {
-    "tag": "TELEGRAM-БОТ · ШІ · БЕЗКОШТОВНО", "l1": "Сфотографуй їжу.", "l2": "ШІ порахує калорії.",
-    "sub": "Лічильник калорій і БЖВ просто в Telegram. Без встановлення.", "kcal": "ККАЛ",
+    "tag": "ANDROID-ЗАСТОСУНОК · ШІ · БЕЗКОШТОВНО", "l1": "Сфотографуй їжу.", "l2": "ШІ порахує калорії.",
+    "sub": "Застосунок із віджетами: калорії та БЖВ за фото. Є й бот у Telegram.", "kcal": "ККАЛ",
     "s1": "Фото або текст", "s1b": "«2 яйця і тост»",
     "s2": "ШІ знаходить продукти", "s2b": "вага і КБЖВ за ~8 секунд",
     "s3": "Запис у щоденник", "s3b": "кільце, вода, вага"
   },
   "pl": {
-    "tag": "BOT TELEGRAM · AI · ZA DARMO", "l1": "Zrób zdjęcie posiłku.", "l2": "AI policzy kalorie.",
-    "sub": "Licznik kalorii i makro prosto w Telegramie. Bez instalowania.", "kcal": "KCAL",
+    "tag": "APLIKACJA NA ANDROID · AI · ZA DARMO", "l1": "Zrób zdjęcie posiłku.", "l2": "AI policzy kalorie.",
+    "sub": "Aplikacja z widżetami: kalorie i makro ze zdjęcia. Jest też bot w Telegramie.", "kcal": "KCAL",
     "s1": "Zdjęcie lub tekst", "s1b": "„2 jajka i tost”",
     "s2": "AI rozpoznaje jedzenie", "s2b": "gramy i makro w ~8 s",
     "s3": "Zapis w dzienniku", "s3b": "pierścień, woda, waga"
