@@ -4,9 +4,9 @@
 
 <br>
 
-<img src="assets/readme/hero-uk.svg" width="100%" alt="FITTER — Сфотографуй їжу. ШІ порахує калорії. Лічильник калорій і БЖВ просто в Telegram.">
+<img src="assets/readme/hero-uk.svg" width="100%" alt="FITTER — Сфотографуй їжу. ШІ порахує калорії. Застосунок із віджетами: калорії та БЖВ за фото. Є й бот у Telegram.">
 
-<a href="https://t.me/FitterFoodBot?start=github"><img src="assets/readme/cta-bot.svg" height="52" alt="Відкрити @FitterFoodBot у Telegram"></a>&nbsp;&nbsp;<a href="https://sailxx.github.io/FITTER-AI/"><img src="assets/readme/cta-site.svg" height="52" alt="Сайт FITTER"></a>
+<a href="https://github.com/sailxx/FITTER-AI/releases/latest/download/Fitter.apk"><img src="assets/readme/cta-app.svg" height="52" alt="Завантажити Fitter.apk"></a>&nbsp;&nbsp;<a href="https://t.me/FitterFoodBot?start=github"><img src="assets/readme/cta-bot.svg" height="52" alt="Відкрити @FitterFoodBot у Telegram"></a>&nbsp;&nbsp;<a href="https://sailxx.github.io/FITTER-AI/"><img src="assets/readme/cta-site.svg" height="52" alt="Сайт FITTER"></a>
 
 <sub><a href="#-можливості">Можливості</a> · <a href="#-як-це-працює">Як працює</a> · <a href="#-скриншоти">Скриншоти</a> · <a href="https://t.me/arkhitkovv">Зв’язок</a></sub>
 
@@ -27,7 +27,7 @@
 ## 📸 Скриншоти
 
 <div align="center" id="-скриншоти">
-  <img src="assets/readme/screens-uk.svg" width="100%" alt="Чат із ботом FITTER і щоденник харчування в Telegram Mini App">
+  <img src="assets/readme/screens-uk.svg" width="100%" alt="Fitter для Android: екран «Сьогодні» у світлій і темній темі, вода, таблетки й їжа">
 </div>
 
 ---

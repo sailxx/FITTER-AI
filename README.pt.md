@@ -4,9 +4,9 @@
 
 <br>
 
-<img src="assets/readme/hero-pt.svg" width="100%" alt="FITTER — Fotografe sua refeição. A IA conta as calorias. Contador de calorias e macros dentro do Telegram.">
+<img src="assets/readme/hero-pt.svg" width="100%" alt="FITTER — Fotografe sua refeição. A IA conta as calorias. App com widgets: calorias e macros a partir de uma foto. Também como bot do Telegram.">
 
-<a href="https://t.me/FitterFoodBot?start=github"><img src="assets/readme/cta-bot.svg" height="52" alt="Abrir @FitterFoodBot no Telegram"></a>&nbsp;&nbsp;<a href="https://sailxx.github.io/FITTER-AI/"><img src="assets/readme/cta-site.svg" height="52" alt="Site do FITTER"></a>
+<a href="https://github.com/sailxx/FITTER-AI/releases/latest/download/Fitter.apk"><img src="assets/readme/cta-app.svg" height="52" alt="Baixar Fitter.apk"></a>&nbsp;&nbsp;<a href="https://t.me/FitterFoodBot?start=github"><img src="assets/readme/cta-bot.svg" height="52" alt="Abrir @FitterFoodBot no Telegram"></a>&nbsp;&nbsp;<a href="https://sailxx.github.io/FITTER-AI/"><img src="assets/readme/cta-site.svg" height="52" alt="Site do FITTER"></a>
 
 <sub><a href="#-recursos">Recursos</a> · <a href="#-como-funciona">Como funciona</a> · <a href="#-capturas-de-tela">Capturas</a> · <a href="https://t.me/arkhitkovv">Contato</a></sub>
 
@@ -27,7 +27,7 @@
 ## 📸 Capturas de tela
 
 <div align="center" id="-capturas-de-tela">
-  <img src="assets/readme/screens-pt.svg" width="100%" alt="Conversa com o bot FITTER e o diário alimentar em uma Mini App do Telegram">
+  <img src="assets/readme/screens-pt.svg" width="100%" alt="Fitter para Android: tela Hoje nos temas claro e escuro, água, pílulas e refeições">
 </div>
 
 ---

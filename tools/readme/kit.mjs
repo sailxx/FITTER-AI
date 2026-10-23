@@ -139,8 +139,8 @@ ${fontCss(fg, fm)}
 
   const delay = (i) => `style="animation-delay:${(i * 0.09).toFixed(2)}s"`;
 
-  const card = (x, y, w, h, rx = 18) =>
-    `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="${rx}" fill="url(#cg)" stroke="${P.stroke}"/><rect x="${x + rx}" y="${y + .5}" width="${Math.max(0, w - rx * 2)}" height="1" fill="url(#hl)"/>`;
+  const card = (x, y, w, h, rx = 18, tint) =>
+    `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="${rx}" fill="url(#cg)" stroke="${P.stroke}"/>${tint ? `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="${rx}" fill="${tint}" fill-opacity=".08" stroke="${tint}" stroke-opacity=".22"/>` : ''}<rect x="${x + rx}" y="${y + .5}" width="${Math.max(0, w - rx * 2)}" height="1" fill="url(#hl)"/>`;
 
   /** Метка-чип: моно, заглавные. check — галочка цвета акцента. */
   function chip(x, y, text, { check = false, upper = true } = {}) {
@@ -171,9 +171,9 @@ ${fontCss(fg, fm)}
     `<circle cx="${cx}" cy="${cy}" r="${r}" fill="${A.hi}"/><text class="m" x="${cx}" y="${cy + 5}" text-anchor="middle" font-size="15" font-weight="700" fill="${A.on}">${T(String(n))}</text>`;
 
   /** Иконка в квадратике с подсветкой акцента; paths — внутренности 24×24 (stroke). */
-  const iconBox = (x, y, paths, size = 40) =>
-    `<rect x="${x}" y="${y}" width="${size}" height="${size}" rx="11" fill="${A.hi}" fill-opacity=".12" stroke="${A.hi}" stroke-opacity=".28"/>` +
-    `<g transform="translate(${x + (size - 24) / 2} ${y + (size - 24) / 2})" fill="none" stroke="${A.hi}" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">${paths}</g>`;
+  const iconBox = (x, y, paths, size = 40, col = A.hi) =>
+    `<rect x="${x}" y="${y}" width="${size}" height="${size}" rx="12" fill="${col}" fill-opacity=".14" stroke="${col}" stroke-opacity=".32"/>` +
+    `<g transform="translate(${x + (size - 24) / 2} ${y + (size - 24) / 2})" fill="none" stroke="${col}" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">${paths}</g>`;
 
   /** Кнопка 52 px: основная — заливка акцентом, вторая — тёмная. icon(color) → разметка в квадрате 24×24 со сдвигом 18,14. */
   function button(label, icon, primary) {

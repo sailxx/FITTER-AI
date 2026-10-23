@@ -4,9 +4,9 @@
 
 <br>
 
-<img src="assets/readme/hero-tr.svg" width="100%" alt="FITTER — Yemeğinin fotoğrafını çek. Kalorileri YZ saysın. Telegram içinde kalori ve makro takibi.">
+<img src="assets/readme/hero-tr.svg" width="100%" alt="FITTER — Yemeğinin fotoğrafını çek. Kalorileri YZ saysın. Widget’lı uygulama: fotoğraftan kalori ve makro. Telegram botu olarak da var.">
 
-<a href="https://t.me/FitterFoodBot?start=github"><img src="assets/readme/cta-bot.svg" height="52" alt="Telegram'da @FitterFoodBot'u aç"></a>&nbsp;&nbsp;<a href="https://sailxx.github.io/FITTER-AI/"><img src="assets/readme/cta-site.svg" height="52" alt="FITTER web sitesi"></a>
+<a href="https://github.com/sailxx/FITTER-AI/releases/latest/download/Fitter.apk"><img src="assets/readme/cta-app.svg" height="52" alt="Fitter.apk indir"></a>&nbsp;&nbsp;<a href="https://t.me/FitterFoodBot?start=github"><img src="assets/readme/cta-bot.svg" height="52" alt="Telegram'da @FitterFoodBot'u aç"></a>&nbsp;&nbsp;<a href="https://sailxx.github.io/FITTER-AI/"><img src="assets/readme/cta-site.svg" height="52" alt="FITTER web sitesi"></a>
 
 <sub><a href="#-özellikler">Özellikler</a> · <a href="#-nasıl-çalışır">Nasıl çalışır</a> · <a href="#-ekran-görüntüleri">Ekran görüntüleri</a> · <a href="https://t.me/arkhitkovv">İletişim</a></sub>
 
@@ -27,7 +27,7 @@
 ## 📸 Ekran görüntüleri
 
 <div align="center" id="-ekran-görüntüleri">
-  <img src="assets/readme/screens-tr.svg" width="100%" alt="FITTER botuyla sohbet ve Telegram Mini App içindeki yemek günlüğü">
+  <img src="assets/readme/screens-tr.svg" width="100%" alt="Android için Fitter: açık ve koyu temada Bugün ekranı, su, haplar ve öğünler">
 </div>
 
 ---
