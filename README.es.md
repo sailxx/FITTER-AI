@@ -109,10 +109,10 @@ Más información: [política de privacidad](https://sailxx.github.io/FITTER-AI/
 
 ## 🗺 Hoja de ruta
 
-- [x] **v1** Bot en Cloudflare, encuesta, objetivo, registro por foto, diario, peso, agua, etiquetas y códigos de barras
-- [x] **v2** Asistente «Qué comer», pastillas con recordatorios, estadísticas, tema claro y oscuro
-- [x] **v2.6** Nuevo diseño del diario, consejos de macros, gráfico semanal; agua y pastillas renovadas en el bot
-- [ ] **v3.0** Producto: app independiente
+- ✅ **v1** Bot en Cloudflare, encuesta, objetivo, registro por foto, diario, peso, agua, etiquetas y códigos de barras
+- ✅ **v2** Asistente «Qué comer», pastillas con recordatorios, estadísticas, tema claro y oscuro
+- ✅ **v2.6** Nuevo diseño del diario, consejos de macros, gráfico semanal; agua y pastillas renovadas en el bot
+- ✅ **v3.0** Producto: app independiente
 
 Historial completo: [CHANGELOG.md](CHANGELOG.md) (en ruso).
 

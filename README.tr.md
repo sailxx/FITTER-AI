@@ -109,10 +109,10 @@ Ayrıntılar: [gizlilik politikası](https://sailxx.github.io/FITTER-AI/privacy.
 
 ## 🗺 Yol haritası
 
-- [x] **v1** Cloudflare'de bot, anket, hedef, fotoğrafla kayıt, günlük, kilo, su, etiketler ve barkodlar
-- [x] **v2** “Ne yesem” asistanı, hatırlatmalı ilaçlar, istatistikler, açık ve koyu tema
-- [x] **v2.6** Günlüğün yeni görünümü, makro ipuçları, haftalık grafik; botta yenilenen su ve ilaçlar
-- [ ] **v3.0** Ürün: bağımsız uygulama
+- ✅ **v1** Cloudflare'de bot, anket, hedef, fotoğrafla kayıt, günlük, kilo, su, etiketler ve barkodlar
+- ✅ **v2** “Ne yesem” asistanı, hatırlatmalı ilaçlar, istatistikler, açık ve koyu tema
+- ✅ **v2.6** Günlüğün yeni görünümü, makro ipuçları, haftalık grafik; botta yenilenen su ve ilaçlar
+- ✅ **v3.0** Ürün: bağımsız uygulama
 
 Tüm geçmiş: [CHANGELOG.md](CHANGELOG.md) (Rusça).
 

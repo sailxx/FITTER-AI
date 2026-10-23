@@ -109,10 +109,10 @@ Altro: [informativa sulla privacy](https://sailxx.github.io/FITTER-AI/privacy.ht
 
 ## 🗺 Roadmap
 
-- [x] **v1** Bot su Cloudflare, questionario, fabbisogno, registrazione da foto, diario, peso, acqua, etichette e codici a barre
-- [x] **v2** Assistente «Cosa mangiare», integratori con promemoria, statistiche, tema chiaro e scuro
-- [x] **v2.6** Nuovo aspetto del diario, suggerimenti sulle macro, grafico della settimana; acqua e integratori ridisegnati nel bot
-- [ ] **v3.0** Prodotto: app indipendente
+- ✅ **v1** Bot su Cloudflare, questionario, fabbisogno, registrazione da foto, diario, peso, acqua, etichette e codici a barre
+- ✅ **v2** Assistente «Cosa mangiare», integratori con promemoria, statistiche, tema chiaro e scuro
+- ✅ **v2.6** Nuovo aspetto del diario, suggerimenti sulle macro, grafico della settimana; acqua e integratori ridisegnati nel bot
+- ✅ **v3.0** Prodotto: app indipendente
 
 Cronologia completa: [CHANGELOG.md](CHANGELOG.md) (in russo).
 

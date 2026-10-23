@@ -109,10 +109,10 @@ En savoir plus : [politique de confidentialité](https://sailxx.github.io/FITTER
 
 ## 🗺 Feuille de route
 
-- [x] **v1** Bot sur Cloudflare, questionnaire, objectif, saisie par photo, journal, poids, eau, étiquettes et codes-barres
-- [x] **v2** Assistant « Quoi manger », médicaments avec rappels, statistiques, thème clair et sombre
-- [x] **v2.6** Nouveau design du journal, conseils de macros, graphique de la semaine ; eau et médicaments repensés dans le bot
-- [ ] **v3.0** Produit : application autonome
+- ✅ **v1** Bot sur Cloudflare, questionnaire, objectif, saisie par photo, journal, poids, eau, étiquettes et codes-barres
+- ✅ **v2** Assistant « Quoi manger », médicaments avec rappels, statistiques, thème clair et sombre
+- ✅ **v2.6** Nouveau design du journal, conseils de macros, graphique de la semaine ; eau et médicaments repensés dans le bot
+- ✅ **v3.0** Produit : application autonome
 
 Historique complet : [CHANGELOG.md](CHANGELOG.md) (en russe).
 

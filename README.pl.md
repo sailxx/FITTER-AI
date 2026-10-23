@@ -109,10 +109,10 @@ Więcej: [polityka prywatności](https://sailxx.github.io/FITTER-AI/privacy.html
 
 ## 🗺 Plan rozwoju
 
-- [x] **v1** Bot na Cloudflare, ankieta, zapotrzebowanie, zapis ze zdjęcia, dziennik, waga, woda, etykiety i kody kreskowe
-- [x] **v2** Asystent „Co zjeść”, tabletki z przypomnieniami, statystyki, jasny i ciemny motyw
-- [x] **v2.6** Nowy wygląd dziennika, podpowiedzi do makro, wykres tygodnia; odświeżone woda i tabletki w bocie
-- [ ] **v3.0** Produkt: osobna aplikacja
+- ✅ **v1** Bot na Cloudflare, ankieta, zapotrzebowanie, zapis ze zdjęcia, dziennik, waga, woda, etykiety i kody kreskowe
+- ✅ **v2** Asystent „Co zjeść”, tabletki z przypomnieniami, statystyki, jasny i ciemny motyw
+- ✅ **v2.6** Nowy wygląd dziennika, podpowiedzi do makro, wykres tygodnia; odświeżone woda i tabletki w bocie
+- ✅ **v3.0** Produkt: osobna aplikacja
 
 Pełna historia: [CHANGELOG.md](CHANGELOG.md) (po rosyjsku).
 
