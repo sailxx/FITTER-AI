@@ -15,10 +15,10 @@ import java.io.File
 
 /**
  * Фото еды: файл для камеры и сжатие перед отправкой.
- * Нейросети хватает 1280 px по длинной стороне — так фото весит 150–300 КБ и уходит быстро.
+ * Нейросети хватает 1024 px по длинной стороне — так фото весит 100–200 КБ и уходит быстро.
  */
 object Photos {
-    private const val MAX_SIDE = 1280
+    private const val MAX_SIDE = 1024
 
     /** Куда камера сохранит снимок: временный файл в кэше приложения, без разрешений на память. */
     fun cameraUri(context: Context): Uri {
@@ -50,7 +50,7 @@ object Photos {
         val m = Matrix().apply { postScale(scale, scale); postRotate(rotation) }
         val bmp = Bitmap.createBitmap(raw, 0, 0, raw.width, raw.height, m, true)
         val out = ByteArrayOutputStream()
-        bmp.compress(Bitmap.CompressFormat.JPEG, 82, out)
+        bmp.compress(Bitmap.CompressFormat.JPEG, 78, out)
         Base64.encodeToString(out.toByteArray(), Base64.NO_WRAP) to bmp
     }
 }
