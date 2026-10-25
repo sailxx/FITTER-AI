@@ -97,6 +97,7 @@ Click **Deploy** / **Save**.
 | Variable | What it does | Default |
 |---|---|---|
 | `GEMINI_MODEL` | Which Gemini model to use | `gemini-3.5-flash`; if it's unavailable, the bot tries fallbacks itself |
+| `USDA_API_KEY` | Optional **Secret**. A free key from https://fdc.nal.usda.gov/api-key-signup: nutrition per 100 g is then taken from the USDA database instead of the AI's memory | not set |
 | `DAILY_AI_LIMIT` | How many photos and questions a day one person can send | `40` |
 
 ## Update the bot
