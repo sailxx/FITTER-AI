@@ -139,8 +139,8 @@ function features(items) {
 
 // ---------- ЭКРАНЫ ----------
 // Три экрана приложения Fitter для Android (phones.mjs, нарисованы по коду приложения), подписи — about.json (p1–p3).
-function screens(a) {
-  const W = 880, S = 0.66, PH = createPhones(K);
+function screens(a, lang) {
+  const W = 880, S = 0.66, PH = createPhones(K, lang);
   const ph = [['light', 66, a.p1], ['today', 40, a.p2], ['pay', 66, a.p3]];
   const w = 360 * S + 18, gap = 14, x0 = (W - 3 * w - 2 * gap) / 2;
   let b = `<g class="r"><ellipse cx="440" cy="330" rx="400" ry="300" fill="url(#g1)"/></g>`, chips = '';
@@ -162,7 +162,7 @@ for (const [lang, s] of Object.entries(STR)) {
   langs[lang] = () => ({
     [`hero-${lang}.svg`]: hero(s),
     [`about-${lang}.svg`]: about(ABOUT[lang]),
-    [`screens-${lang}.svg`]: screens(ABOUT[lang]),
+    [`screens-${lang}.svg`]: screens(ABOUT[lang], lang),
     [`features-${lang}.svg`]: features(FEAT[lang]),
     // кнопки одни на все языки — собираются вместе с русским набором
     ...(lang === 'ru' ? {
