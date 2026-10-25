@@ -1,180 +1,133 @@
 <div align="center">
 
-**Русский** · [English](README.en.md) · [Español](README.es.md) · [Português](README.pt.md) · [Deutsch](README.de.md) · [Français](README.fr.md) · [Italiano](README.it.md) · [Türkçe](README.tr.md) · [Українська](README.uk.md) · [Polski](README.pl.md)
+<img src="assets/readme/hero-en.svg" width="100%" alt="FITTER — Snap your meal. AI counts the calories. An app with widgets: calories and macros from a photo. Also available as a Telegram bot.">
 
-<br>
+<a href="https://github.com/sailxx/FITTER-AI/releases/latest/download/Fitter.apk"><img src="assets/readme/cta-app.svg" height="52" alt="Download Fitter.apk"></a>&nbsp;&nbsp;<a href="https://t.me/FitterFoodBot?start=github"><img src="assets/readme/cta-bot.svg" height="52" alt="Open @FitterFoodBot in Telegram"></a>&nbsp;&nbsp;<a href="https://sailxx.github.io/FITTER-AI/"><img src="assets/readme/cta-site.svg" height="52" alt="FITTER website"></a>
 
-<img src="assets/readme/hero-ru.svg" width="100%" alt="FITTER — Сфоткай еду. ИИ посчитает калории. Приложение с виджетами: калории и БЖУ по фото. Есть и бот в Telegram.">
-
-<a href="https://github.com/sailxx/FITTER-AI/releases/latest/download/Fitter.apk"><img src="assets/readme/cta-app.svg" height="52" alt="Скачать Fitter.apk"></a>&nbsp;&nbsp;<a href="https://t.me/FitterFoodBot?start=github"><img src="assets/readme/cta-bot.svg" height="52" alt="Открыть @FitterFoodBot в Telegram"></a>&nbsp;&nbsp;<a href="https://sailxx.github.io/FITTER-AI/"><img src="assets/readme/cta-site.svg" height="52" alt="Сайт FITTER"></a>
-
-<sub><a href="#-возможности">Возможности</a> · <a href="#-как-это-работает">Как работает</a> · <a href="#-скриншоты">Скриншоты</a> · <a href="https://t.me/arkhitkovv">Связь</a></sub>
+<sub><a href="#-features">Features</a> · <a href="#-how-it-works">How it works</a> · <a href="#-screenshots">Screenshots</a> · <a href="https://t.me/arkhitkovv">Contact</a></sub>
 
 </div>
 
 <hr />
 
 > [!IMPORTANT]
-> **FITTER оценивает калории приблизительно.** Результат по фото зависит от состава и размера порции, а любую запись можно поправить вручную. Бот не заменяет консультацию врача или диетолога.
+> **FITTER estimates calories approximately.** Photo results depend on the ingredients and portion size, and any entry can be corrected by hand. The bot does not replace advice from a doctor or dietitian.
 
-<p align="center"><img src="assets/readme/about-ru.svg" width="100%" alt="О проекте FITTER"></p>
+> [!NOTE]
+> The bot currently speaks Russian. This page is a translation of the [Russian README](README.md).
 
----
-
-## 📱 Приложение для Android
-
-**[Скачать Fitter.apk](https://github.com/sailxx/FITTER-AI/releases/latest/download/Fitter.apk)** · Android 8.0+
-
-- Вход через бота кнопкой «Войти через Telegram» — без паролей
-- Экран «Сегодня»: кольцо калорий, БЖУ, вода стаканами, таблетки и еда за день
-- 8 виджетов: «Калории», «Сегодня», «Вода» с кнопками, «БЖУ», «Неделя», «Таблетки», «Осталось» и «Фото еды» — белые или чёрные по теме Fitter, прозрачность и содержимое настраиваются
-- Еда прямо в приложении: текстом, снимком с камеры или фото из галереи
-- Живая синхронизация с ботом: записи появляются сразу
-- «Советы ИИ»: что съесть сейчас и разбор недели
-- «Тренировки»: дневник занятий — 140+ упражнений для зала и дома, свои упражнения, подходы с весом и повторами, отметка «легко / средне / сложно»
+<p align="center"><img src="assets/readme/about-en.svg" width="100%" alt="About FITTER"></p>
 
 ---
 
-## 📸 Скриншоты
+## 📸 Screenshots
 
-<div align="center" id="-скриншоты">
-  <img src="assets/readme/screens-ru.svg" width="100%" alt="Приложение Fitter для Android: экран «Сегодня» в светлой и тёмной теме, вода, таблетки и еда">
+<div align="center" id="-screenshots">
+  <img src="assets/readme/screens-en.svg" width="100%" alt="Fitter for Android: the Today screen in light and dark themes, water, pills and meals">
 </div>
 
 ---
 
-## ✨ Возможности
+## ✨ Features
 
-<p align="center"><img src="assets/readme/features-ru.svg" width="100%" alt="FITTER"></p>
+<p align="center"><img src="assets/readme/features-en.svg" width="100%" alt="FITTER"></p>
 
 ---
 
-## 🤖 Команды
+## 🤖 Commands
 
 <div align="center">
 
-| Команда | Что делает |
+| Command | What it does |
 |:---|:---|
-| `/start` | Знакомство и анкета |
-| `/today` · `/week` | Итоги дня и последние 7 дней |
-| `/water` · `/remind` | Вода за сегодня и напоминания |
-| `/advice` | Что съесть: 3 варианта от ИИ |
-| `/pills` | Таблетки: отметить, добавить, удалить |
-| `/weight 72.5` | Записать вес |
-| `/profile` | Профиль и дневная норма |
-| `/awards` · `/analysis` | Достижения и ИИ-разбор недели |
-| `/app` | Открыть дневник |
-| `/reset` · `/help` | Пройти анкету заново и справка |
-| `/delete` | Удалить все свои данные |
+| `/start` | Introduction and survey |
+| `/today` · `/week` | Today’s summary and the last 7 days |
+| `/water` · `/remind` | Today’s water and reminders |
+| `/advice` | What to eat: 3 AI suggestions |
+| `/pills` | Pills: mark, add, delete |
+| `/weight 72.5` | Log your weight |
+| `/profile` | Profile and daily target |
+| `/awards` · `/analysis` | Achievements and AI weekly review |
+| `/app` | Open the diary |
+| `/reset` · `/help` | Retake the survey and help |
+| `/delete` | Delete all your data |
 
 </div>
 
 ---
 
-## 🧠 Как это работает
+## 🧠 How it works
 
 <div align="center">
 
 ```mermaid
 sequenceDiagram
     autonumber
-    actor U as Ты
+    actor U as You
     participant T as Telegram
     participant W as FITTER (Cloudflare Worker)
     participant G as Google Gemini
     participant D as Cloudflare KV
 
-    U->>T: Фото еды
+    U->>T: Photo of a meal
     T->>W: Webhook
-    W->>G: Фото + инструкция
-    G-->>W: Продукты, вес, КБЖУ (JSON)
-    W->>D: Сохранить приём пищи
-    W->>T: Карточка с КБЖУ и кнопками ✏️
-    T-->>U: Ответ за ~8 секунд
+    W->>G: Photo + instructions
+    G-->>W: Foods, grams, macros (JSON)
+    W->>D: Save the meal
+    W->>T: Card with macros and ✏️ buttons
+    T-->>U: Reply in ~8 seconds
 ```
 
 </div>
 
-| Слой | Технология | Почему |
+| Layer | Technology | Why |
 |:---|:---|:---|
-| Интерфейс | Telegram Bot API + Mini App | У всех уже есть Telegram, ничего не нужно скачивать |
-| Сервер | Cloudflare Workers | Бесплатно, 24/7, без настройки серверов |
-| ИИ | Google Gemini (Flash / Flash-Lite) | Понимает фото, ответ в строгом JSON |
-| База | Cloudflare KV | Бесплатно и встроена в Workers |
-| Деплой | GitHub → Cloudflare Builds | Каждый коммит сам попадает на сервер |
+| Interface | Telegram Bot API + Mini App | Everyone already has Telegram, nothing to download |
+| Server | Cloudflare Workers | Free, 24/7, no servers to manage |
+| AI | Google Gemini (Flash / Flash-Lite) | Understands photos, replies in strict JSON |
+| Database | Cloudflare KV | Free and built into Workers |
+| Deploy | GitHub → Cloudflare Builds | Every commit ships to the server by itself |
 
-Весь сервер — один файл [`worker.js`](worker.js) без единой зависимости.
-
----
-
-## 🔒 Безопасность и приватность
-
-- Webhook принимает запросы только с секретным заголовком Telegram.
-- Дневник проверяет криптографическую подпись Telegram: чужие данные открыть нельзя.
-- Ключи лежат в секретах Cloudflare, а не в коде.
-- Фото **не сохраняются**: они уходят в Gemini только для распознавания.
-
-Подробнее: [политика конфиденциальности](https://sailxx.github.io/FITTER-AI/privacy.html).
+The whole server is a single file, [`worker.js`](worker.js), with zero dependencies.
 
 ---
 
-## 🗺 Дорожная карта
+## 🔒 Security and privacy
 
-- [x] **v1.0** Бот на Cloudflare, анкета, норма, фото, дневник, учёт веса
-- [x] **v1.x** Точность, свои иконки, вода, этикетки и штрихкоды, новый дневник
-- [x] **v1.6–1.7** Серии, достижения, ИИ-разбор недели, напоминания о воде
-- [x] **v2.0** Ассистент «Что съесть» и новая «Неделя»
-- [x] **v2.1** Таблетки и витамины с напоминаниями
-- [x] **v2.2–2.4** Аналитика, светлая и тёмная тема, цветные иконки
-- [x] **v2.5** Таблетки в меню бота, вес в профиле и дневнике
-- [x] **v2.5.1** Безопасность: команда /delete, строже служебные команды и /setup
-- [x] **v2.5.2** Дневник сам подтягивает отметки таблеток и записи из чата
-- [x] **v2.5.3** Защита дневника (CSP) и честный лимит ИИ
-- [x] **v2.6** Новый вид дневника: яркая шапка, подсказки по БЖУ и график недели
-- [x] **v2.6.1** Короткое меню бота: без кнопок «Вода» и «Таблетки»
-- [x] **v2.7** Аккуратные сообщения бота: больше воздуха, без цитат-блоков
-- [x] **v2.8** Эксклюзивная тема Okto в честь запуска приложения Okto, классический вид — по кнопке; вода стаканами
-- [x] **v2.9** Весёлые иконки: 72 цветные premium-эмодзи в одном стиле, один набор вместо трёх
-- [x] **v2.9.1** Новые «Помощь» и «Профиль»: иконки у команд, доли БЖУ, вода в стаканах
-- [x] **v2.9.2** Цитаты и стили текста в «Помощи» и «Профиле», команды по группам
-- [x] **v2.9.3** Логотип FITTER иконкой у названия в «Помощи» и приветствии
-- [x] **v2.9.4** Тема Okto убрана, светлая тема дневника стала светлее и мягче
-- [x] **v2.9.5** Дневник: без аватара в шапке, яркая зелёная шапка в светлой теме, больше воздуха в плашках
-- [x] **v2.10** Подготовка к приложению Android: вход через бота, ключи доступа, данные для виджетов
-- [x] **v3.0** Приложение Fitter для Android: еда текстом и фото, «Советы ИИ», живая синхронизация, 8 настраиваемых виджетов
-- [x] **v3.1** Дневник тренировок в приложении: каталог упражнений, свои упражнения, подходы и сложность
-- [x] **v3.2** Новый дизайн приложения: карточки, еда с картинками, стеклянная нижняя панель
-- [x] **v3.5** Новый логотип, напоминания в приложении (вода, еда, таблетки — с кнопками в уведомлении), цветные карточки БЖУ
-- [x] **v3.6** Выбор иконки приложения: зелёная или тёмная
-- [x] **v3.7** OLED-чёрная тёмная и чисто белая светлая тема; виджет «Вода» 1×1
-- [x] **v3.7.1** Виджет «Вода»: содержимое по центру при любом размере
-- [x] **v3.7.2** Виджеты без обводки
+- The webhook only accepts requests with Telegram’s secret header.
+- The diary checks Telegram’s cryptographic signature, so nobody can open someone else’s data.
+- Keys live in Cloudflare secrets, not in the code.
+- Photos are **not stored**: they go to Gemini only for recognition.
 
-Полная история версий — в [CHANGELOG.md](CHANGELOG.md).
+More: [privacy policy](https://sailxx.github.io/FITTER-AI/privacy.html) (in Russian).
 
 ---
 
-## ❓ Вопросы и идеи
+## 🗺 Roadmap
 
-Нашёл ошибку или хочешь предложить фичу? Открой [issue](https://github.com/sailxx/FITTER-AI/issues/new) или напиши автору.
+- [x] **v1** Cloudflare bot, survey, target, photo logging, diary, weight, water, labels and barcodes
+- [x] **v2** “What to eat” assistant, pills with reminders, analytics, light and dark theme
+- [x] **v2.6** New diary look, macro hints, week chart; redesigned water and pills in the bot
+- [ ] **v3.0** Product: a standalone app
 
-<div align="center">
-
-[![Бот](https://img.shields.io/badge/Telegram-@FitterFoodBot-2CA5E0?style=for-the-badge&logo=telegram&logoColor=white)](https://t.me/FitterFoodBot?start=github)
-[![Автор](https://img.shields.io/badge/Автор-@arkhitkovv-30D158?style=for-the-badge&labelColor=000000&logo=telegram&logoColor=white)](https://t.me/arkhitkovv)
-
-</div>
+Full history: [CHANGELOG.md](CHANGELOG.md) (in Russian).
 
 ---
 
-## ⚖️ Лицензия
+## ❓ Questions and ideas
 
-FITTER распространяется по лицензии **MIT**, см. файл [LICENSE](LICENSE). Проект независимый и не связан с Telegram, Google или Cloudflare. Названия принадлежат их владельцам.
+Found a bug or have a feature idea? Open an [issue](https://github.com/sailxx/FITTER-AI/issues/new) or message the author on Telegram: [@arkhitkovv](https://t.me/arkhitkovv).
+
+---
+
+## ⚖️ License
+
+FITTER is released under the **MIT** license, see [LICENSE](LICENSE). It is an independent project and is not affiliated with Telegram, Google or Cloudflare. All names belong to their owners.
 
 <div align="center">
   <br />
   <img src="docs/logo.svg" width="48" height="48" alt="">
   <br />
-  <sub><b>FITTER</b> · Одно фото. Полный контроль.</sub>
+  <sub><b>FITTER</b> · One photo. Full control.</sub>
   <br />
 </div>
