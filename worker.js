@@ -532,7 +532,7 @@ const ITEM_SCHEMA = {
     usda_query: { type: "STRING", description: "English USDA FoodData Central search phrase for this single, simple food as eaten, for example “chicken breast, roasted, cooked” or “rice, white, cooked”. Empty string for mixed dishes, soups, sandwiches and branded products" },
     micro_100: {
       type: "OBJECT",
-      description: "Micronutrients per 100 g of this product as eaten",
+      description: "Micronutrients per 100 g of this product as eaten. Fill ONLY when usda_query is empty: for foods with a usda_query the values come from USDA, so omit this field",
       properties: {
         fiber: { type: "NUMBER", description: "Dietary fiber, g" },
         sugar: { type: "NUMBER", description: "Total sugars, g" },
@@ -596,7 +596,7 @@ Accuracy rules:
 • Estimate weight with scale cues: a standard dinner plate is about 26 cm, a fork about 19 cm, a hand-sized portion of meat about 100–120 g. Weigh cooked food, not dry.
 • Calories must match macros: kcal_100 ≈ 4·protein + 9·fat + 4·carbs (alcohol 7 per gram adds on top).
 • For each simple single food fill usda_query with an English USDA FoodData Central search phrase for it as eaten (“chicken breast, roasted, cooked”, “rice, white, cooked”); leave it empty for mixed dishes, soups, sandwiches and branded products. Values from USDA replace your per-100 g numbers, so the name and the weight must be right.
-• In micro_100 give typical micronutrients per 100 g (fiber, sugars, saturated fat, cholesterol, sodium, potassium, calcium, iron, magnesium, zinc, vitamins C, A, D, B12) for each item; use 0 only when the item really has none.
+• Fill micro_100 (fiber, sugars, saturated fat, cholesterol, sodium, potassium, calcium, iron, magnesium, zinc, vitamins C, A, D, B12 per 100 g) ONLY for items with an empty usda_query; omit it when usda_query is set, to keep the answer short.
 Write names and comments in ${aiLang(u)}, short. Be realistic, neither under- nor overestimate.`;
 
 const textPrompt = (u) => `You are a friendly nutritionist assistant in the FITTER Telegram bot. Write in ${aiLang(u)}.
@@ -611,6 +611,7 @@ Decide what the user sent:
 For food_log: fill usda_query (English USDA FoodData Central phrase for a simple food as eaten, empty for mixed dishes); calories must match macros (kcal ≈ 4·protein + 9·fat + 4·carbs), count cooking oil and sauces, weigh cooked food, and fill micro_100 (fiber, sugars, saturated fat, cholesterol, sodium, potassium, calcium, iron, magnesium, zinc, vitamins C, A, D, B12 per 100 g).
 For question and other return empty items and an empty title.`;
 
+const noThinkingParam = new Set(); // модели, которые отвергли thinkingConfig
 let lastModelUsed = null;
 let workingModel = null; // модель, которая ответила в прошлый раз (чтобы не тратить время на недоступные)
 
@@ -622,12 +623,19 @@ async function gemini(env, parts, schema, temperature = 0.2) {
   const started = Date.now();
   if (!workingModel && env.DB) workingModel = await env.DB.get("cfg:model").catch(() => null);
   const models = [...new Set([env.GEMINI_MODEL, workingModel, ...MODEL_FALLBACKS].filter(Boolean))];
-  const body = JSON.stringify({
+  // Размышления модели — главная причина медленного ответа: для подсчёта еды они почти не нужны, просим минимум.
+  // Если модель параметр не принимает, запоминаем это и повторяем запрос без него
+  const bodyFor = (model) => JSON.stringify({
     contents: [{ role: "user", parts }],
-    generationConfig: { temperature, responseMimeType: "application/json", responseSchema: schema },
+    generationConfig: {
+      temperature, responseMimeType: "application/json", responseSchema: schema,
+      ...(noThinkingParam.has(model) ? {} : { thinkingConfig: { thinkingLevel: "minimal" } }),
+    },
   });
   let lastErr = null;
-  for (const model of models) {
+  for (let mi = 0; mi < models.length; mi++) {
+    const model = models[mi];
+    const body = bodyFor(model);
     const left = AI_DEADLINE_MS - (Date.now() - started);
     if (left < 3000) break;
     const ctrl = new AbortController();
@@ -664,6 +672,11 @@ async function gemini(env, parts, schema, temperature = 0.2) {
     const errText = await r.text();
     lastErr = new Error(`Gemini ${model} ${r.status}: ${errText.slice(0, 300)}`);
     console.error(lastErr.message);
+    if (r.status === 400 && /thinking/i.test(errText) && !noThinkingParam.has(model)) {
+      noThinkingParam.add(model);
+      mi--; // та же модель, но без thinkingConfig
+      continue;
+    }
     if (model === workingModel) workingModel = null;
     // Модель не найдена / лимит / сбой — пробуем следующую. Неверный ключ — нет смысла пробовать дальше.
     if (![404, 429, 500, 503].includes(r.status)) break;
@@ -721,7 +734,7 @@ function cleanItems(items, { trust = false } = {}) {
 // без ключа или если продукт не нашёлся, остаются значения нейросети.
 
 const USDA_URL = "https://api.nal.usda.gov/fdc/v1/foods/search";
-const USDA_TIMEOUT_MS = 4000;
+const USDA_TIMEOUT_MS = 2500;
 // Номера нутриентов в USDA → наши поля (на 100 г)
 const USDA_IDS = {
   1003: "protein_100", 1004: "fat_100", 1005: "carbs_100",
@@ -1567,18 +1580,24 @@ async function onPhoto(env, u, chatId, msg) {
   if (!checkAiLimit(env, u)) {
     return send(env, chatId, L(u, "На сегодня лимит запросов к нейросети закончился 😔 Завтра снова можно! А пока можешь поправить записи в дневнике.", "You've used up today's AI requests 😔 Try again tomorrow! Meanwhile you can edit your diary entries."));
   }
-  await saveUser(env, u);
   tg(env, "sendChatAction", { chat_id: chatId, action: "typing" });
-  const wait = await send(env, chatId, L(u, "🔍 Смотрю на фото и считаю калории…", "🔍 Looking at the photo and counting calories…"));
-  const waitId = wait.result?.message_id;
-  try {
+  // Фото скачиваем сразу, пока сохраняется пользователь и уходит «Смотрю на фото…»: три дела вместо цепочки
+  const download = (async () => {
     const f = await tg(env, "getFile", { file_id: pickPhoto(msg) });
     if (!f.ok) throw new Error("getFile failed");
     const path = f.result.file_path;
     const img = await fetch(`https://api.telegram.org/file/bot${env.BOT_TOKEN}/${path}`);
     if (!img.ok) throw new Error("download failed " + img.status);
-    const b64 = toBase64(await img.arrayBuffer());
-    const mime = /\.png$/i.test(path) ? "image/png" : /\.webp$/i.test(path) ? "image/webp" : "image/jpeg";
+    return { b64: toBase64(await img.arrayBuffer()), mime: /\.png$/i.test(path) ? "image/png" : /\.webp$/i.test(path) ? "image/webp" : "image/jpeg" };
+  })();
+  download.catch(() => {}); // ошибку разберём ниже, а здесь не оставляем необработанной
+  const [, wait] = await Promise.all([
+    saveUser(env, u),
+    send(env, chatId, L(u, "🔍 Смотрю на фото и считаю калории…", "🔍 Looking at the photo and counting calories…")),
+  ]);
+  const waitId = wait.result?.message_id;
+  try {
+    const { b64, mime } = await download;
     const r = await analyzePhoto(env, b64, mime, (msg.caption || "").trim().slice(0, 300), u);
     if (!r) {
       return edit(env, chatId, waitId, L(u,
