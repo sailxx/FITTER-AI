@@ -1,5 +1,7 @@
 package com.sailxx.fitter.ui
 
+import androidx.compose.foundation.layout.width
+import com.sailxx.fitter.data.MICROS
 import com.sailxx.fitter.data.tr
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -154,6 +156,19 @@ fun MealSheet(m: Meal, onClose: () -> Unit, onDeleteMeal: () -> Unit) {
                             if (g == null || g <= 0 || v.any { it == null }) { d.msg = tr("Проверь вес и числа", "Check the weight and numbers"); return@PrimaryButton }
                             run(d, tr("Сохранено", "Saved")) { tok, date -> Api.itemSet(tok, date, m.id, i, d.name.trim(), g, v[0]!!, v[1]!!, v[2]!!, v[3]!!) }
                         }
+                    }
+                }
+            }
+            // Подробный состав: микронутриенты с долей от суточной нормы (данные есть у новых записей)
+            Column(Modifier.fillMaxWidth().background(t.fill, RoundedCornerShape(22.dp)).padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                Text(tr("Подробный состав", "Nutrition details"), fontWeight = FontWeight.ExtraBold, color = t.text)
+                if (m.micro.isEmpty()) Text(tr("Микронутриентов в этой записи нет: они считаются для новых записей", "No micronutrient data for this entry: it is calculated for new entries"), fontSize = 12.sp, color = t.hint)
+                MICROS.filter { m.micro[it.key] != null }.forEach { k ->
+                    val v = m.micro[k.key]!!
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(k.name, color = t.hint, fontSize = 13.sp, modifier = Modifier.weight(1f))
+                        Text("${if (v >= 100) v.roundToInt().toString() else ((v * 10).roundToInt() / 10.0).toString()} ${k.unitLabel}", color = t.text, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                        Text("${(v / k.daily * 100).roundToInt()}%", color = t.hint, fontSize = 12.sp, modifier = Modifier.width(44.dp), textAlign = TextAlign.End)
                     }
                 }
             }

@@ -459,6 +459,38 @@ function sumItems(items) {
 }
 const dayTotals = (day) => sumItems(day.meals.flatMap((m) => m.items));
 
+// ── Микронутриенты: на 100 г продукта хранятся в it.mi, ключ → [название ru, название en, единица, максимум на 100 г, суточная норма]
+const MICRO = {
+  fiber: ["Клетчатка", "Fiber", "g", 60, 28],
+  sugar: ["Сахар", "Sugar", "g", 100, 50],
+  satfat: ["Насыщенные жиры", "Saturated fat", "g", 100, 20],
+  cholesterol: ["Холестерин", "Cholesterol", "mg", 3000, 300],
+  sodium: ["Натрий", "Sodium", "mg", 40000, 2300],
+  potassium: ["Калий", "Potassium", "mg", 5000, 3400],
+  calcium: ["Кальций", "Calcium", "mg", 3000, 1000],
+  iron: ["Железо", "Iron", "mg", 100, 14],
+  magnesium: ["Магний", "Magnesium", "mg", 1000, 400],
+  zinc: ["Цинк", "Zinc", "mg", 100, 11],
+  vitc: ["Витамин C", "Vitamin C", "mg", 3000, 90],
+  vita: ["Витамин A", "Vitamin A", "µg", 30000, 900],
+  vitd: ["Витамин D", "Vitamin D", "µg", 300, 15],
+  b12: ["Витамин B12", "Vitamin B12", "µg", 300, 2.4],
+};
+const MICRO_KEYS = Object.keys(MICRO);
+
+// Микронутриенты порции или набора продуктов: { ключ: количество }; null — данных нет (старые записи)
+function sumMicro(items) {
+  const out = {};
+  let any = false;
+  for (const it of items) {
+    if (!it.mi) continue;
+    any = true;
+    for (const k of MICRO_KEYS) out[k] = (out[k] || 0) + (it.mi[k] || 0) * (it.grams / 100);
+  }
+  return any ? out : null;
+}
+const microNum = (v) => (v >= 100 ? String(round(v)) : String(r1(v)));
+
 const ACTIVITY = {
   "1.2": ["🛋 Почти не двигаюсь", "🛋 Barely move"],
   "1.375": ["🚶 1–3 тренировки в неделю", "🚶 1–3 workouts a week"],
@@ -497,6 +529,26 @@ const ITEM_SCHEMA = {
     protein_100: { type: "NUMBER", description: "Protein per 100 g" },
     fat_100: { type: "NUMBER", description: "Fat per 100 g" },
     carbs_100: { type: "NUMBER", description: "Carbs per 100 g" },
+    micro_100: {
+      type: "OBJECT",
+      description: "Micronutrients per 100 g of this product as eaten",
+      properties: {
+        fiber: { type: "NUMBER", description: "Dietary fiber, g" },
+        sugar: { type: "NUMBER", description: "Total sugars, g" },
+        satfat: { type: "NUMBER", description: "Saturated fat, g" },
+        cholesterol: { type: "NUMBER", description: "mg" },
+        sodium: { type: "NUMBER", description: "mg" },
+        potassium: { type: "NUMBER", description: "mg" },
+        calcium: { type: "NUMBER", description: "mg" },
+        iron: { type: "NUMBER", description: "mg" },
+        magnesium: { type: "NUMBER", description: "mg" },
+        zinc: { type: "NUMBER", description: "mg" },
+        vitc: { type: "NUMBER", description: "Vitamin C, mg" },
+        vita: { type: "NUMBER", description: "Vitamin A, µg RAE" },
+        vitd: { type: "NUMBER", description: "Vitamin D, µg" },
+        b12: { type: "NUMBER", description: "Vitamin B12, µg" },
+      },
+    },
   },
   required: ["name", "grams", "kcal_100", "protein_100", "fat_100", "carbs_100"],
 };
@@ -537,6 +589,12 @@ If a nutrition facts table is visible, copy the per-100 g values exactly from th
 If the label shows values per serving rather than per 100 g, convert them to 100 g.
 grams is the net weight from the package; if it is not visible, the typical weight of such a package.
 If digits are visible under a barcode, copy them into barcode without spaces, otherwise leave barcode empty.
+Accuracy rules:
+• Take per-100 g values from reliable references (USDA FoodData Central, manufacturer labels) for the dish exactly as eaten: cooked, not raw, unless it is clearly raw.
+• Count hidden calories: cooking oil, butter, sauces, dressings, sugar in drinks, cheese on top. Fried and creamy dishes are far denser than boiled or grilled ones.
+• Estimate weight with scale cues: a standard dinner plate is about 26 cm, a fork about 19 cm, a hand-sized portion of meat about 100–120 g. Weigh cooked food, not dry.
+• Calories must match macros: kcal_100 ≈ 4·protein + 9·fat + 4·carbs (alcohol 7 per gram adds on top).
+• In micro_100 give typical micronutrients per 100 g (fiber, sugars, saturated fat, cholesterol, sodium, potassium, calcium, iron, magnesium, zinc, vitamins C, A, D, B12) for each item; use 0 only when the item really has none.
 Write names and comments in ${aiLang(u)}, short. Be realistic, neither under- nor overestimate.`;
 
 const textPrompt = (u) => `You are a friendly nutritionist assistant in the FITTER Telegram bot. Write in ${aiLang(u)}.
@@ -548,6 +606,7 @@ Decide what the user sent:
   Then answer clearly and briefly in answer (up to 700 characters), without markdown, emoji are fine.
   Take the user's data below into account where appropriate. Do not diagnose; for health problems advise seeing a doctor.
 • other — everything else. In answer politely remind that you help with nutrition and they can send a photo of food.
+For food_log: calories must match macros (kcal ≈ 4·protein + 9·fat + 4·carbs), count cooking oil and sauces, weigh cooked food, and fill micro_100 (fiber, sugars, saturated fat, cholesterol, sodium, potassium, calcium, iron, magnesium, zinc, vitamins C, A, D, B12 per 100 g).
 For question and other return empty items and an empty title.`;
 
 let lastModelUsed = null;
@@ -610,20 +669,45 @@ async function gemini(env, parts, schema, temperature = 0.2) {
   throw lastErr || new Error("Gemini: не успели получить ответ");
 }
 
-function cleanItems(items) {
+// Калории должны сходиться с макросами (Этуотер: 4·Б + 9·Ж + 4·У). Нейросеть часто ошибается именно в калориях
+// отдельно от БЖУ, поэтому при расхождении больше 15% калории берём по макросам. trust — данные с этикетки или из базы, их не трогаем
+const ATWATER_TOLERANCE = 0.15;
+function reconcile(it) {
+  let { protein_100: p, fat_100: f, carbs_100: c, kcal_100: k } = it;
+  const mass = p + f + c;
+  // БЖУ на 100 г не могут весить больше 100 г
+  if (mass > 100) { const s = 100 / mass; p = r1(p * s); f = r1(f * s); c = r1(c * s); }
+  const est = 4 * p + 9 * f + 4 * c;
+  if (est >= 10 && Math.abs(k - est) / est > ATWATER_TOLERANCE) k = round(est);
+  return { ...it, protein_100: p, fat_100: f, carbs_100: c, kcal_100: r1(k) };
+}
+
+function cleanItems(items, { trust = false } = {}) {
   const num = (x, max) => {
     const n = Number(x);
     return Number.isFinite(n) ? Math.min(Math.max(n, 0), max) : 0;
   };
   return (Array.isArray(items) ? items : [])
-    .map((it) => ({
-      name: String(it.name || "Продукт").trim().slice(0, 60),
-      grams: Math.max(1, round(num(it.grams, 3000))),
-      kcal_100: r1(num(it.kcal_100, 900)),
-      protein_100: r1(num(it.protein_100, 100)),
-      fat_100: r1(num(it.fat_100, 100)),
-      carbs_100: r1(num(it.carbs_100, 100)),
-    }))
+    .map((it) => {
+      const base = {
+        name: String(it.name || "Продукт").trim().slice(0, 60),
+        grams: Math.max(1, round(num(it.grams, 3000))),
+        kcal_100: r1(num(it.kcal_100, 900)),
+        protein_100: r1(num(it.protein_100, 100)),
+        fat_100: r1(num(it.fat_100, 100)),
+        carbs_100: r1(num(it.carbs_100, 100)),
+      };
+      const src = it.mi || it.micro_100;
+      if (src && typeof src === "object") {
+        const mi = {};
+        for (const k of MICRO_KEYS) {
+          const v = num(src[k], MICRO[k][3]);
+          if (v > 0) mi[k] = r1(v);
+        }
+        if (Object.keys(mi).length) base.mi = mi;
+      }
+      return trust ? base : reconcile(base);
+    })
     .slice(0, 12);
 }
 
@@ -690,8 +774,29 @@ function mealKeyboard(env, u, date, meal) {
     if (row.length === 2) { rows.push(row); row = []; }
   });
   if (row.length) rows.push(row);
+  rows.push([{ text: L(u, "🔬 Подробнее", "🔬 Details"), callback_data: `n|${date}|${meal.id}` }]);
   rows.push([{ text: L(u, "🗑 Удалить", "🗑 Delete"), callback_data: `x|${date}|${meal.id}` }, appButton(env, u, "📱 Дневник", "📱 Diary")]);
   return { inline_keyboard: rows };
+}
+
+// Подробный состав приёма пищи: БЖУ с долей от нормы и микронутриенты с долей от суточной нормы
+function mealDetails(u, meal) {
+  const t = sumItems(meal.items), g = u.targets;
+  const kcalU = L(u, "ккал", "kcal"), gU = L(u, "г", "g");
+  const share = (v, norm) => (norm ? ` · <i>${pctOf(v, norm)}%</i>` : "");
+  const head = `🔬 <b>${esc(meal.title)}</b> · ${meal.time}\n\n` +
+    `🔥 <b>${round(t.kcal)}</b> ${kcalU}${share(t.kcal, g.kcal)}\n` +
+    `🥩 ${L(u, "Белки", "Protein")} <b>${r1(t.p)}</b> ${gU}${share(t.p, g.p)}\n` +
+    `🧈 ${L(u, "Жиры", "Fat")} <b>${r1(t.f)}</b> ${gU}${share(t.f, g.f)}\n` +
+    `🍞 ${L(u, "Углеводы", "Carbs")} <b>${r1(t.c)}</b> ${gU}${share(t.c, g.c)}`;
+  const m = sumMicro(meal.items);
+  if (!m) return head + "\n\n" + L(u, "<i>Микронутриентов в этой записи нет: они считаются для новых записей</i>", "<i>No micronutrient data for this entry: it is calculated for new entries</i>");
+  const lines = MICRO_KEYS.filter((k) => m[k] > 0).map((k) => {
+    const [ru, en, unit, , dv] = MICRO[k];
+    return `• ${L(u, ru, en)} <b>${microNum(m[k])}</b> ${unit === "g" ? gU : unit}${share(m[k], dv)}`;
+  });
+  return head + `\n\n<b>${L(u, "Микронутриенты", "Micronutrients")}</b>\n${lines.join("\n")}\n\n` +
+    L(u, "<i>Проценты — от суточной нормы. Значения оценочные</i>", "<i>Percentages are of the daily value. Values are estimates</i>");
 }
 
 // Цитаты — без иконок внутри: так Telegram принимает сообщение с первой попытки
@@ -1341,6 +1446,13 @@ async function onCallback(q, env) {
       reply_markup: { inline_keyboard: [[u.weekly ? { text: L(u, "🔕 Не присылать по воскресеньям", "🔕 Stop Sunday reviews"), callback_data: "an_off" } : { text: L(u, "🔔 Снова присылать по воскресеньям", "🔔 Resume Sunday reviews"), callback_data: "an_on" }]] },
     });
   }
+  if (kind === "n" && isDate(a)) {
+    const day = await getDay(env, u.id, a);
+    const meal = day.meals.find((m) => m.id === b);
+    if (!meal) return answer(L(u, "Эта запись уже удалена", "This entry has already been deleted"));
+    await answer();
+    return send(env, chatId, mealDetails(u, meal));
+  }
   if (kind === "x" && isDate(a)) {
     const day = await getDay(env, u.id, a);
     const before = day.meals.length;
@@ -1401,7 +1513,7 @@ async function analyzePhoto(env, b64, mime, caption, u) {
     { text: photoPrompt(u) + (caption ? `\n\nHint from the user (take it into account first): ${caption}` : "") },
     { inline_data: { mime_type: mime, data: b64 } },
   ], PHOTO_SCHEMA);
-  const items = cleanItems(res.items);
+  const items = cleanItems(res.items, { trust: !!res.label_found });
   if (!res.is_food || !items.length) return null;
   // Упаковка: КБЖУ с этикетки, а если этикетки не видно — ищем по штрихкоду
   let comment = res.comment;
@@ -1471,7 +1583,11 @@ async function lookupBarcode(env, code, u) {
           protein_100: num(n.proteins_100g) || 0,
           fat_100: num(n.fat_100g) || 0,
           carbs_100: num(n.carbohydrates_100g) || 0,
-        }]);
+          micro_100: {
+            fiber: num(n.fiber_100g) || 0, sugar: num(n.sugars_100g) || 0, satfat: num(n["saturated-fat_100g"]) || 0,
+            sodium: (num(n.sodium_100g) || 0) * 1000, // в базе натрий в граммах
+          },
+        }], { trust: true });
         product = item;
       }
     } else if (r.status !== 404) {
@@ -1621,6 +1737,7 @@ const FIX_SCHEMA = {
     protein_100: { type: "NUMBER" },
     fat_100: { type: "NUMBER" },
     carbs_100: { type: "NUMBER" },
+    micro_100: ITEM_SCHEMA.properties.micro_100,
     meal_title: { type: "STRING", description: "New short name of the whole meal" },
   },
   required: ["name", "kcal_100", "protein_100", "fat_100", "carbs_100", "meal_title"],
@@ -1637,11 +1754,13 @@ async function recalcItem(env, meal, idx, name, grams, u) {
       `Other products on the plate: ${others || "none"}.\n` +
       `Give typical calories, protein, fat and carbs PER 100 GRAMS for “${name}” the way it is usually eaten ` +
       `(if the old name mentioned cooking method, sauce or side dish, take that into account).\n` +
+      `Calories must match macros (kcal ≈ 4·protein + 9·fat + 4·carbs). Also fill micro_100 per 100 g (fiber, sugars, saturated fat, cholesterol, sodium, potassium, calcium, iron, magnesium, zinc, vitamins C, A, D, B12).\n` +
       `In name return a tidy product name. In meal_title return the new short name of the whole meal.`,
   }], FIX_SCHEMA);
   const clean = cleanItems([{ ...res, grams: grams || it.grams }])[0];
   if (!clean) throw new Error("пустой ответ");
   Object.assign(it, clean);
+  if (!clean.mi) delete it.mi; // микронутриенты прежнего продукта к новому не относятся
   if (res.meal_title) meal.title = String(res.meal_title).slice(0, 60);
 }
 
@@ -2898,12 +3017,13 @@ async function dayPayload(env, u, date) {
   const dates = [...Array(7)].map((_, i) => shiftDate(monday, i));
   const [days, weights] = await Promise.all([Promise.all(dates.map((d) => getDay(env, u.id, d))), getWeights(env, u.id)]);
   const day = days[dates.indexOf(date)];
-  const meals = day.meals.map((m) => ({ ...m, totals: sumItems(m.items), items: m.items.map((it) => ({ ...it, totals: itemTotals(it) })) }));
+  const meals = day.meals.map((m) => ({ ...m, totals: sumItems(m.items), micro: sumMicro(m.items), items: m.items.map((it) => ({ ...it, totals: itemTotals(it), micro: sumMicro([it]) })) }));
   return {
     date,
     today: today(u),
     targets: u.targets,
     totals: dayTotals(day),
+    micro: sumMicro(day.meals.flatMap((m) => m.items)),
     meals,
     week: dates.map((d, i) => ({ date: d, kcal: round(dayTotals(days[i]).kcal), meals: days[i].meals.length })),
     weights: weights.slice(-30),
@@ -3603,6 +3723,13 @@ const APP_HTML = `<!doctype html>
   .it input{width:52px;padding:7px 2px;border:0;background:transparent;color:var(--text);font:inherit;font-weight:700;text-align:right;outline:none}
   .it .g{color:var(--hint);font-size:13px}
   .it .ren{width:100%;padding:5px 8px;border-radius:9px;border:2px solid var(--g2);background:var(--bg);color:var(--text);font:inherit;outline:none}
+  .mdet{border-top:1px solid var(--line);padding:10px 0}
+  .mdet summary{cursor:pointer;color:var(--hint);font-size:13px;font-weight:600;list-style:none}
+  .mdet summary::-webkit-details-marker{display:none}
+  .mdet[open] summary{color:var(--text);margin-bottom:6px}
+  .mrow{display:flex;align-items:center;gap:8px;font-size:13px;padding:3px 0}
+  .mrow span{flex:1;color:var(--hint)} .mrow b{font-weight:700} .mrow em{width:42px;text-align:right;font-style:normal;color:var(--hint);font-variant-numeric:tabular-nums}
+  .mnone{color:var(--hint);font-size:12px;margin-top:6px}
   .del{display:block;width:100%;background:transparent;color:var(--danger);font-size:13px;font-weight:600;padding:10px 0;border-top:1px solid var(--line);opacity:.85}
   .addm{display:flex;align-items:flex-end;gap:8px;background:var(--card);border-radius:var(--r);padding:8px 8px 8px 18px;box-shadow:var(--shadow);border:1px solid var(--edge);transition:border-color .2s,box-shadow .2s}
   .addm:focus-within{border-color:var(--g2);box-shadow:0 0 0 3px var(--c-bg)}
@@ -4066,6 +4193,18 @@ const APP_HTML = `<!doctype html>
 
   var DOTS = ["#ff7a2f", "#22b36b", "#f5a524", "#2a7bf0", "#c86bff", "#ff5a8a"];
 
+  // Подробный состав приёма пищи: БЖУ с долей от нормы и микронутриенты (данные есть у новых записей)
+  var MICRO = [["fiber","Клетчатка","Fiber","g",28],["sugar","Сахар","Sugar","g",50],["satfat","Насыщенные жиры","Saturated fat","g",20],["cholesterol","Холестерин","Cholesterol","mg",300],["sodium","Натрий","Sodium","mg",2300],["potassium","Калий","Potassium","mg",3400],["calcium","Кальций","Calcium","mg",1000],["iron","Железо","Iron","mg",14],["magnesium","Магний","Magnesium","mg",400],["zinc","Цинк","Zinc","mg",11],["vitc","Витамин C","Vitamin C","mg",90],["vita","Витамин A","Vitamin A","µg",900],["vitd","Витамин D","Vitamin D","µg",15],["b12","Витамин B12","Vitamin B12","µg",2.4]];
+  function microNum(v){ return v >= 100 ? String(r(v)) : String(Math.round(v * 10) / 10); }
+  function microBlock(m, g){
+    var mi = m.micro, rows = "";
+    function line(name, val, unit, norm){ return '<div class="mrow"><span>' + name + '</span><b>' + val + ' ' + unit + '</b><em>' + (norm ? r(val / norm * 100) + '%' : '') + '</em></div>'; }
+    rows += line(T("Белки", "Protein"), r(m.totals.p * 10) / 10, T("г", "g"), g.p) + line(T("Жиры", "Fat"), r(m.totals.f * 10) / 10, T("г", "g"), g.f) + line(T("Углеводы", "Carbs"), r(m.totals.c * 10) / 10, T("г", "g"), g.c);
+    if (mi) MICRO.forEach(function(k){ if (mi[k[0]] > 0) rows += line(T(k[1], k[2]), microNum(mi[k[0]]), k[3] === "g" ? T("г", "g") : k[3], k[4]); });
+    else rows += '<div class="mnone">' + T("Микронутриентов в этой записи нет: они считаются для новых записей", "No micronutrient data for this entry: it is calculated for new entries") + '</div>';
+    return '<details class="mdet"><summary>' + T("Подробнее", "Details") + '</summary>' + rows + '<div class="mnone">' + T("Проценты — от суточной нормы. Значения оценочные", "Percentages are of the daily value. Values are estimates") + '</div></details>';
+  }
+
   function render(){
     var d = state.data, t = d.totals, g = d.targets;
     var wdi = (new Date(d.date + "T00:00:00Z").getUTCDay() + 6) % 7;
@@ -4104,7 +4243,7 @@ const APP_HTML = `<!doctype html>
           return '<div class="it"><i class="dot" style="background:' + DOTS[i % DOTS.length] + '"></i><div class="n"><div class="nm" data-meal="' + m.id + '" data-idx="' + i + '">' + esc(it.name) + '</div><small>' + r(it.totals.kcal) + ' ' + KC() + ' · ' + pfc(it.totals) + '</small></div>' +
             '<div class="gr"><input type="number" inputmode="numeric" min="1" max="3000" value="' + it.grams + '" data-meal="' + m.id + '" data-idx="' + i + '"><span class="g">' + T("г", "g") + '</span></div></div>';
         }).join("") +
-        '<button class="del" data-del="' + m.id + '">' + T("Удалить приём пищи", "Delete meal") + '</button></div>';
+        microBlock(m, g) + '<button class="del" data-del="' + m.id + '">' + T("Удалить приём пищи", "Delete meal") + '</button></div>';
     }).join("") : '<div class="empty rise"><div class="ib">' + icon("plate") + '</div><b>' + T("Здесь пока пусто", "Nothing here yet") + '</b>' + (add ? T('Напиши выше, что ты съел, или отправь боту фото еды 📸', 'Type above what you ate, or send the bot a photo of your food 📸') : T('Отправь боту фото еды, и оно появится в дневнике 📸', 'Send the bot a photo of your food and it will show up in the diary 📸')) + '</div>');
 
     root.innerHTML = macros + macroHint(d) + water + pillsBlock(d) + meals + weekBlock(d) + weightBlock(d.weights);
@@ -4285,4 +4424,4 @@ const APP_HTML = `<!doctype html>
 </html>`;
 
 // Для тестов
-export const _test = { live, widgetPayload, analyzePhoto, checkAiLimit, appHeaders, waterTick, pillTick, parsePill, nextSlot, slotOf, adviceText, weekTip, startSource, statsText, spark, ACHIEVEMENTS, baseEmoji, calcTargets, verifyInitData, cleanItems, sumItems, parseFix, parseWater, cleanBarcode, waterGoal, HELP, APP_HTML };
+export const _test = { MICRO, sumMicro, reconcile, mealDetails, live, widgetPayload, analyzePhoto, checkAiLimit, appHeaders, waterTick, pillTick, parsePill, nextSlot, slotOf, adviceText, weekTip, startSource, statsText, spark, ACHIEVEMENTS, baseEmoji, calcTargets, verifyInitData, cleanItems, sumItems, parseFix, parseWater, cleanBarcode, waterGoal, HELP, APP_HTML };
