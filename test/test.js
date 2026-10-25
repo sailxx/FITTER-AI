@@ -1207,6 +1207,7 @@ console.log("✓ /app и /setup");
   assert.equal(stew.src, undefined);
   assert.equal(stew.protein_100, 8);
   assert.equal(unk.src, undefined, "не нашлось в USDA — остаются значения нейросети");
+  assert.equal(geminiCalls.at(-1).body.generationConfig.thinkingConfig.thinkingLevel, "minimal", "размышления модели сведены к минимуму");
   assert.ok(usdaCalls[0].includes("api_key=test-key") && usdaCalls[0].includes("Foundation"));
   // Повторный запрос берётся из кэша KV
   const before = usdaCalls.length;

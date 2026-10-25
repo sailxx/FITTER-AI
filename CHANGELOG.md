@@ -2,6 +2,10 @@
 
 **English** · [Русский](CHANGELOG.ru.md)
 
+## v3.10.1 — Faster answers
+- ⚡ The AI is asked to think as little as possible (food counting doesn't need long reasoning): the main cause of slow replies; if a model rejects the setting, the bot retries without it
+- ⚡ The photo downloads while the “Looking at the photo…” message is sent; micronutrients are requested from the AI only for dishes not matched in USDA (shorter answers); USDA lookup timeout 2.5 s
+
 ## v3.10 — USDA database
 - 🥗 Nutrition per 100 g now comes from the USDA FoodData Central database: the AI recognizes the food, estimates the weight and names the product, and the calories, macros and micronutrients are taken from measured USDA values. Mixed dishes, packaged foods and products not found in USDA keep the AI's estimates. Needs the optional free `USDA_API_KEY` secret (see SETUP); results are cached for 30 days
 
