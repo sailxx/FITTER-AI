@@ -3324,31 +3324,34 @@ async function api(request, url, env) {
 // Секрет вводится в форме и уходит POST-запросом: в адресе, истории браузера и логах его нет.
 // Можно задать отдельный секрет SETUP_SECRET, иначе подходит WEBHOOK_SECRET
 async function setup(request, env) {
+  // Страница настройки — на языке браузера: русский для ru, иначе английский
+  const ruPage = /^\s*ru\b/i.test(request.headers.get("accept-language") || "");
+  const R = (ru, en) => (ruPage ? ru : en);
   const page = (rows, form = "", status = 200) =>
     new Response(
-      `<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">` +
-        `<title>FITTER — настройка</title><body style="font:16px/1.5 system-ui;max-width:640px;margin:32px auto;padding:0 16px">` +
-        `<h2>FITTER — настройка</h2>${rows.map(([ok, t]) => `<p>${ok ? "✅" : "❌"} ${t}</p>`).join("")}${form}</body>`,
+      `<!doctype html><html lang="${ruPage ? "ru" : "en"}"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">` +
+        `<title>${R("FITTER — настройка", "FITTER — setup")}</title><body style="font:16px/1.5 system-ui;max-width:640px;margin:32px auto;padding:0 16px">` +
+        `<h2>${R("FITTER — настройка", "FITTER — setup")}</h2>${rows.map(([ok, t]) => `<p>${ok ? "✅" : "❌"} ${t}</p>`).join("")}${form}</body>`,
       { status, headers: { "content-type": "text/html; charset=utf-8", "cache-control": "no-store", "referrer-policy": "no-referrer", "x-frame-options": "DENY" } }
     );
-  if (!env.WEBHOOK_SECRET) return page([[false, "Не задана переменная WEBHOOK_SECRET"]]);
+  if (!env.WEBHOOK_SECRET) return page([[false, R("Не задана переменная WEBHOOK_SECRET", "The WEBHOOK_SECRET variable is not set")]]);
   const form =
-    `<form method="post" action="/setup"><p><input type="password" name="secret" placeholder="Секрет" autocomplete="off" required ` +
-    `style="font:inherit;padding:8px;width:100%;box-sizing:border-box"></p><p><button style="font:inherit;padding:8px 16px">Настроить бота</button></p></form>`;
-  if (request.method !== "POST") return page([], `<p>Введи ${env.SETUP_SECRET ? "SETUP_SECRET" : "WEBHOOK_SECRET"}:</p>` + form);
+    `<form method="post" action="/setup"><p><input type="password" name="secret" placeholder="${R("Секрет", "Secret")}" autocomplete="off" required ` +
+    `style="font:inherit;padding:8px;width:100%;box-sizing:border-box"></p><p><button style="font:inherit;padding:8px 16px">${R("Настроить бота", "Set up the bot")}</button></p></form>`;
+  if (request.method !== "POST") return page([], `<p>${R("Введи", "Enter")} ${env.SETUP_SECRET ? "SETUP_SECRET" : "WEBHOOK_SECRET"}:</p>` + form);
   const fd = await request.formData().catch(() => null);
   if (!safeEqual(fd && fd.get("secret"), env.SETUP_SECRET || env.WEBHOOK_SECRET)) {
-    return page([[false, "Неверный секрет"]], form, 403);
+    return page([[false, R("Неверный секрет", "Wrong secret")]], form, 403);
   }
   const rows = [];
-  rows.push([!!env.BOT_TOKEN, "BOT_TOKEN задан"]);
-  rows.push([!!env.GEMINI_API_KEY, "GEMINI_API_KEY задан"]);
-  rows.push([!!env.DB, "База данных KV подключена (имя DB)"]);
-  rows.push([/^[A-Za-z0-9_-]{1,256}$/.test(env.WEBHOOK_SECRET), "WEBHOOK_SECRET состоит только из латинских букв, цифр, _ и -"]);
+  rows.push([!!env.BOT_TOKEN, R("BOT_TOKEN задан", "BOT_TOKEN is set")]);
+  rows.push([!!env.GEMINI_API_KEY, R("GEMINI_API_KEY задан", "GEMINI_API_KEY is set")]);
+  rows.push([!!env.DB, R("База данных KV подключена (имя DB)", "The KV database is connected (name DB)")]);
+  rows.push([/^[A-Za-z0-9_-]{1,256}$/.test(env.WEBHOOK_SECRET), R("WEBHOOK_SECRET состоит только из латинских букв, цифр, _ и -", "WEBHOOK_SECRET contains only Latin letters, digits, _ and -")]);
   if (!env.BOT_TOKEN) return page(rows);
 
   const me = await tg(env, "getMe", {});
-  rows.push([me.ok, me.ok ? `Бот найден: @${me.result.username}` : "Токен бота неверный — проверь BOT_TOKEN"]);
+  rows.push([me.ok, me.ok ? R(`Бот найден: @${me.result.username}`, `Bot found: @${me.result.username}`) : R("Токен бота неверный — проверь BOT_TOKEN", "The bot token is wrong — check BOT_TOKEN")]);
   if (!me.ok) return page(rows);
 
   const wh = await tg(env, "setWebhook", {
@@ -3357,7 +3360,7 @@ async function setup(request, env) {
     allowed_updates: ["message", "callback_query"],
     drop_pending_updates: true,
   });
-  rows.push([wh.ok, wh.ok ? "Webhook подключён — бот получает сообщения" : `Webhook: ${esc(wh.description || "ошибка")}`]);
+  rows.push([wh.ok, wh.ok ? R("Webhook подключён — бот получает сообщения", "Webhook connected — the bot receives messages") : `Webhook: ${esc(wh.description || R("ошибка", "error"))}`]);
 
   // Меню команд и описание: английский по умолчанию, русский — для тех, у кого Telegram на русском
   const COMMANDS = [
@@ -3379,12 +3382,12 @@ async function setup(request, env) {
   ];
   const cmds = await tg(env, "setMyCommands", { commands: COMMANDS.map(([command, description]) => ({ command, description })) });
   const cmdsRu = await tg(env, "setMyCommands", { language_code: "ru", commands: COMMANDS.map(([command, , description]) => ({ command, description })) });
-  rows.push([cmds.ok && cmdsRu.ok, "Меню команд установлено (English + Русский)"]);
+  rows.push([cmds.ok && cmdsRu.ok, R("Меню команд установлено (English + Русский)", "Command menu installed (English + Русский)")]);
 
   const menu = await tg(env, "setChatMenuButton", {
     menu_button: { type: "web_app", text: "Diary", web_app: { url: `${env.ORIGIN}/app` } },
   });
-  rows.push([menu.ok, "Кнопка «Diary» (Mini App) добавлена"]);
+  rows.push([menu.ok, R("Кнопка «Diary» (Mini App) добавлена", "The “Diary” (Mini App) button is added")]);
 
   await tg(env, "setMyDescription", {
     description: "FITTER — one photo, full control 📸\nSend a photo of your food and the AI counts calories, protein, fat and carbs and logs it all in your food diary.",
@@ -3398,13 +3401,16 @@ async function setup(request, env) {
 
   if (env.GEMINI_API_KEY) {
     try {
-      const r = await gemini(env, [{ text: "Ответь словом ok" }], { type: "OBJECT", properties: { ok: { type: "STRING" } }, required: ["ok"] });
-      rows.push([true, `Нейросеть Gemini отвечает (модель ${esc(lastModelUsed)})`]);
+      const r = await gemini(env, [{ text: "Reply with the word ok" }], { type: "OBJECT", properties: { ok: { type: "STRING" } }, required: ["ok"] });
+      rows.push([true, R(`Нейросеть Gemini отвечает (модель ${esc(lastModelUsed)})`, `The Gemini AI is responding (model ${esc(lastModelUsed)})`)]);
     } catch (e) {
-      rows.push([false, `Gemini не отвечает: ${esc(String(e.message || e).slice(0, 300))}`]);
+      rows.push([false, R("Gemini не отвечает: ", "Gemini is not responding: ") + esc(String(e.message || e).slice(0, 300))]);
     }
   }
-  if (rows.every(([ok]) => ok)) rows.push([true, `<b>Всё готово!</b> Открой бота: <a href="https://t.me/${me.result.username}">@${me.result.username}</a> и нажми «Старт»`]);
+  if (rows.every(([ok]) => ok)) {
+    const u = `<a href="https://t.me/${me.result.username}">@${me.result.username}</a>`;
+    rows.push([true, R(`<b>Всё готово!</b> Открой бота: ${u} и нажми «Старт»`, `<b>All set!</b> Open the bot: ${u} and tap “Start”`)]);
+  }
   return page(rows);
 }
 

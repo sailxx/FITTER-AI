@@ -439,14 +439,22 @@ new Function(script);
 }
 r = await worker.fetch(new Request(base + "/setup?secret=s3cret"), env, ctx);
 assert.doesNotMatch(await r.text(), /Всё готово/, "секрет в адресе не принимается");
-const setupPost = (secret) => worker.fetch(new Request(base + "/setup", { method: "POST", body: new URLSearchParams({ secret }) }), env, ctx);
+const setupPost = (secret, lang) => worker.fetch(new Request(base + "/setup", { method: "POST", headers: lang ? { "accept-language": lang } : {}, body: new URLSearchParams({ secret }) }), env, ctx);
 r = await setupPost("wrong");
 assert.equal(r.status, 403);
 assert.ok(!sent.some((x) => x.method === "setWebhook"));
-r = await setupPost("s3cret");
+sent.length = 0;
+r = await setupPost("s3cret", "ru-RU,ru;q=0.9");
 const setupHtml = await r.text();
 assert.match(setupHtml, /Всё готово/);
 assert.equal(sent.find((x) => x.method === "setWebhook").body.url, base + "/webhook");
+const cmdCalls = sent.filter((x) => x.method === "setMyCommands");
+assert.equal(cmdCalls.length, 2, "меню команд: английское и русское");
+assert.equal(cmdCalls[0].body.language_code, undefined);
+assert.equal(cmdCalls[1].body.language_code, "ru");
+assert.ok(cmdCalls[0].body.commands.some((c) => c.command === "lang"));
+r = await setupPost("s3cret");
+assert.match(await r.text(), /All set!/, "страница настройки по умолчанию на английском");
 console.log("✓ /app и /setup");
 
 // 10. Вода
