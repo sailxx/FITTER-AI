@@ -126,7 +126,7 @@ Znalazłeś błąd albo masz pomysł? Otwórz [issue](https://github.com/sailxx/
 
 ## ⚖️ Licencja
 
-FITTER jest udostępniany na licencji **MIT**, zobacz [LICENSE](LICENSE). To niezależny projekt, niezwiązany z Telegramem, Google ani Cloudflare. Wszystkie nazwy należą do ich właścicieli.
+FITTER jest udostępniany na licencji **Apache 2.0**, zobacz [LICENSE](LICENSE). To niezależny projekt, niezwiązany z Telegramem, Google ani Cloudflare. Wszystkie nazwy należą do ich właścicieli.
 
 <div align="center">
   <br />

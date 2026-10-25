@@ -126,7 +126,7 @@ Achou um bug ou tem uma ideia? Abra uma [issue](https://github.com/sailxx/FITTER
 
 ## ⚖️ Licença
 
-O FITTER é distribuído sob a licença **MIT**, veja [LICENSE](LICENSE). É um projeto independente e não tem relação com Telegram, Google ou Cloudflare. Os nomes pertencem aos seus donos.
+O FITTER é distribuído sob a licença **Apache 2.0**, veja [LICENSE](LICENSE). É um projeto independente e não tem relação com Telegram, Google ou Cloudflare. Os nomes pertencem aos seus donos.
 
 <div align="center">
   <br />

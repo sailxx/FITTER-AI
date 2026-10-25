@@ -126,7 +126,7 @@ Bir hata mı buldun ya da bir fikrin mi var? Bir [issue](https://github.com/sail
 
 ## ⚖️ Lisans
 
-FITTER **MIT** lisansıyla yayınlanır, bkz. [LICENSE](LICENSE). Bağımsız bir projedir; Telegram, Google veya Cloudflare ile bağlantısı yoktur. Tüm adlar sahiplerine aittir.
+FITTER **Apache 2.0** lisansıyla yayınlanır, bkz. [LICENSE](LICENSE). Bağımsız bir projedir; Telegram, Google veya Cloudflare ile bağlantısı yoktur. Tüm adlar sahiplerine aittir.
 
 <div align="center">
   <br />

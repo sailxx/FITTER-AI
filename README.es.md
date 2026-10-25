@@ -126,7 +126,7 @@ Historial completo: [CHANGELOG.md](CHANGELOG.md) (en ruso).
 
 ## ⚖️ Licencia
 
-FITTER se distribuye bajo la licencia **MIT**, consulta [LICENSE](LICENSE). Es un proyecto independiente y no está vinculado a Telegram, Google ni Cloudflare. Los nombres pertenecen a sus propietarios.
+FITTER se distribuye bajo la licencia **Apache 2.0**, consulta [LICENSE](LICENSE). Es un proyecto independiente y no está vinculado a Telegram, Google ni Cloudflare. Los nombres pertenecen a sus propietarios.
 
 <div align="center">
   <br />
