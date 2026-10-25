@@ -802,6 +802,11 @@ console.log("✓ /app и /setup");
   console.log("✓ лимит размера картинки");
 }
 
+// 13a. Строгая проверка даты
+assert.ok(_test.isDate("2026-02-28") && _test.isDate("2028-02-29"));
+assert.ok(!_test.isDate("2026-13-45") && !_test.isDate("2026-02-31") && !_test.isDate("26-1-1") && !_test.isDate(null));
+console.log("✓ проверка даты");
+
 // 14. /delete: все данные пользователя стираются
 {
   const del = { id: 55, first_name: "Удалю", language_code: "ru" };
@@ -810,6 +815,7 @@ console.log("✓ /app и /setup");
   await env.DB.put("d:55:2026-10-01", JSON.stringify({ meals: [] }));
   await env.DB.put("w:55", "[]");
   await env.DB.put("an:55:2026-10-01", "{}");
+  await env.DB.put("wk:55:2026-10-25", "1");
   await env.DB.put("d:555:2026-10-01", JSON.stringify({ meals: [] }));
   await env.DB.put("wr:ids", JSON.stringify([55, 42]));
   await env.DB.put("pl:ids", JSON.stringify([55]));
@@ -820,7 +826,7 @@ console.log("✓ /app и /setup");
   assert.ok(await env.DB.get("u:55"));
   s = await call({ callback_query: { id: "q", from: del, data: "delall", message: { message_id: 7, chat: dchat } } });
   assert.match(lastText(s), /данные удалены/);
-  const left = (await env.DB.list({ prefix: "" })).keys.map((k) => k.name).filter((k) => /^(u|w|adv):55$|^(d|an):55:/.test(k));
+  const left = (await env.DB.list({ prefix: "" })).keys.map((k) => k.name).filter((k) => /^(u|w|adv):55$|^(d|an|wk):55:/.test(k));
   assert.deepEqual(left, []);
   assert.ok(await env.DB.get("d:555:2026-10-01"), "чужие данные на месте");
   assert.deepEqual(JSON.parse(await env.DB.get("wr:ids")), [42]);
