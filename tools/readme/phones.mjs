@@ -28,7 +28,8 @@ const I = {
   check: ['s', 'M5.5 12.5l4.2 4.2L18.5 8', 2.6],
 };
 
-export function createPhones(K) {
+export function createPhones(K, lang = 'ru') {
+  const tr = (ru, en) => (lang === 'ru' ? ru : en);
   const { T } = K;
   const tx = (x, y, s, { size = 14, w = 600, fill = '#fff', anchor, ls, op } = {}) =>
     `<text x="${x}" y="${y}" font-size="${size}" font-weight="${w}" fill="${fill}"${anchor ? ` text-anchor="${anchor}"` : ''}${ls ? ` letter-spacing="${ls}"` : ''}${op != null ? ` opacity="${op}"` : ''}>${T(s)}</text>`;
@@ -49,7 +50,7 @@ export function createPhones(K) {
 
   // ───── Блоки экрана «Сегодня» ─────
   function header(t, y, { sub, streak, week }) {
-    let s = tx(20, y + 36, 'Сегодня', { size: 34, w: 800, fill: t.text, ls: -0.8 }) + tx(20, y + 56, sub, { size: 14, w: 600, fill: t.hint });
+    let s = tx(20, y + 36, tr('Сегодня', 'Today'), { size: 34, w: 800, fill: t.text, ls: -0.8 }) + tx(20, y + 56, sub, { size: 14, w: 600, fill: t.hint });
     const chip = t.dark ? '#0F0F12' : t.card;
     s += rect(streak ? 232 : 304, y + 10, 40, 40, 20, week ? C.g1 : chip) + icon('calendar', (streak ? 232 : 304) + 10.5, y + 20.5, 19, week ? C.ink : t.text);
     if (streak) s += rect(280, y + 10, 60, 40, 20, chip) + icon('flame', 291, y + 21, 18, '#FF9F0A') + tx(313, y + 36, String(streak), { size: 16, w: 800, fill: t.text });
@@ -57,7 +58,7 @@ export function createPhones(K) {
   }
 
   function weekRow(t, y) {
-    const wd = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
+    const wd = tr(['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'], ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']);
     const dots = ['g', 'g', 'o', 'sel', null, null, null];
     const w = 320 / 7;
     return wd.map((d, i) => {
@@ -76,8 +77,8 @@ export function createPhones(K) {
     let s = `<g filter="url(#ph-shadow)">${rect(20, y, 320, h, 24, 'url(#ph-cal)')}</g>`;
     s += `<g clip-path="url(#ph-calclip-${y})">${rect(20, y, 320, h, 24, 'url(#ph-calglow)')}${GRAIN.map(([gx, gy, a, r]) => `<circle cx="${(20 + gx * 320).toFixed(1)}" cy="${(y + gy * h).toFixed(1)}" r="${(r * 0.75).toFixed(2)}" fill="#fff" fill-opacity="${a.toFixed(2)}"/>`).join('')}</g>`;
     s += tx(44, y + 72, left, { size: 50, w: 800, ls: -1.8 });
-    s += tx(44, y + 96, 'Ккал осталось', { size: 15, w: 700, fill: 'rgba(255,255,255,.95)' });
-    s += tx(44, y + 117, `${eaten} из ${goal} съедено`, { size: 13, w: 600, fill: 'rgba(255,255,255,.78)' });
+    s += tx(44, y + 96, tr('Ккал осталось', 'Kcal left'), { size: 15, w: 700, fill: 'rgba(255,255,255,.95)' });
+    s += tx(44, y + 117, tr(`${eaten} из ${goal} съедено`, `${eaten} of ${goal} eaten`), { size: 13, w: 600, fill: 'rgba(255,255,255,.78)' });
     s += ring(263, y + h / 2, 51.5, 15, pct, '#fff', 'rgba(255,255,255,.28)');
     s += `<circle cx="263" cy="${y + h / 2}" r="21" fill="rgba(255,255,255,.24)"/>` + icon('flame', 252, y + h / 2 - 11, 22, '#fff');
     return { s, h, defs: `<clipPath id="ph-calclip-${y}"><rect x="20" y="${y}" width="320" height="${h}" rx="24"/></clipPath>` };
@@ -106,8 +107,8 @@ export function createPhones(K) {
   function water(t, y, { val, goal, cells, on }) {
     const h = 104;
     let s = rect(20, y, 320, h, 24, t.card) + `<circle cx="60" cy="${y + 40}" r="22" fill="${C.water}" fill-opacity=".16"/>` + icon('glass', 49, y + 29, 22, t.dark ? C.water : C.waterInk);
-    s += `<text x="86" y="${y + 40}" font-size="24" font-weight="800" fill="${t.text}" letter-spacing="-.5">${T(val)}<tspan font-size="14" font-weight="600" fill="${t.hint}">${T(' / ' + goal + ' л')}</tspan></text>`;
-    s += tx(86, y + 58, 'Вода · 5 из 9 стаканов', { size: 12, w: 600, fill: t.hint });
+    s += `<text x="86" y="${y + 40}" font-size="24" font-weight="800" fill="${t.text}" letter-spacing="-.5">${T(val)}<tspan font-size="14" font-weight="600" fill="${t.hint}">${T(' / ' + goal + tr(' л', ' L'))}</tspan></text>`;
+    s += tx(86, y + 58, tr('Вода · 5 из 9 стаканов', 'Water · 5 of 9 glasses'), { size: 12, w: 600, fill: t.hint });
     s += `<circle cx="296" cy="${y + 40}" r="22" fill="${C.water}"/>` + icon('plus', 286, y + 30, 20, '#04263F');
     const cw = (284 - (cells - 1) * 4) / cells;
     for (let i = 0; i < cells; i++) s += rect(38 + i * (cw + 4), y + 76, cw, 10, 5, i < on ? C.water : t.track);
@@ -117,7 +118,7 @@ export function createPhones(K) {
   function pills(t, y, rows) {
     const taken = rows.filter((r) => r.on).length, h = 18 + 44 + 24 + rows.length * 52 + 8;
     let s = rect(20, y, 320, h, 24, t.card) + `<circle cx="60" cy="${y + 40}" r="22" fill="${C.pill}" fill-opacity=".16"/>` + icon('pill', 49, y + 29, 22, t.dark ? C.pill : C.pillInk);
-    s += tx(86, y + 38, 'Таблетки', { size: 18, w: 800, fill: t.text }) + tx(86, y + 56, `${taken} из ${rows.length} принято`, { size: 12, w: 600, fill: t.hint });
+    s += tx(86, y + 38, tr('Таблетки', 'Pills'), { size: 18, w: 800, fill: t.text }) + tx(86, y + 56, tr(`${taken} из ${rows.length} принято`, `${taken} of ${rows.length} taken`), { size: 12, w: 600, fill: t.hint });
     s += rect(38, y + 76, 284, 6, 3, t.track) + rect(38, y + 76, 284 * taken / rows.length, 6, 3, C.pill);
     rows.forEach((r, i) => {
       const ry = y + 94 + i * 52;
@@ -136,8 +137,8 @@ export function createPhones(K) {
     const X = 176, Wd = 142, top = y + 16, line = t.dark ? C.g1 : C.g2;
     const P = pts.map(([px, py]) => [X + px * Wd, top + py]);
     const d = P.map((p, i) => `${i ? 'L' : 'M'}${p[0].toFixed(1)} ${p[1].toFixed(1)}`).join('');
-    return rect(20, y, 320, h, 24, t.card) + icon('scale', 36, y + 18, 16, t.hint) + tx(58, y + 31, 'Вес', { size: 14, w: 700, fill: t.hint }) +
-      tx(36, y + 60, '78,4 кг', { size: 26, w: 800, fill: t.text, ls: -0.5 }) + tx(36, y + 79, '−1,6 кг с 2 окт', { size: 13, w: 800, fill: t.dark ? C.g1 : C.g3 }) +
+    return rect(20, y, 320, h, 24, t.card) + icon('scale', 36, y + 18, 16, t.hint) + tx(58, y + 31, tr('Вес', 'Weight'), { size: 14, w: 700, fill: t.hint }) +
+      tx(36, y + 60, tr('78,4 кг', '172.8 lb'), { size: 26, w: 800, fill: t.text, ls: -0.5 }) + tx(36, y + 79, tr('−1,6 кг с 2 окт', '−3.5 lb since Oct 2'), { size: 13, w: 800, fill: t.dark ? C.g1 : C.g3 }) +
       `<path d="${d}L${X + Wd} ${y + 78}L${X} ${y + 78}z" fill="url(#ph-wfill-${t.dark ? 'd' : 'l'})"/>` +
       `<path d="${d}" fill="none" stroke="${line}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/><circle cx="${P.at(-1)[0]}" cy="${P.at(-1)[1]}" r="4" fill="${line}"/>`;
   }
@@ -165,9 +166,9 @@ export function createPhones(K) {
     let s = rect(20, y, 320, h, 24, t.card) + thumb(32, y + 12, FOODS[m.k]).s;
     s += tx(132, y + 36, m.title, { size: 16, w: 800, fill: t.text });
     s += rect(292, y + 20, 38, 22, 10, t.fill) + tx(311, y + 35, m.time, { size: 12, w: 700, fill: t.hint, anchor: 'middle' });
-    s += `<circle cx="141" cy="${y + 60}" r="9" fill="url(#ph-cal)"/>` + icon('flame', 135, y + 54, 12, '#fff') + tx(155, y + 66, `${m.kcal} ккал`, { size: 17, w: 800, fill: t.text });
+    s += `<circle cx="141" cy="${y + 60}" r="9" fill="url(#ph-cal)"/>` + icon('flame', 135, y + 54, 12, '#fff') + tx(155, y + 66, `${m.kcal} ${tr('ккал', 'kcal')}`, { size: 17, w: 800, fill: t.text });
     [['bolt', C.p, m.p], ['wheat', C.c, m.c], ['drop', C.f, m.f]].forEach(([ic, col, g], i) =>
-      s += icon(ic, 132 + i * 66, y + 79, 14, col) + tx(150 + i * 66, y + 91, `${g} г`, { size: 13, w: 700, fill: t.hint }));
+      s += icon(ic, 132 + i * 66, y + 79, 14, col) + tx(150 + i * 66, y + 91, `${g} ${tr('г', 'g')}`, { size: 13, w: 700, fill: t.hint }));
     return s;
   }
 
@@ -193,35 +194,35 @@ export function createPhones(K) {
     const t = kind === 'light' ? TOK.light : TOK.dark;
     let s = bg(t) + status(t), y;
     if (kind === 'today') {
-      s += header(t, 38, { sub: 'четверг, 22 октября', streak: 12 });
+      s += header(t, 38, { sub: tr('четверг, 22 октября', 'Thursday, October 22'), streak: 12 });
       let c = calorie(112, { left: '842', eaten: '1 398', goal: '2 240', pct: 0.624 }); extra.push(c.defs); s += c.s;
-      s += macros(t, 282, [['bolt', '28 г', 'Белков ост.', 0.8, C.p], ['wheat', '102 г', 'Углев. ост.', 0.59, C.c], ['drop', '18 г', 'Жиров ост.', 0.74, C.f]]);
-      const tt = 'Сильнее всего не хватает углеводов: добери 102 г — например, порция каши, хлеб или фрукт.';
+      s += macros(t, 282, [['bolt', tr('28 г', '28 g'), tr('Белков ост.', 'Protein left'), 0.8, C.p], ['wheat', tr('102 г', '102 g'), tr('Углев. ост.', 'Carbs left'), 0.59, C.c], ['drop', tr('18 г', '18 g'), tr('Жиров ост.', 'Fat left'), 0.74, C.f]]);
+      const tt = tr('Сильнее всего не хватает углеводов: добери 102 г — например, порция каши, хлеб или фрукт.', 'Carbs are what you are short on: add 102 g, for example a bowl of porridge, bread or fruit.');
       s += tip(t, 448, tt).replace(/<!--h:\d+-->/, '');
       s += water(t, 448 + tipH(tt) + 12, { val: '1,25', goal: '2,1', cells: 9, on: 5 }).s;
       s += nav(t, 0);
     } else if (kind === 'light') {
-      s += header(t, 38, { sub: 'четверг, 22 октября', streak: 12, week: true });
+      s += header(t, 38, { sub: tr('четверг, 22 октября', 'Thursday, October 22'), streak: 12, week: true });
       s += weekRow(t, 104);
       let c = calorie(178, { left: '842', eaten: '1 398', goal: '2 240', pct: 0.624 }); extra.push(c.defs); s += c.s;
-      s += macros(t, 348, [['bolt', '28 г', 'Белков ост.', 0.8, C.p], ['wheat', '102 г', 'Углев. ост.', 0.59, C.c], ['drop', '18 г', 'Жиров ост.', 0.74, C.f]]);
+      s += macros(t, 348, [['bolt', tr('28 г', '28 g'), tr('Белков ост.', 'Protein left'), 0.8, C.p], ['wheat', tr('102 г', '102 g'), tr('Углев. ост.', 'Carbs left'), 0.59, C.c], ['drop', tr('18 г', '18 g'), tr('Жиров ост.', 'Fat left'), 0.74, C.f]]);
       s += water(t, 514, { val: '1,25', goal: '2,1', cells: 9, on: 5 }).s;
-      s += tx(22, 664, 'Недавно добавлено', { size: 20, w: 800, fill: t.text, ls: -0.3 });
+      s += tx(22, 664, tr('Недавно добавлено', 'Recently added'), { size: 20, w: 800, fill: t.text, ls: -0.3 });
       s += nav(t, 0);
     } else {
       const p = pills(t, 46, [
-        { name: 'Витамин D', dose: '1 капсула', time: '08:00', on: true },
-        { name: 'Омега-3', dose: '1 капсула', time: '13:00' },
-        { name: 'Магний B6', dose: '1 таблетка', time: '21:00' },
+        { name: tr('Витамин D', 'Vitamin D'), dose: tr('1 капсула', '1 capsule'), time: '08:00', on: true },
+        { name: tr('Омега-3', 'Omega-3'), dose: tr('1 капсула', '1 capsule'), time: '13:00' },
+        { name: tr('Магний B6', 'Magnesium B6'), dose: tr('1 таблетка', '1 tablet'), time: '21:00' },
       ]);
       s += p.s + weight(t, 46 + p.h + 12);
       const ty = 46 + p.h + 12 + 94 + 26;
-      s += tx(22, ty + 20, 'Недавно добавлено', { size: 20, w: 800, fill: t.text, ls: -0.3 }) + tx(338, ty + 19, '1 238 ккал', { size: 13, w: 600, fill: t.hint, anchor: 'end' });
+      s += tx(22, ty + 20, tr('Недавно добавлено', 'Recently added'), { size: 20, w: 800, fill: t.text, ls: -0.3 }) + tx(338, ty + 19, tr('1 238 ккал', '1,238 kcal'), { size: 13, w: 600, fill: t.hint, anchor: 'end' });
       let my = ty + 38;
       for (const m of [
-        { k: 'green', title: 'Греческий салат', time: '15:40', kcal: '240', p: 8, c: 12, f: 18 },
-        { k: 'hot', title: 'Курица с рисом', time: '13:05', kcal: '586', p: 42, c: 61, f: 14 },
-        { k: 'oat', title: 'Овсянка с бананом', time: '08:12', kcal: '412', p: 14, c: 68, f: 9 },
+        { k: 'green', title: tr('Греческий салат', 'Greek salad'), time: '15:40', kcal: '240', p: 8, c: 12, f: 18 },
+        { k: 'hot', title: tr('Курица с рисом', 'Chicken with rice'), time: '13:05', kcal: '586', p: 42, c: 61, f: 14 },
+        { k: 'oat', title: tr('Овсянка с бананом', 'Oatmeal with banana'), time: '08:12', kcal: '412', p: 14, c: 68, f: 9 },
       ]) { s += meal(t, my, m); my += 122; }
       s += nav(t, 0);
     }
