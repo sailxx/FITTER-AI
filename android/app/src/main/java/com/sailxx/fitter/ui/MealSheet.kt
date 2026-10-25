@@ -1,5 +1,6 @@
 package com.sailxx.fitter.ui
 
+import com.sailxx.fitter.data.tr
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -96,11 +97,11 @@ fun MealSheet(m: Meal, onClose: () -> Unit, onDeleteMeal: () -> Unit) {
             FitterRepository.refresh(context)
         } catch (e: CancellationException) { throw e } catch (e: Exception) {
             d.msg = when {
-                e is ApiException && e.code == 429 -> "Лимит запросов к нейросети на сегодня закончился"
-                e is ApiException && e.error == "bad values" -> "Слишком большие числа для такого веса"
-                e is ApiException && e.code == 400 -> "Проверь вес и числа"
-                e is ApiException -> "Нейросеть сейчас не отвечает"
-                else -> "Нет связи с сервером"
+                e is ApiException && e.code == 429 -> tr("Лимит запросов к нейросети на сегодня закончился", "You've used up today's AI requests")
+                e is ApiException && e.error == "bad values" -> tr("Слишком большие числа для такого веса", "The numbers are too big for that weight")
+                e is ApiException && e.code == 400 -> tr("Проверь вес и числа", "Check the weight and numbers")
+                e is ApiException -> tr("Нейросеть сейчас не отвечает", "The AI isn't responding right now")
+                else -> tr("Нет связи с сервером", "Can't reach the server")
             }
         }
         d.busy = false
@@ -118,49 +119,49 @@ fun MealSheet(m: Meal, onClose: () -> Unit, onDeleteMeal: () -> Unit) {
             verticalArrangement = Arrangement.spacedBy(Gap),
         ) {
             Text(m.title, fontSize = 26.sp, fontWeight = FontWeight.ExtraBold, color = t.text, letterSpacing = (-0.5).sp)
-            Text("${m.time} · 🔥 ${m.kcal} ккал · Б ${m.p} · Ж ${m.f} · У ${m.c}", fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = t.hint)
-            if (drafts.isEmpty()) Text("В этом приёме нет продуктов", color = t.hint)
+            Text("${m.time} · 🔥 ${m.kcal} ${tr("ккал", "kcal")} · ${tr("Б ${m.p} · Ж ${m.f} · У ${m.c}", "P ${m.p} · F ${m.f} · C ${m.c}")}", fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = t.hint)
+            if (drafts.isEmpty()) Text(tr("В этом приёме нет продуктов", "This meal has no products"), color = t.hint)
             drafts.forEachIndexed { i, d ->
                 Column(Modifier.fillMaxWidth().background(t.fill, RoundedCornerShape(22.dp)).padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Field(d.name, { if (it.length <= 60) d.name = it }, "Название", Modifier.weight(1f), number = false)
+                        Field(d.name, { if (it.length <= 60) d.name = it }, tr("Название", "Name"), Modifier.weight(1f), number = false)
                         Spacer(Modifier.size(8.dp))
                         Box(
                             Modifier.size(40.dp).clip(CircleShape).background(t.card).clickable(enabled = !d.busy) {
-                                run(d, "Удалено") { tok, date -> Api.itemDelete(tok, date, m.id, i) }
+                                run(d, tr("Удалено", "Deleted")) { tok, date -> Api.itemDelete(tok, date, m.id, i) }
                             },
                             contentAlignment = Alignment.Center,
                         ) { Text("✕", color = t.hint, fontWeight = FontWeight.Bold) }
                     }
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Field(d.grams, { if (it.length <= 4 && it.all(Char::isDigit)) d.changeGrams(it) }, "г", Modifier.weight(1f))
-                        Field(d.kcal, { if (it.length <= 6) d.kcal = it }, "ккал", Modifier.weight(1.2f))
+                        Field(d.grams, { if (it.length <= 4 && it.all(Char::isDigit)) d.changeGrams(it) }, tr("г", "g"), Modifier.weight(1f))
+                        Field(d.kcal, { if (it.length <= 6) d.kcal = it }, tr("ккал", "kcal"), Modifier.weight(1.2f))
                     }
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Field(d.p, { if (it.length <= 5) d.p = it }, "белки", Modifier.weight(1f), accent = Palette.MacroP)
-                        Field(d.f, { if (it.length <= 5) d.f = it }, "жиры", Modifier.weight(1f), accent = Palette.MacroF)
-                        Field(d.c, { if (it.length <= 5) d.c = it }, "углев.", Modifier.weight(1f), accent = Palette.MacroC)
+                        Field(d.p, { if (it.length <= 5) d.p = it }, tr("белки", "protein"), Modifier.weight(1f), accent = Palette.MacroP)
+                        Field(d.f, { if (it.length <= 5) d.f = it }, tr("жиры", "fat"), Modifier.weight(1f), accent = Palette.MacroF)
+                        Field(d.c, { if (it.length <= 5) d.c = it }, tr("углев.", "carbs"), Modifier.weight(1f), accent = Palette.MacroC)
                     }
-                    d.msg?.let { Text(it, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = if (it == "Сохранено" || it == "Пересчитано" || it == "Удалено") (if (t.dark) Palette.G1 else Palette.G3) else Palette.Danger) }
+                    d.msg?.let { Text(it, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = if (it == tr("Сохранено", "Saved") || it == tr("Пересчитано", "Recalculated") || it == tr("Удалено", "Deleted")) (if (t.dark) Palette.G1 else Palette.G3) else Palette.Danger) }
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        SoftButton(if (d.busy) "…" else "✨ Пересчитать ИИ", Modifier.weight(1f), height = 44.dp) {
-                            if (!d.busy && d.name.trim().isNotEmpty()) run(d, "Пересчитано") { tok, date -> Api.itemRename(tok, date, m.id, i, d.name.trim()) }
+                        SoftButton(if (d.busy) "…" else tr("✨ Пересчитать ИИ", "✨ Recalculate with AI"), Modifier.weight(1f), height = 44.dp) {
+                            if (!d.busy && d.name.trim().isNotEmpty()) run(d, tr("Пересчитано", "Recalculated")) { tok, date -> Api.itemRename(tok, date, m.id, i, d.name.trim()) }
                         }
-                        PrimaryButton(if (d.busy) "…" else "Сохранить", Modifier.weight(1f), height = 44.dp) {
+                        PrimaryButton(if (d.busy) "…" else tr("Сохранить", "Save"), Modifier.weight(1f), height = 44.dp) {
                             val g = d.grams.toIntOrNull()
                             val v = listOf(parse(d.kcal), parse(d.p), parse(d.f), parse(d.c))
                             if (d.busy) return@PrimaryButton
-                            if (g == null || g <= 0 || v.any { it == null }) { d.msg = "Проверь вес и числа"; return@PrimaryButton }
-                            run(d, "Сохранено") { tok, date -> Api.itemSet(tok, date, m.id, i, d.name.trim(), g, v[0]!!, v[1]!!, v[2]!!, v[3]!!) }
+                            if (g == null || g <= 0 || v.any { it == null }) { d.msg = tr("Проверь вес и числа", "Check the weight and numbers"); return@PrimaryButton }
+                            run(d, tr("Сохранено", "Saved")) { tok, date -> Api.itemSet(tok, date, m.id, i, d.name.trim(), g, v[0]!!, v[1]!!, v[2]!!, v[3]!!) }
                         }
                     }
                 }
             }
             Text(
-                "Меняешь вес — калории и БЖУ пересчитываются сами, их можно поправить вручную. «Пересчитать ИИ» подберёт КБЖУ по новому названию.",
+                tr("Меняешь вес — калории и БЖУ пересчитываются сами, их можно поправить вручную. «Пересчитать ИИ» подберёт КБЖУ по новому названию.", "Change the weight and calories and macros recalculate on their own; you can also edit them by hand. “Recalculate with AI” picks the values for a new name."),
                 fontSize = 12.sp, color = t.hint, lineHeight = 16.sp,
             )
-            SoftButton("Удалить приём пищи", color = Palette.Danger) { onDeleteMeal(); onClose() }
+            SoftButton(tr("Удалить приём пищи", "Delete meal"), color = Palette.Danger) { onDeleteMeal(); onClose() }
         }
     }
 }

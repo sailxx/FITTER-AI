@@ -1,5 +1,7 @@
 package com.sailxx.fitter.ui
 
+import com.sailxx.fitter.data.Lang
+import com.sailxx.fitter.data.tr
 import android.Manifest
 import android.content.Intent
 import android.os.Build
@@ -88,7 +90,7 @@ import kotlinx.coroutines.launch
 import java.util.Locale
 
 private val Group = RoundedCornerShape(24.dp)
-private fun n(x: Int) = String.format(Locale("ru"), "%,d", x).replace(' ', ' ')
+private fun n(x: Int) = String.format(Locale(Lang.code), "%,d", x).replace(' ', ' ')
 
 /** Настройки: спокойный список — тема, виджеты, аккаунт. Изменения сразу видны на виджетах. */
 @Composable
@@ -118,50 +120,61 @@ fun SettingsScreen(summary: Summary?, onBack: () -> Unit) {
     ) {
         item {
             Text(
-                "Настройки", fontSize = 34.sp, fontWeight = FontWeight.ExtraBold, color = t.text, letterSpacing = (-0.8).sp,
+                tr("Настройки", "Settings"), fontSize = 34.sp, fontWeight = FontWeight.ExtraBold, color = t.text, letterSpacing = (-0.8).sp,
                 modifier = Modifier.statusBarsPadding().padding(start = 2.dp, top = 14.dp, bottom = 4.dp),
             )
         }
-
         item {
-            Section("Напоминания")
+            Section(tr("Язык", "Language"))
             Card {
-                LinkRow("Напоминания", t.text, sub = remindersLabel(reminders)) { remindersOpen = true }
+                Box(Modifier.padding(16.dp)) {
+                    Segmented(listOf("English", "Русский"), if (Lang.code == "ru") 1 else 0) { i ->
+                        scope.launch { FitterRepository.setLang(context, if (i == 1) "ru" else "en") }
+                    }
+                }
             }
-            Note("Вода, еда и таблетки — уведомления с кнопками: записать стакан или отметить таблетку можно, не открывая приложение")
+            Note(tr("Язык бота, дневника в Telegram, приложения и виджетов один и тот же", "The bot, the Telegram diary, the app and the widgets all use the same language"))
         }
 
         item {
-            Section("Оформление")
+            Section(tr("Напоминания", "Reminders"))
+            Card {
+                LinkRow(tr("Напоминания", "Reminders"), t.text, sub = remindersLabel(reminders)) { remindersOpen = true }
+            }
+            Note(tr("Вода, еда и таблетки — уведомления с кнопками: записать стакан или отметить таблетку можно, не открывая приложение", "Water, food and pills — notifications with buttons: log a glass or mark a pill without opening the app"))
+        }
+
+        item {
+            Section(tr("Оформление", "Appearance"))
             Card {
                 Row(Modifier.padding(horizontal = 16.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Text("Тема", color = t.text, fontWeight = FontWeight.Medium, modifier = Modifier.weight(1f))
+                    Text(tr("Тема", "Theme"), color = t.text, fontWeight = FontWeight.Medium, modifier = Modifier.weight(1f))
                 }
                 Box(Modifier.padding(start = 16.dp, end = 16.dp, bottom = 14.dp)) {
-                    Segmented(listOf("Система", "Светлая", "Тёмная"), ThemeMode.entries.indexOf(mode)) { i ->
+                    Segmented(listOf(tr("Система", "System"), tr("Светлая", "Light"), tr("Тёмная", "Dark")), ThemeMode.entries.indexOf(mode)) { i ->
                         ThemePref.set(context, ThemeMode.entries[i])
                         scope.launch { updateFitterWidgets(context) }
                     }
                 }
                 Divider()
                 Row(Modifier.padding(horizontal = 16.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Text("Иконка", color = t.text, fontWeight = FontWeight.Medium, modifier = Modifier.weight(1f))
+                    Text(tr("Иконка", "Icon"), color = t.text, fontWeight = FontWeight.Medium, modifier = Modifier.weight(1f))
                 }
                 Row(Modifier.padding(start = 16.dp, end = 16.dp, bottom = 14.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     for (s in AppIconStyle.entries) IconChoice(s, s == icon) { AppIcon.set(context, s) }
                 }
             }
-            Note("Виджеты повторяют тему: белые при светлой, чёрные при тёмной. Новая иконка появится на рабочем столе через несколько секунд")
+            Note(tr("Виджеты повторяют тему: белые при светлой, чёрные при тёмной. Новая иконка появится на рабочем столе через несколько секунд", "Widgets follow the theme: white in light, black in dark. The new icon appears on the home screen in a few seconds"))
         }
 
         item {
-            Section("Виджеты")
+            Section(tr("Виджеты", "Widgets"))
             Card {
                 Preview(summary, look.copy(opacity = opacity.toInt()), t.dark)
                 Divider()
                 Column(Modifier.padding(start = 16.dp, end = 16.dp, top = 12.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text("Непрозрачность фона", color = t.text, fontWeight = FontWeight.Medium, modifier = Modifier.weight(1f))
+                        Text(tr("Непрозрачность фона", "Background opacity"), color = t.text, fontWeight = FontWeight.Medium, modifier = Modifier.weight(1f))
                         Text("${opacity.toInt()}%", color = t.hint, fontWeight = FontWeight.SemiBold)
                     }
                     Slider(
@@ -175,19 +188,19 @@ fun SettingsScreen(summary: Summary?, onBack: () -> Unit) {
                 }
                 Divider()
                 val corners = listOf(8, 24, 36)
-                ChoiceRow("Углы", listOf("Острые", "Мягкие", "Круглые"), corners.indexOf(look.corners).coerceAtLeast(0)) { i -> saveLook(look.copy(corners = corners[i])) }
+                ChoiceRow(tr("Углы", "Corners"), listOf(tr("Острые", "Sharp"), tr("Мягкие", "Soft"), tr("Круглые", "Round")), corners.indexOf(look.corners).coerceAtLeast(0)) { i -> saveLook(look.copy(corners = corners[i])) }
                 Divider()
-                ChoiceRow("В кольце", listOf("Осталось", "Съедено"), if (look.showEaten) 1 else 0) { i -> saveLook(look.copy(showEaten = i == 1)) }
+                ChoiceRow(tr("В кольце", "In the ring"), listOf(tr("Осталось", "Left"), tr("Съедено", "Eaten")), if (look.showEaten) 1 else 0) { i -> saveLook(look.copy(showEaten = i == 1)) }
                 Divider()
-                ToggleRow("БЖУ в «Сегодня»", look.showMacros) { saveLook(look.copy(showMacros = it)) }
+                ToggleRow(tr("БЖУ в «Сегодня»", "Macros in “Today”"), look.showMacros) { saveLook(look.copy(showMacros = it)) }
                 Divider()
-                ToggleRow("Вода в «Сегодня»", look.showWater) { saveLook(look.copy(showWater = it)) }
+                ToggleRow(tr("Вода в «Сегодня»", "Water in “Today”"), look.showWater) { saveLook(look.copy(showWater = it)) }
             }
-            Note("Добавить виджет: удерживай палец на рабочем столе → «Виджеты» → Fitter. Растягивай — содержимое подстроится")
+            Note(tr("Добавить виджет: удерживай палец на рабочем столе → «Виджеты» → Fitter. Растягивай — содержимое подстроится", "To add a widget: long-press the home screen → “Widgets” → Fitter. Stretch it and the content adapts"))
         }
 
         item {
-            Section("Размер текста в виджетах")
+            Section(tr("Размер текста в виджетах", "Widget text size"))
             Card {
                 TextPreview(summary, look, t.dark)
                 Row(Modifier.padding(horizontal = 16.dp).padding(bottom = 14.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -204,23 +217,23 @@ fun SettingsScreen(summary: Summary?, onBack: () -> Unit) {
                     }
                 }
                 Divider()
-                Stepper("Главное число", look.numSize, 16..44) { saveLook(look.copy(numSize = it)) }
+                Stepper(tr("Главное число", "Main number"), look.numSize, 16..44) { saveLook(look.copy(numSize = it)) }
                 Divider()
-                Stepper("Текст", look.textSize, 9..20) { saveLook(look.copy(textSize = it)) }
+                Stepper(tr("Текст", "Text"), look.textSize, 9..20) { saveLook(look.copy(textSize = it)) }
                 Divider()
-                Stepper("Подписи", look.capSize, 8..16) { saveLook(look.copy(capSize = it)) }
+                Stepper(tr("Подписи", "Captions"), look.capSize, 8..16) { saveLook(look.copy(capSize = it)) }
                 Divider()
-                ToggleRow("Не учитывать системный размер шрифта", look.fixedFont) { saveLook(look.copy(fixedFont = it)) }
+                ToggleRow(tr("Не учитывать системный размер шрифта", "Ignore the system font size"), look.fixedFont) { saveLook(look.copy(fixedFont = it)) }
             }
-            Note("Размеры в sp для виджета обычного размера: растянутый виджет крупнее. Если переключатель включён, масштаб шрифта телефона на них не влияет")
+            Note(tr("Размеры в sp для виджета обычного размера: растянутый виджет крупнее. Если переключатель включён, масштаб шрифта телефона на них не влияет", "Sizes are in sp for a regular-size widget: a stretched widget is bigger. With the switch on, the phone's font scale doesn't affect them"))
         }
 
         item {
-            Section("Аккаунт")
+            Section(tr("Аккаунт", "Account"))
             Card {
-                LinkRow("Открыть бота @FitterFoodBot", t.text) { openUrl(context, BOT_URL) }
+                LinkRow(tr("Открыть бота @FitterFoodBot", "Open the @FitterFoodBot bot"), t.text) { openUrl(context, BOT_URL) }
                 Divider()
-                LinkRow("Выйти", Palette.Danger, chevron = false) { scope.launch { FitterRepository.logout(context) } }
+                LinkRow(tr("Выйти", "Sign out"), Palette.Danger, chevron = false) { scope.launch { FitterRepository.logout(context) } }
             }
             Text(
                 "Fitter ${BuildConfig.VERSION_NAME}", fontSize = 12.sp, color = t.hint, textAlign = TextAlign.Center,
@@ -314,14 +327,14 @@ private fun LinkRow(title: String, color: Color, chevron: Boolean = true, sub: S
 /** Подпись под кнопкой «Напоминания»: что включено. */
 private fun remindersLabel(s: ReminderSettings): String {
     val on = listOfNotNull(
-        if (s.water) "вода каждые ${hours(s.waterEvery)}" else null,
-        if (s.meals) "еда" else null,
-        if (s.pills) "таблетки" else null,
+        if (s.water) tr("вода каждые ${hours(s.waterEvery)}", "water every ${hours(s.waterEvery)}") else null,
+        if (s.meals) tr("еда", "food") else null,
+        if (s.pills) tr("таблетки", "pills") else null,
     )
-    return if (on.isEmpty()) "Выключены" else on.joinToString(" · ").replaceFirstChar { it.uppercase() }
+    return if (on.isEmpty()) tr("Выключены", "Off") else on.joinToString(" · ").replaceFirstChar { it.uppercase() }
 }
 
-private fun hours(min: Int) = if (min % 60 == 0) "${min / 60} ч" else "${min / 60},${min % 60 * 10 / 60} ч"
+private fun hours(min: Int) = if (min % 60 == 0) tr("${min / 60} ч", "${min / 60} h") else tr("${min / 60},${min % 60 * 10 / 60} ч", "${min / 60}.${min % 60 * 10 / 60} h")
 private fun clock(min: Int) = String.format(Locale.ROOT, "%02d:%02d", min / 60, min % 60)
 
 /**
@@ -354,19 +367,19 @@ private fun RemindersScreen(onBack: () -> Unit) {
     ) {
         item {
             Text(
-                "‹ Настройки", color = t.hint, fontWeight = FontWeight.SemiBold, fontSize = 15.sp,
+                tr("‹ Настройки", "‹ Settings"), color = t.hint, fontWeight = FontWeight.SemiBold, fontSize = 15.sp,
                 modifier = Modifier.statusBarsPadding().padding(top = 10.dp).clip(RoundedCornerShape(10.dp)).clickable(onClick = onBack).padding(vertical = 6.dp, horizontal = 2.dp),
             )
-            Text("Напоминания", fontSize = 34.sp, fontWeight = FontWeight.ExtraBold, color = t.text, letterSpacing = (-0.8).sp, modifier = Modifier.padding(start = 2.dp, top = 2.dp, bottom = 4.dp))
+            Text(tr("Напоминания", "Reminders"), fontSize = 34.sp, fontWeight = FontWeight.ExtraBold, color = t.text, letterSpacing = (-0.8).sp, modifier = Modifier.padding(start = 2.dp, top = 2.dp, bottom = 4.dp))
         }
 
         if (s.any && !allowed) item {
             Spacer(Modifier.height(12.dp))
             Card {
                 Column(Modifier.padding(16.dp)) {
-                    Text("Уведомления выключены", color = Palette.Danger, fontWeight = FontWeight.Bold)
-                    Text("Без разрешения напоминания не придут. Включи уведомления для Fitter в настройках телефона.", color = t.hint, fontSize = 13.sp, lineHeight = 17.sp, modifier = Modifier.padding(top = 4.dp, bottom = 12.dp))
-                    SoftButton("Открыть настройки уведомлений") {
+                    Text(tr("Уведомления выключены", "Notifications are off"), color = Palette.Danger, fontWeight = FontWeight.Bold)
+                    Text(tr("Без разрешения напоминания не придут. Включи уведомления для Fitter в настройках телефона.", "Without permission, reminders won't arrive. Turn on notifications for Fitter in your phone settings."), color = t.hint, fontSize = 13.sp, lineHeight = 17.sp, modifier = Modifier.padding(top = 4.dp, bottom = 12.dp))
+                    SoftButton(tr("Открыть настройки уведомлений", "Open notification settings")) {
                         context.startActivity(Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
                     }
                 }
@@ -374,53 +387,53 @@ private fun RemindersScreen(onBack: () -> Unit) {
         }
 
         item {
-            Section("💧 Вода")
+            Section(tr("💧 Вода", "💧 Water"))
             Card {
-                ToggleRow("Напоминать пить воду", s.water) { save(s.copy(water = it)) }
+                ToggleRow(tr("Напоминать пить воду", "Remind me to drink water"), s.water) { save(s.copy(water = it)) }
                 if (s.water) {
                     Divider()
                     val steps = ReminderSettings.WATER_STEPS
-                    ChoiceRow("Как часто", steps.map { hours(it) }, steps.indexOf(s.waterEvery).coerceAtLeast(0)) { save(s.copy(waterEvery = steps[it])) }
+                    ChoiceRow(tr("Как часто", "How often"), steps.map { hours(it) }, steps.indexOf(s.waterEvery).coerceAtLeast(0)) { save(s.copy(waterEvery = steps[it])) }
                     Divider()
-                    TimeRow("Первое", s.waterFrom) { save(s.copy(waterFrom = it)) }
+                    TimeRow(tr("Первое", "First"), s.waterFrom) { save(s.copy(waterFrom = it)) }
                     Divider()
-                    TimeRow("Последнее", s.waterTo) { save(s.copy(waterTo = it)) }
+                    TimeRow(tr("Последнее", "Last"), s.waterTo) { save(s.copy(waterTo = it)) }
                     Divider()
-                    ToggleRow("Молчать, когда норма выпита", s.waterQuietDone) { save(s.copy(waterQuietDone = it)) }
+                    ToggleRow(tr("Молчать, когда норма выпита", "Stay quiet once the goal is reached"), s.waterQuietDone) { save(s.copy(waterQuietDone = it)) }
                 }
             }
-            Note("В уведомлении — сколько выпито и кнопка «＋ Стакан 250 мл»: вода запишется сразу. «Через 30 мин» — напомнить позже")
+            Note(tr("В уведомлении — сколько выпито и кнопка «＋ Стакан 250 мл»: вода запишется сразу. «Через 30 мин» — напомнить позже", "The notification shows how much you've had and a “＋ Glass 250 ml” button: the water is logged right away. “In 30 min” reminds you later"))
         }
 
         item {
-            Section("🍽 Еда")
+            Section(tr("🍽 Еда", "🍽 Food"))
             Card {
-                ToggleRow("Напоминать записать еду", s.meals) { save(s.copy(meals = it)) }
+                ToggleRow(tr("Напоминать записать еду", "Remind me to log food"), s.meals) { save(s.copy(meals = it)) }
                 if (s.meals) {
                     Divider()
-                    MealRow("Завтрак", s.breakfast) { save(s.copy(breakfast = it)) }
+                    MealRow(tr("Завтрак", "Breakfast"), s.breakfast) { save(s.copy(breakfast = it)) }
                     Divider()
-                    MealRow("Обед", s.lunch) { save(s.copy(lunch = it)) }
+                    MealRow(tr("Обед", "Lunch"), s.lunch) { save(s.copy(lunch = it)) }
                     Divider()
-                    MealRow("Ужин", s.dinner) { save(s.copy(dinner = it)) }
+                    MealRow(tr("Ужин", "Dinner"), s.dinner) { save(s.copy(dinner = it)) }
                     Divider()
-                    ToggleRow("Молчать, если уже записал", s.mealQuietLogged) { save(s.copy(mealQuietLogged = it)) }
+                    ToggleRow(tr("Молчать, если уже записал", "Stay quiet if already logged"), s.mealQuietLogged) { save(s.copy(mealQuietLogged = it)) }
                 }
             }
-            Note("Кнопка «📸 Сфотографировать» в уведомлении сразу открывает камеру. Если еду записали за 2 часа до напоминания, оно не придёт")
+            Note(tr("Кнопка «📸 Сфотографировать» в уведомлении сразу открывает камеру. Если еду записали за 2 часа до напоминания, оно не придёт", "The “📸 Take a photo” button in the notification opens the camera right away. If you logged food within 2 hours before the reminder, it won't come"))
         }
 
         item {
-            Section("💊 Таблетки")
+            Section(tr("💊 Таблетки", "💊 Pills"))
             Card {
-                ToggleRow("Напоминать о таблетках", s.pills) { save(s.copy(pills = it)) }
+                ToggleRow(tr("Напоминать о таблетках", "Remind me about pills"), s.pills) { save(s.copy(pills = it)) }
             }
-            Note("Список и время — те же, что в боте (/pills). В уведомлении сразу можно нажать «✓ Принял» или «Пропустить»")
+            Note(tr("Список и время — те же, что в боте (/pills). В уведомлении сразу можно нажать «✓ Принял» или «Пропустить»", "The list and times are the same as in the bot (/pills). In the notification you can tap “✓ Taken” or “Skip” right away"))
         }
 
         if (s.any) item {
             Spacer(Modifier.height(24.dp))
-            PrimaryButton("Прислать пример уведомления") {
+            PrimaryButton(tr("Прислать пример уведомления", "Send a sample notification")) {
                 if (!allowed && Build.VERSION.SDK_INT >= 33) ask.launch(Manifest.permission.POST_NOTIFICATIONS) else Reminders.test(context)
             }
         }
@@ -469,8 +482,8 @@ private fun TimeChip(minutes: Int, on: Boolean, onPick: (Int) -> Unit) {
         val state = rememberTimePickerState(minutes / 60, minutes % 60, is24Hour = true)
         AlertDialog(
             onDismissRequest = { open = false },
-            confirmButton = { TextButton({ open = false; onPick(state.hour * 60 + state.minute) }) { Text("Готово", color = Palette.G2, fontWeight = FontWeight.Bold) } },
-            dismissButton = { TextButton({ open = false }) { Text("Отмена", color = t.hint) } },
+            confirmButton = { TextButton({ open = false; onPick(state.hour * 60 + state.minute) }) { Text(tr("Готово", "Done"), color = Palette.G2, fontWeight = FontWeight.Bold) } },
+            dismissButton = { TextButton({ open = false }) { Text(tr("Отмена", "Cancel"), color = t.hint) } },
             text = { TimePicker(state, colors = TimePickerDefaults.colors(selectorColor = Palette.G2, timeSelectorSelectedContainerColor = Palette.G2.copy(alpha = 0.18f))) },
             containerColor = t.card,
         )
@@ -523,11 +536,11 @@ private fun Preview(summary: Summary?, look: WidgetLook, dark: Boolean) {
                 Image(ring, null, Modifier.size(78.dp))
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Text(n(if (look.showEaten) s.kcal else kotlin.math.abs(s.kcalLeft)), fontSize = 16.sp, fontWeight = FontWeight.ExtraBold, color = skin.ink)
-                    Text(if (look.showEaten) "съедено" else "осталось", fontSize = 8.sp, color = skin.mut)
+                    Text(if (look.showEaten) tr("съедено", "eaten") else tr("осталось", "left"), fontSize = 8.sp, color = skin.mut)
                 }
             }
             Spacer(Modifier.height(4.dp))
-            Text("${n(s.kcal)} из ${n(s.targets.kcal)}", fontSize = 9.sp, color = skin.mut)
+            Text(tr("${n(s.kcal)} из ${n(s.targets.kcal)}", "${n(s.kcal)} of ${n(s.targets.kcal)}"), fontSize = 9.sp, color = skin.mut)
         }
     }
 }
@@ -576,8 +589,8 @@ private fun TextPreview(summary: Summary?, look: WidgetLook, dark: Boolean) {
         Spacer(Modifier.width(14.dp))
         Column {
             Text(n(if (look.showEaten) s.kcal else kotlin.math.abs(s.kcalLeft)), fontSize = (look.numSize * k).sp, fontWeight = FontWeight.Bold, color = skin.ink, maxLines = 1)
-            Text("Белки ${s.p} / ${s.targets.p} г", fontSize = (look.textSize * k).sp, fontWeight = FontWeight.Medium, color = skin.ink, maxLines = 1)
-            Text(if (look.showEaten) "съедено ккал" else "осталось ккал", fontSize = (look.capSize * k).sp, color = skin.mut, maxLines = 1)
+            Text(tr("Белки ${s.p} / ${s.targets.p} г", "Protein ${s.p} / ${s.targets.p} g"), fontSize = (look.textSize * k).sp, fontWeight = FontWeight.Medium, color = skin.ink, maxLines = 1)
+            Text(if (look.showEaten) tr("съедено ккал", "kcal eaten") else tr("осталось ккал", "kcal left"), fontSize = (look.capSize * k).sp, color = skin.mut, maxLines = 1)
         }
     }
 }

@@ -1,5 +1,8 @@
 package com.sailxx.fitter.ui
 
+import com.sailxx.fitter.data.Lang
+import com.sailxx.fitter.data.groupLabel
+import com.sailxx.fitter.data.tr
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.animateFloat
@@ -91,17 +94,18 @@ import kotlin.math.roundToInt
 import kotlin.math.sin
 
 private val Card = RoundedCornerShape(20.dp)
-private val MONTHS = listOf("января", "февраля", "марта", "апреля", "мая", "июня", "июля", "августа", "сентября", "октября", "ноября", "декабря")
-private val WEEKDAYS = listOf("пн", "вт", "ср", "чт", "пт", "сб", "вс")
+private val MONTHS get() = if (Lang.code == "ru") listOf("января", "февраля", "марта", "апреля", "мая", "июня", "июля", "августа", "сентября", "октября", "ноября", "декабря")
+    else listOf("Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec")
+private val WEEKDAYS get() = if (Lang.code == "ru") listOf("пн", "вт", "ср", "чт", "пт", "сб", "вс") else listOf("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun")
 
-/** «Сегодня», «Вчера» или «15 октября, ср». */
+/** «Сегодня», «Вчера» или «15 октября, ср» / «Oct 15, Wed». */
 private fun dateLabel(date: String, today: String): String {
     val d = runCatching { LocalDate.parse(date) }.getOrNull() ?: return date
     val t = runCatching { LocalDate.parse(today) }.getOrNull()
     return when (d) {
-        t -> "Сегодня"
-        t?.minusDays(1) -> "Вчера"
-        else -> "${d.dayOfMonth} ${MONTHS[d.monthValue - 1]}, ${WEEKDAYS[d.dayOfWeek.value - 1]}"
+        t -> tr("Сегодня", "Today")
+        t?.minusDays(1) -> tr("Вчера", "Yesterday")
+        else -> tr("${d.dayOfMonth} ${MONTHS[d.monthValue - 1]}, ${WEEKDAYS[d.dayOfWeek.value - 1]}", "${MONTHS[d.monthValue - 1]} ${d.dayOfMonth}, ${WEEKDAYS[d.dayOfWeek.value - 1]}")
     }
 }
 
@@ -189,24 +193,24 @@ private fun WorkoutList(list: List<Workout>, loaded: Boolean, today: String, onN
     val weekFrom = runCatching { LocalDate.parse(today).minusDays(6).toString() }.getOrDefault(today)
     val week = list.count { it.date >= weekFrom }
     LazyColumn(Modifier.fillMaxSize().screenBg(), contentPadding = PaddingValues(bottom = 130.dp)) {
-        item { ScreenHeader("Тренировки", "Подходы, веса и как далось каждое упражнение") }
+        item { ScreenHeader(tr("Тренировки", "Workouts"), tr("Подходы, веса и как далось каждое упражнение", "Sets, weights and how each exercise felt")) }
         item {
             Row(Modifier.padding(horizontal = Side).padding(top = 10.dp).rise(0), horizontalArrangement = Arrangement.spacedBy(Gap)) {
-                StatCard("$week", "за 7 дней", Modifier.weight(1f))
-                StatCard("${list.size}", "всего", Modifier.weight(1f))
+                StatCard("$week", tr("за 7 дней", "last 7 days"), Modifier.weight(1f))
+                StatCard("${list.size}", tr("всего", "total"), Modifier.weight(1f))
             }
         }
         item {
-            Box(Modifier.padding(horizontal = Side).padding(top = Gap).rise(60)) { PrimaryButton("＋ Новая тренировка", onClick = onNew) }
+            Box(Modifier.padding(horizontal = Side).padding(top = Gap).rise(60)) { PrimaryButton(tr("＋ Новая тренировка", "＋ New workout"), onClick = onNew) }
         }
         if (list.isEmpty() && loaded) {
             item {
                 Column(Modifier.fillMaxWidth().padding(32.dp).rise(120), horizontalAlignment = Alignment.CenterHorizontally) {
                     Image(painterResource(R.drawable.ic_muscle), null, Modifier.size(64.dp))
                     Spacer(Modifier.height(10.dp))
-                    Text("Здесь будут твои тренировки", fontWeight = FontWeight.ExtraBold, color = t.text, fontSize = 17.sp)
+                    Text(tr("Здесь будут твои тренировки", "Your workouts will show up here"), fontWeight = FontWeight.ExtraBold, color = t.text, fontSize = 17.sp)
                     Text(
-                        "Выбирай упражнения из списка — в зале или дома, — записывай подходы и отмечай, как далось",
+                        tr("Выбирай упражнения из списка — в зале или дома, — записывай подходы и отмечай, как далось", "Pick exercises from the list — at the gym or at home — log your sets and note how it felt"),
                         fontSize = 14.sp, color = t.hint, textAlign = TextAlign.Center,
                     )
                 }
@@ -246,9 +250,9 @@ private fun WorkoutCard(w: Workout, onClick: () -> Unit) {
         Modifier.fillMaxWidth().calCard().clickable(onClick = onClick).padding(18.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        Text(w.title.ifBlank { w.ex.take(2).joinToString(" и ") { it.name } }, fontSize = 17.sp, fontWeight = FontWeight.ExtraBold, color = t.text, maxLines = 2, overflow = TextOverflow.Ellipsis)
+        Text(w.title.ifBlank { w.ex.take(2).joinToString(tr(" и ", " and ")) { it.name } }, fontSize = 17.sp, fontWeight = FontWeight.ExtraBold, color = t.text, maxLines = 2, overflow = TextOverflow.Ellipsis)
         val meta = listOfNotNull(
-            "${w.ex.size} упр.", "${w.sets} подх.", if (w.volume > 0) "${spaced(w.volume)} кг" else null,
+            tr("${w.ex.size} упр.", "${w.ex.size} exercises"), tr("${w.sets} подх.", "${w.sets} sets"), if (w.volume > 0) "${spaced(w.volume)} ${tr("кг", "kg")}" else null,
         ).joinToString(" · ")
         Text(meta, fontSize = 13.sp, color = t.hint, fontWeight = FontWeight.Bold)
         w.ex.forEach { e ->
@@ -286,13 +290,13 @@ private fun WorkoutEditor(d: Draft, history: List<Workout>, custom: List<Exercis
 
     fun save() = scope.launch {
         val w = d.toWorkout()
-        if (w.ex.isEmpty()) { error = "Добавь хотя бы одно упражнение"; return@launch }
+        if (w.ex.isEmpty()) { error = tr("Добавь хотя бы одно упражнение", "Add at least one exercise"); return@launch }
         busy = true; error = null
         try {
             WorkoutStore.save(context, w)
             onClose()
         } catch (e: CancellationException) { throw e } catch (e: Exception) {
-            error = "Не получилось сохранить — нет связи с сервером"
+            error = tr("Не получилось сохранить — нет связи с сервером", "Couldn't save — can't reach the server")
         }
         busy = false
     }
@@ -303,7 +307,7 @@ private fun WorkoutEditor(d: Draft, history: List<Workout>, custom: List<Exercis
             WorkoutStore.delete(context, d.toWorkout())
             onClose()
         } catch (e: CancellationException) { throw e } catch (e: Exception) {
-            error = "Не получилось удалить — нет связи с сервером"
+            error = tr("Не получилось удалить — нет связи с сервером", "Couldn't delete — can't reach the server")
         }
         busy = false
     }
@@ -322,7 +326,7 @@ private fun WorkoutEditor(d: Draft, history: List<Workout>, custom: List<Exercis
                 Row(Modifier.statusBarsPadding().padding(horizontal = 16.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
                     RoundIcon("←") { if (d.ex.isNotEmpty()) askLeave = true else onClose() }
                     Text(
-                        if (existing) "Тренировка" else "Новая тренировка", fontSize = 24.sp, fontWeight = FontWeight.ExtraBold, color = t.text, letterSpacing = (-0.4).sp,
+                        if (existing) tr("Тренировка", "Workout") else tr("Новая тренировка", "New workout"), fontSize = 24.sp, fontWeight = FontWeight.ExtraBold, color = t.text, letterSpacing = (-0.4).sp,
                         modifier = Modifier.weight(1f).padding(start = 12.dp),
                     )
                     if (existing) RoundIcon("🗑") { askDelete = true }
@@ -333,7 +337,7 @@ private fun WorkoutEditor(d: Draft, history: List<Workout>, custom: List<Exercis
                 OutlinedTextField(
                     value = d.title, onValueChange = { if (it.length <= 60) d.title = it },
                     modifier = Modifier.fillMaxWidth().padding(horizontal = Side, vertical = 10.dp),
-                    placeholder = { Text("Название, например «Грудь и трицепс»", color = t.hint) },
+                    placeholder = { Text(tr("Название, например «Грудь и трицепс»", "Name, for example “Chest and triceps”"), color = t.hint) },
                     singleLine = true, shape = RoundedCornerShape(20.dp),
                     colors = fieldColors(),
                 )
@@ -342,12 +346,12 @@ private fun WorkoutEditor(d: Draft, history: List<Workout>, custom: List<Exercis
                 ExerciseCard(e, Modifier.padding(horizontal = Side, vertical = 6.dp), onRemove = { d.ex.removeAt(i) })
             }
             item {
-                SoftButton("＋ Добавить упражнение", Modifier.padding(horizontal = Side, vertical = 8.dp).fillMaxWidth(), height = 54.dp) { picking = true }
+                SoftButton(tr("＋ Добавить упражнение", "＋ Add exercise"), Modifier.padding(horizontal = Side, vertical = 8.dp).fillMaxWidth(), height = 54.dp) { picking = true }
             }
             error?.let { item { Text(it, color = Palette.Danger, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(horizontal = 20.dp, vertical = 4.dp)) } }
         }
         Box(Modifier.align(Alignment.BottomCenter).fillMaxWidth().background(t.bg).navigationBarsPadding().imePadding().padding(horizontal = Side, vertical = 12.dp)) {
-            PrimaryButton(if (busy) "Сохраняю…" else "Сохранить тренировку") { if (!busy) save() }
+            PrimaryButton(if (busy) tr("Сохраняю…", "Saving…") else tr("Сохранить тренировку", "Save workout")) { if (!busy) save() }
         }
     }
 
@@ -355,17 +359,17 @@ private fun WorkoutEditor(d: Draft, history: List<Workout>, custom: List<Exercis
     if (askLeave) AlertDialog(
         onDismissRequest = { askLeave = false },
         containerColor = t.card,
-        title = { Text("Выйти без сохранения?", color = t.text) },
-        text = { Text("Изменения в этой тренировке пропадут", color = t.hint) },
-        confirmButton = { TextButton({ askLeave = false; onClose() }) { Text("Выйти", color = Palette.Danger) } },
-        dismissButton = { TextButton({ askLeave = false }) { Text("Остаться", color = t.text) } },
+        title = { Text(tr("Выйти без сохранения?", "Leave without saving?"), color = t.text) },
+        text = { Text(tr("Изменения в этой тренировке пропадут", "Changes to this workout will be lost"), color = t.hint) },
+        confirmButton = { TextButton({ askLeave = false; onClose() }) { Text(tr("Выйти", "Leave"), color = Palette.Danger) } },
+        dismissButton = { TextButton({ askLeave = false }) { Text(tr("Остаться", "Stay"), color = t.text) } },
     )
     if (askDelete) AlertDialog(
         onDismissRequest = { askDelete = false },
         containerColor = t.card,
-        title = { Text("Удалить тренировку?", color = t.text) },
-        confirmButton = { TextButton({ askDelete = false; delete() }) { Text("Удалить", color = Palette.Danger) } },
-        dismissButton = { TextButton({ askDelete = false }) { Text("Отмена", color = t.text) } },
+        title = { Text(tr("Удалить тренировку?", "Delete this workout?"), color = t.text) },
+        confirmButton = { TextButton({ askDelete = false; delete() }) { Text(tr("Удалить", "Delete"), color = Palette.Danger) } },
+        dismissButton = { TextButton({ askDelete = false }) { Text(tr("Отмена", "Cancel"), color = t.text) } },
     )
 }
 
@@ -426,10 +430,10 @@ private fun ExerciseCard(e: ExDraft, modifier: Modifier, onRemove: () -> Unit) {
             }
         }
         val (la, lb) = when (e.kind) {
-            Kind.W -> "кг" to "повторы"
-            Kind.R -> "повторы" to null
-            Kind.T -> "мин" to "сек"
-            Kind.C -> "мин" to "км"
+            Kind.W -> tr("кг", "kg") to tr("повторы", "reps")
+            Kind.R -> tr("повторы", "reps") to null
+            Kind.T -> tr("мин", "min") to tr("сек", "sec")
+            Kind.C -> tr("мин", "min") to tr("км", "km")
         }
         e.sets.forEachIndexed { i, s ->
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -453,7 +457,7 @@ private fun ExerciseCard(e: ExDraft, modifier: Modifier, onRemove: () -> Unit) {
             Modifier.fillMaxWidth().height(44.dp).clip(RoundedCornerShape(50)).background(t.fill)
                 .clickable { e.sets.add(e.sets.lastOrNull()?.let { SetDraft(it.a, it.b) } ?: SetDraft()) },
             contentAlignment = Alignment.Center,
-        ) { Text("＋ Подход", fontWeight = FontWeight.Bold, color = t.text) }
+        ) { Text(tr("＋ Подход", "＋ Add set"), fontWeight = FontWeight.Bold, color = t.text) }
     }
 }
 
@@ -526,16 +530,16 @@ private fun ExercisePicker(custom: List<Exercise>, history: List<Workout>, onPic
                 )
                 return@Column
             }
-            Text("Упражнение", fontSize = 26.sp, fontWeight = FontWeight.ExtraBold, color = t.text, letterSpacing = (-0.5).sp, modifier = Modifier.padding(horizontal = Side, vertical = 8.dp))
+            Text(tr("Упражнение", "Exercise"), fontSize = 26.sp, fontWeight = FontWeight.ExtraBold, color = t.text, letterSpacing = (-0.5).sp, modifier = Modifier.padding(horizontal = Side, vertical = 8.dp))
             OutlinedTextField(
                 value = query, onValueChange = { query = it },
                 modifier = Modifier.fillMaxWidth().padding(horizontal = Side),
-                placeholder = { Text("🔍 Поиск: жим, присед, планка…", color = t.hint) },
+                placeholder = { Text(tr("🔍 Поиск: жим, присед, планка…", "🔍 Search: bench, squat, plank…"), color = t.hint) },
                 singleLine = true, shape = RoundedCornerShape(50),
                 colors = fieldColors(),
             )
             LazyRow(contentPadding = PaddingValues(horizontal = Side, vertical = 12.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                items(listOf(ALL, HOME, MINE) + GROUPS) { g -> ChoiceChip(if (g == HOME) "🏠 Дома" else g, g == group) { group = g } }
+                items(listOf(ALL, HOME, MINE) + GROUPS) { g -> ChoiceChip(when (g) { HOME -> tr("🏠 Дома", "🏠 At home"); ALL -> tr("Все", "All"); MINE -> tr("Свои", "Mine"); else -> groupLabel(g) }, g == group) { group = g } }
             }
             LazyColumn(Modifier.weight(1f), contentPadding = PaddingValues(start = Side, end = Side, bottom = 24.dp)) {
                 item {
@@ -547,8 +551,8 @@ private fun ExercisePicker(custom: List<Exercise>, history: List<Workout>, onPic
                         Text("＋", fontSize = 20.sp, fontWeight = FontWeight.ExtraBold, color = t.text)
                         Spacer(Modifier.width(10.dp))
                         Column {
-                            Text(if (q.isEmpty()) "Своё упражнение" else "Добавить «${query.trim()}»", fontWeight = FontWeight.ExtraBold, color = t.text)
-                            Text("Если нужного нет в списке", fontSize = 12.sp, color = t.hint)
+                            Text(if (q.isEmpty()) tr("Своё упражнение", "Custom exercise") else tr("Добавить «${query.trim()}»", "Add “${query.trim()}”"), fontWeight = FontWeight.ExtraBold, color = t.text)
+                            Text(tr("Если нужного нет в списке", "If it isn't in the list"), fontSize = 12.sp, color = t.hint)
                         }
                     }
                 }
@@ -562,7 +566,7 @@ private fun ExercisePicker(custom: List<Exercise>, history: List<Workout>, onPic
                         Column(Modifier.weight(1f)) {
                             Text(e.name, fontSize = 15.sp, fontWeight = FontWeight.Bold, color = t.text)
                             Text(
-                                listOfNotNull(e.group, e.kind.label, if (e.custom) "своё · удерживай, чтобы удалить" else null).joinToString(" · "),
+                                listOfNotNull(groupLabel(e.group), e.kind.label, if (e.custom) tr("своё · удерживай, чтобы удалить", "custom · hold to delete") else null).joinToString(" · "),
                                 fontSize = 12.sp, color = t.hint,
                             )
                         }
@@ -571,7 +575,7 @@ private fun ExercisePicker(custom: List<Exercise>, history: List<Workout>, onPic
                     }
                 }
                 if (shown.isEmpty()) item {
-                    Text("Ничего не нашлось — добавь своё упражнение", color = t.hint, modifier = Modifier.padding(12.dp))
+                    Text(tr("Ничего не нашлось — добавь своё упражнение", "Nothing found — add your own exercise"), color = t.hint, modifier = Modifier.padding(12.dp))
                 }
             }
         }
@@ -580,12 +584,12 @@ private fun ExercisePicker(custom: List<Exercise>, history: List<Workout>, onPic
         AlertDialog(
             onDismissRequest = { toDelete = null },
             containerColor = t.card,
-            title = { Text("Удалить «${e.name}»?", color = t.text) },
-            text = { Text("Из списка своих упражнений. Записанные тренировки останутся", color = t.hint) },
+            title = { Text(tr("Удалить «${e.name}»?", "Delete “${e.name}”?"), color = t.text) },
+            text = { Text(tr("Из списка своих упражнений. Записанные тренировки останутся", "From your custom exercises. Logged workouts will stay"), color = t.hint) },
             confirmButton = {
-                TextButton({ toDelete = null; scope.launch { runCatching { WorkoutStore.deleteCustom(context, e) } } }) { Text("Удалить", color = Palette.Danger) }
+                TextButton({ toDelete = null; scope.launch { runCatching { WorkoutStore.deleteCustom(context, e) } } }) { Text(tr("Удалить", "Delete"), color = Palette.Danger) }
             },
-            dismissButton = { TextButton({ toDelete = null }) { Text("Отмена", color = t.text) } },
+            dismissButton = { TextButton({ toDelete = null }) { Text(tr("Отмена", "Cancel"), color = t.text) } },
         )
     }
 }
@@ -604,32 +608,32 @@ private fun CustomForm(initialName: String, initialGroup: String, onCancel: () -
         item {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 RoundIcon("←", onCancel)
-                Text("Своё упражнение", fontSize = 24.sp, fontWeight = FontWeight.ExtraBold, color = t.text, modifier = Modifier.padding(start = 12.dp))
+                Text(tr("Своё упражнение", "Custom exercise"), fontSize = 24.sp, fontWeight = FontWeight.ExtraBold, color = t.text, modifier = Modifier.padding(start = 12.dp))
             }
         }
         item {
             OutlinedTextField(
                 value = name, onValueChange = { if (it.length <= 60) { name = it; error = null } },
-                modifier = Modifier.fillMaxWidth(), placeholder = { Text("Название", color = t.hint) },
+                modifier = Modifier.fillMaxWidth(), placeholder = { Text(tr("Название", "Name"), color = t.hint) },
                 singleLine = true, shape = RoundedCornerShape(20.dp),
                 colors = fieldColors(),
             )
         }
-        item { Text("Как записывать подходы", fontWeight = FontWeight.ExtraBold, color = t.text) }
+        item { Text(tr("Как записывать подходы", "How to log sets"), fontWeight = FontWeight.ExtraBold, color = t.text) }
         item { Chips(Kind.entries.map { it.label }, kind.label) { l -> kind = Kind.entries.first { it.label == l } } }
-        item { Text("Группа мышц", fontWeight = FontWeight.ExtraBold, color = t.text) }
-        item { Chips(GROUPS, group) { group = if (group == it) "" else it } }
+        item { Text(tr("Группа мышц", "Muscle group"), fontWeight = FontWeight.ExtraBold, color = t.text) }
+        item { Chips(GROUPS, group, ::groupLabel) { group = if (group == it) "" else it } }
         error?.let { item { Text(it, color = Palette.Danger, fontWeight = FontWeight.SemiBold) } }
         item {
-            PrimaryButton(if (busy) "Сохраняю…" else "Добавить") {
+            PrimaryButton(if (busy) tr("Сохраняю…", "Saving…") else tr("Добавить", "Add")) {
                 if (busy) return@PrimaryButton
-                if (name.trim().length < 2) { error = "Напиши название"; return@PrimaryButton }
+                if (name.trim().length < 2) { error = tr("Напиши название", "Enter a name"); return@PrimaryButton }
                 busy = true
                 scope.launch {
                     try {
                         onCreate(name.trim(), kind, group)
                     } catch (e: CancellationException) { throw e } catch (e: Exception) {
-                        error = "Не получилось добавить — нет связи с сервером"
+                        error = tr("Не получилось добавить — нет связи с сервером", "Couldn't add — can't reach the server")
                     }
                     busy = false
                 }
@@ -641,10 +645,10 @@ private fun CustomForm(initialName: String, initialGroup: String, onCancel: () -
 /** Чипы с переносом строк: выбранный — контрастный. */
 @OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
 @Composable
-private fun Chips(options: List<String>, selected: String, onSelect: (String) -> Unit) {
+private fun Chips(options: List<String>, selected: String, label: (String) -> String = { it }, onSelect: (String) -> Unit) {
     val t = LocalTokens.current
     androidx.compose.foundation.layout.FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        options.forEach { o -> ChoiceChip(o, o == selected) { onSelect(o) } }
+        options.forEach { o -> ChoiceChip(label(o), o == selected) { onSelect(o) } }
     }
 }
 

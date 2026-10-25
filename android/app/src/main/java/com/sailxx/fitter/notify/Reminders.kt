@@ -1,5 +1,7 @@
 package com.sailxx.fitter.notify
 
+import com.sailxx.fitter.data.Lang
+import com.sailxx.fitter.data.tr
 import android.annotation.SuppressLint
 import android.app.AlarmManager
 import android.app.NotificationChannel
@@ -56,12 +58,14 @@ object Reminders {
     private val PILL_PINK = 0xFFE5487A.toInt()
 
     /** Что напоминаем; code — номер будильника. */
-    enum class Kind(val code: Int, val title: String) {
-        WATER(1, ""),
-        BREAKFAST(2, "Время завтрака 🍳"),
-        LUNCH(3, "Время обеда 🍲"),
-        DINNER(4, "Время ужина 🥗"),
-        PILL(5, ""),
+    enum class Kind(val code: Int, private val ru: String, private val en: String) {
+        WATER(1, "", ""),
+        BREAKFAST(2, "Время завтрака 🍳", "Breakfast time 🍳"),
+        LUNCH(3, "Время обеда 🍲", "Lunch time 🍲"),
+        DINNER(4, "Время ужина 🥗", "Dinner time 🥗"),
+        PILL(5, "", "");
+
+        val title get() = tr(ru, en)
     }
 
     private val zone get() = ZoneId.systemDefault()
@@ -175,8 +179,8 @@ object Reminders {
         post(
             context, ID_WATER,
             base(context, CH_WATER, R.drawable.ic_nav_glass, R.drawable.ic_water, WATER_BLUE)
-                .setContentTitle(if (done) "Норма воды выполнена 🎉" else "Записал стакан 💧")
-                .setContentText("Теперь ${liters(sum.water)} из ${liters(goal(sum))} л" + (next?.let { " · следующее в ${hhmm(it)}" } ?: ""))
+                .setContentTitle(if (done) tr("Норма воды выполнена 🎉", "Water goal reached 🎉") else tr("Записал стакан 💧", "Glass logged 💧"))
+                .setContentText(tr("Теперь ${liters(sum.water)} из ${liters(goal(sum))} л", "Now ${liters(sum.water)} of ${liters(goal(sum))} L") + (next?.let { tr(" · следующее в ${hhmm(it)}", " · next at ${hhmm(it)}") } ?: ""))
                 .setProgress(goal(sum), sum.water.coerceAtMost(goal(sum)), false)
                 .setOnlyAlertOnce(true)
                 .setTimeoutAfter(6000),
@@ -198,8 +202,8 @@ object Reminders {
         post(
             context, nid,
             base(context, CH_PILLS, R.drawable.ic_nav_pill, R.drawable.ic_pill, PILL_PINK)
-                .setContentTitle(if (s == "taken") "Отметил: $name ✓" else "Пропустил: $name")
-                .setContentText(if (s == "taken") "Так держать! Отметка уже в дневнике" else "Отметка «пропущено» в дневнике")
+                .setContentTitle(if (s == "taken") tr("Отметил: $name ✓", "Marked: $name ✓") else tr("Пропустил: $name", "Skipped: $name"))
+                .setContentText(if (s == "taken") tr("Так держать! Отметка уже в дневнике", "Keep it up! The mark is already in your diary") else tr("Отметка «пропущено» в дневнике", "“Skipped” is noted in your diary"))
                 .setOnlyAlertOnce(true)
                 .setTimeoutAfter(5000),
         )
@@ -222,31 +226,31 @@ object Reminders {
         post(
             context, ID_WATER,
             base(context, CH_WATER, R.drawable.ic_nav_glass, R.drawable.ic_water, WATER_BLUE)
-                .setContentTitle(if (done) "Норма воды выполнена 🎉" else "Пора выпить стакан воды 💧")
+                .setContentTitle(if (done) tr("Норма воды выполнена 🎉", "Water goal reached 🎉") else tr("Пора выпить стакан воды 💧", "Time for a glass of water 💧"))
                 .setContentText(
-                    if (done) "Выпито ${liters(sum.water)} л — ещё стакан не помешает"
-                    else "Выпито ${liters(sum.water)} из ${liters(g)} л — осталось $left ${plural(left, "стакан", "стакана", "стаканов")}",
+                    if (done) tr("Выпито ${liters(sum.water)} л — ещё стакан не помешает", "${liters(sum.water)} L so far — one more glass won't hurt")
+                    else tr("Выпито ${liters(sum.water)} из ${liters(g)} л — осталось $left ${plural(left, "стакан", "стакана", "стаканов")}", "${liters(sum.water)} of ${liters(g)} L — $left ${if (left == 1) "glass" else "glasses"} to go"),
                 )
                 .setSubText("${(sum.water * 100 / g).coerceAtMost(999)}%")
                 .setProgress(g, sum.water.coerceAtMost(g), false)
-                .addAction(0, "＋ Стакан $GLASS мл", broadcast(context, ACTION_WATER_ADD, 11))
-                .addAction(0, "Через $SNOOZE_MIN мин", broadcast(context, ACTION_SNOOZE, 12))
+                .addAction(0, tr("＋ Стакан $GLASS мл", "＋ Glass $GLASS ml"), broadcast(context, ACTION_WATER_ADD, 11))
+                .addAction(0, tr("Через $SNOOZE_MIN мин", "In $SNOOZE_MIN min"), broadcast(context, ACTION_SNOOZE, 12))
                 .setTimeoutAfter(every * 60_000L),
         )
     }
 
     private fun showMeal(context: Context, kind: Kind, sum: Summary?) {
         val left = sum?.kcalLeft
-        val body = (if (left != null && left > 0) "На сегодня осталось ${num(left)} ккал. " else "") +
-            "Сфотографируй тарелку — посчитаю калории и БЖУ за пару секунд."
+        val body = (if (left != null && left > 0) tr("На сегодня осталось ${num(left)} ккал. ", "${num(left)} kcal left today. ") else "") +
+            tr("Сфотографируй тарелку — посчитаю калории и БЖУ за пару секунд.", "Photograph your plate and I'll count calories and macros in a couple of seconds.")
         post(
             context, ID_MEAL,
             base(context, CH_MEALS, R.drawable.ic_nav_camera, R.drawable.ic_plate, GREEN)
                 .setContentTitle(kind.title)
-                .setContentText("Сфотографируй тарелку — посчитаю калории")
+                .setContentText(tr("Сфотографируй тарелку — посчитаю калории", "Photograph your plate and I'll count the calories"))
                 .setStyle(NotificationCompat.BigTextStyle().bigText(body))
-                .addAction(0, "📸 Сфотографировать", openApp(context, "camera", 21))
-                .addAction(0, "✍️ Записать текстом", openApp(context, "text", 22))
+                .addAction(0, tr("📸 Сфотографировать", "📸 Take a photo"), openApp(context, "camera", 21))
+                .addAction(0, tr("✍️ Записать текстом", "✍️ Type it"), openApp(context, "text", 22))
                 .setTimeoutAfter(3 * 60 * 60_000L),
         )
     }
@@ -262,11 +266,11 @@ object Reminders {
         post(
             context, nid,
             base(context, CH_PILLS, R.drawable.ic_nav_pill, R.drawable.ic_pill, PILL_PINK)
-                .setContentTitle("Пора принять: ${p.name} 💊")
+                .setContentTitle(tr("Пора принять: ${p.name} 💊", "Time to take: ${p.name} 💊"))
                 .setContentText(listOf(p.dose, p.time).filter { it.isNotBlank() }.joinToString(" · "))
                 .setPriority(NotificationCompat.PRIORITY_HIGH)
-                .addAction(0, "✓ Принял", mark("taken", 1))
-                .addAction(0, "Пропустить", mark("skip", 2)),
+                .addAction(0, tr("✓ Принял", "✓ Taken"), mark("taken", 1))
+                .addAction(0, tr("Пропустить", "Skip"), mark("skip", 2)),
         )
     }
 
@@ -283,13 +287,13 @@ object Reminders {
     }
 
     private fun channels(context: Context) {
+        // Вызов повторно обновляет названия существующих каналов: они меняются вместе с языком приложения
         val nm = context.getSystemService(NotificationManager::class.java) ?: return
-        if (nm.getNotificationChannel(CH_WATER) != null) return
         nm.createNotificationChannels(
             listOf(
-                NotificationChannel(CH_WATER, "Вода", NotificationManager.IMPORTANCE_DEFAULT).apply { description = "Пора выпить стакан воды" },
-                NotificationChannel(CH_MEALS, "Еда", NotificationManager.IMPORTANCE_DEFAULT).apply { description = "Записать завтрак, обед и ужин" },
-                NotificationChannel(CH_PILLS, "Таблетки", NotificationManager.IMPORTANCE_HIGH).apply { description = "Принять таблетки и витамины по расписанию из бота" },
+                NotificationChannel(CH_WATER, tr("Вода", "Water"), NotificationManager.IMPORTANCE_DEFAULT).apply { description = tr("Пора выпить стакан воды", "Time to drink a glass of water") },
+                NotificationChannel(CH_MEALS, tr("Еда", "Food"), NotificationManager.IMPORTANCE_DEFAULT).apply { description = tr("Записать завтрак, обед и ужин", "Log breakfast, lunch and dinner") },
+                NotificationChannel(CH_PILLS, tr("Таблетки", "Pills"), NotificationManager.IMPORTANCE_HIGH).apply { description = tr("Принять таблетки и витамины по расписанию из бота", "Take pills and vitamins on the schedule from the bot") },
             ),
         )
     }
@@ -318,11 +322,10 @@ object Reminders {
     private fun pillId(id: String, time: String) = 2000 + ((id + time).hashCode() and 0xFFFF)
     private fun goal(s: Summary) = if (s.waterGoal > 0) s.waterGoal else 2000
     private fun hhmm(t: ZonedDateTime) = String.format(Locale.ROOT, "%02d:%02d", t.hour, t.minute)
-    private fun num(x: Int) = String.format(Locale("ru"), "%,d", x).replace(' ', ' ')
+    private fun num(x: Int) = String.format(Locale(Lang.code), "%,d", x).replace(' ', ' ')
 
-    /** 1250 → "1,25", 1500 → "1,5", 2000 → "2". */
-    private fun liters(ml: Int) = String.format(Locale("ru"), "%.2f", ml / 1000.0).trimEnd('0').trimEnd(',')
-
+    /** 1250 → "1,25" (ru) / "1.25" (en), 1500 → "1,5", 2000 → "2". */
+    private fun liters(ml: Int) = String.format(Locale(Lang.code), "%.2f", ml / 1000.0).trimEnd('0').trimEnd(',', '.')
     private fun plural(n: Int, one: String, few: String, many: String): String {
         val a = n % 100
         val b = n % 10

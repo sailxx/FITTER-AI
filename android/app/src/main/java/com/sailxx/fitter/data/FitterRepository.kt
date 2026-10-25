@@ -77,6 +77,7 @@ object FitterRepository {
                 val d = async { Api.day(token) }
                 w.await() to d.await()
             }
+            Lang.fromServer(context, w.optString("lang"))
             prefs(context).edit()
                 .putString("summary", keepWater(context, w).toString())
                 .putString("day", d.toString())
@@ -89,7 +90,7 @@ object FitterRepository {
             false
         } catch (e: Exception) {
             Log.w(TAG, "refresh failed", e)
-            _state.value = _state.value.copy(error = "Нет связи с сервером")
+            _state.value = _state.value.copy(error = tr("Нет связи с сервером", "Can't reach the server"))
             false
         } finally {
             load(context)
@@ -140,6 +141,7 @@ object FitterRepository {
     /** Данные из живой синхронизации: сохраняем как ответ /api/widget и /api/day и перерисовываем всё. */
     suspend fun applyLive(context: Context, widget: JSONObject, day: JSONObject) {
         if (token(context) == null) return
+        Lang.fromServer(context, widget.optString("lang"))
         prefs(context).edit()
             .putString("summary", keepWater(context, widget).toString())
             .putString("day", day.toString())
@@ -184,9 +186,24 @@ object FitterRepository {
             return
         } catch (e: Exception) {
             Log.w(TAG, "pill failed", e)
-            _state.value = _state.value.copy(error = "Не получилось отметить — нет связи")
+            _state.value = _state.value.copy(error = tr("Не получилось отметить — нет связи", "Couldn't mark it — no connection"))
         }
         refresh(context)
+    }
+
+    /** Сменить язык: сразу в приложении и на виджетах, потом на сервере — так же заговорит и бот. */
+    suspend fun setLang(context: Context, code: String) {
+        Lang.set(context, code)
+        updateFitterWidgets(context)
+        Reminders.schedule(context)
+        val token = token(context) ?: return
+        try {
+            Api.setLang(token, code)
+        } catch (e: UnauthorizedException) {
+            clear(context)
+        } catch (e: Exception) {
+            Log.w(TAG, "lang failed", e)
+        }
     }
 
     suspend fun logout(context: Context) {

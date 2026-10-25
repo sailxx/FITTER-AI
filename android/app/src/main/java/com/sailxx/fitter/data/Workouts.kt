@@ -9,10 +9,12 @@ import org.json.JSONObject
 import kotlin.math.roundToInt
 
 /** Как далось упражнение. Код совпадает с полем effort на сервере. */
-enum class Effort(val code: String, val label: String, val emoji: String) {
-    EASY("easy", "Легко", "😌"),
-    MEDIUM("medium", "Средне", "😐"),
-    HARD("hard", "Сложно", "🥵");
+enum class Effort(val code: String, private val ru: String, private val en: String, val emoji: String) {
+    EASY("easy", "Легко", "Easy", "😌"),
+    MEDIUM("medium", "Средне", "Medium", "😐"),
+    HARD("hard", "Сложно", "Hard", "🥵");
+
+    val label get() = tr(ru, en)
 
     companion object {
         fun of(code: String) = entries.firstOrNull { it.code == code }
@@ -37,10 +39,10 @@ private fun num(x: Double) = if (x == x.toLong().toDouble()) x.toLong().toString
 
 /** Подход коротко: «60 кг × 10», «× 15», «1:30», «30 мин · 5 км». */
 fun WSet.label(kind: Kind): String = when (kind) {
-    Kind.W -> if (w > 0) "${num(w)} кг × $r" else "× $r"
-    Kind.R -> if (w > 0) "$r × ${num(w)} кг" else "× $r"
+    Kind.W -> if (w > 0) "${num(w)} ${tr("кг", "kg")} × $r" else "× $r"
+    Kind.R -> if (w > 0) "$r × ${num(w)} ${tr("кг", "kg")}" else "× $r"
     Kind.T -> clock(s)
-    Kind.C -> listOfNotNull(if (s > 0) "${s / 60} мин" else null, if (km > 0) "${num(km)} км" else null).joinToString(" · ").ifEmpty { "—" }
+    Kind.C -> listOfNotNull(if (s > 0) "${s / 60} ${tr("мин", "min")}" else null, if (km > 0) "${num(km)} ${tr("км", "km")}" else null).joinToString(" · ").ifEmpty { "—" }
 }
 
 fun clock(sec: Int) = "%d:%02d".format(sec / 60, sec % 60)
