@@ -1,13 +1,16 @@
 <!doctype html>
-<html lang="ru">
+<html lang="en">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>FITTER — подсчёт калорий по фото в Telegram</title>
-  <meta name="description" content="FITTER — бесплатный Telegram-бот для подсчёта калорий и БЖУ по фото еды. Сфотографируйте тарелку — ИИ распознает продукты, оценит порцию и запишет всё в дневник питания. Без установки и рекламы.">
+  <title>FITTER — count calories from a photo in Telegram</title>
+  <meta name="description" content="FITTER is a free Telegram bot that counts calories and macros from food photos. Snap your plate — the AI recognizes the foods, estimates the portion and logs everything in your food diary. No install, no ads.">
   <meta name="robots" content="index,follow,max-image-preview:large">
   <meta name="google-site-verification" content="KMzaNessaT8tYKuYTi8cyXiFAt6PD9tVDn9j6xCl1Xo">
   <link rel="canonical" href="https://sailxx.github.io/FITTER-AI/">
+  <link rel="alternate" hreflang="en" href="https://sailxx.github.io/FITTER-AI/">
+  <link rel="alternate" hreflang="ru" href="https://sailxx.github.io/FITTER-AI/ru/">
+  <link rel="alternate" hreflang="x-default" href="https://sailxx.github.io/FITTER-AI/">
   <meta name="theme-color" content="#000000">
   <link rel="icon" href="icon-32.png" sizes="32x32" type="image/png">
   <link rel="icon" href="logo.svg" type="image/svg+xml">
@@ -15,35 +18,36 @@
   <meta property="og:type" content="website">
   <meta property="og:url" content="https://sailxx.github.io/FITTER-AI/">
   <meta property="og:site_name" content="FITTER">
-  <meta property="og:locale" content="ru_RU">
-  <meta property="og:title" content="FITTER — подсчёт калорий по фото в Telegram">
-  <meta property="og:description" content="Сфотографируйте еду — FITTER посчитает калории и БЖУ и запишет их в дневник. Бесплатно, прямо в Telegram.">
+  <meta property="og:locale" content="en_US">
+  <meta property="og:locale:alternate" content="ru_RU">
+  <meta property="og:title" content="FITTER — count calories from a photo in Telegram">
+  <meta property="og:description" content="Snap your food — FITTER counts calories and macros and logs them in your diary. Free, right in Telegram.">
   <meta property="og:image" content="https://sailxx.github.io/FITTER-AI/og.png">
   <meta property="og:image:width" content="1200">
   <meta property="og:image:height" content="630">
-  <meta property="og:image:alt" content="FITTER: подсчёт калорий по фото в Telegram">
+  <meta property="og:image:alt" content="FITTER: count calories from a photo in Telegram">
   <meta name="vk:image" content="https://sailxx.github.io/FITTER-AI/og.png">
   <meta name="twitter:card" content="summary_large_image">
-  <meta name="twitter:title" content="FITTER — подсчёт калорий по фото">
-  <meta name="twitter:description" content="Фото еды → калории и БЖУ → дневник. Бесплатно, в Telegram.">
+  <meta name="twitter:title" content="FITTER — count calories from a photo">
+  <meta name="twitter:description" content="Food photo → calories and macros → diary. Free, in Telegram.">
   <meta name="twitter:image" content="https://sailxx.github.io/FITTER-AI/og.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Golos+Text:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
   <script type="application/ld+json">
-  {"@context":"https://schema.org","@type":"SoftwareApplication","name":"FITTER","applicationCategory":"HealthApplication","operatingSystem":"Telegram","inLanguage":"ru","description":"Telegram-бот для оценки калорий, белков, жиров и углеводов по фото еды и ведения дневника питания.","image":"https://sailxx.github.io/FITTER-AI/og.png","offers":{"@type":"Offer","price":"0","priceCurrency":"RUB"},"url":"https://sailxx.github.io/FITTER-AI/","installUrl":"https://t.me/FitterFoodBot","featureList":["Подсчёт калорий и БЖУ по фото","Запись еды текстом","КБЖУ по штрихкоду и этикетке","Исправление продукта и веса с пересчётом КБЖУ","Персональная норма калорий по формуле Миффлина — Сан-Жеора","Дневник питания в Telegram Mini App","Учёт воды и напоминания","Учёт веса и график","Напоминания о таблетках и витаминах","ИИ-советы «Что съесть»","Серии и достижения","ИИ-разбор недели"],"sameAs":["https://t.me/FitterFoodBot","https://github.com/sailxx/FITTER-AI"]}
+  {"@context":"https://schema.org","@type":"SoftwareApplication","name":"FITTER","applicationCategory":"HealthApplication","operatingSystem":"Telegram","inLanguage":"en","description":"A Telegram bot that estimates calories, protein, fat and carbs from food photos and keeps a food diary.","image":"https://sailxx.github.io/FITTER-AI/og.png","offers":{"@type":"Offer","price":"0","priceCurrency":"USD"},"url":"https://sailxx.github.io/FITTER-AI/","installUrl":"https://t.me/FitterFoodBot","featureList":["Calories and macros from a photo","Logging food by text","Nutrition values from a barcode or label","Fixing a product and weight with recalculation","Personal calorie goal with the Mifflin–St Jeor formula","Food diary as a Telegram Mini App","Water tracking and reminders","Weight tracking and chart","Reminders for pills and vitamins","AI tips “What to eat”","Streaks and achievements","AI weekly review"],"sameAs":["https://t.me/FitterFoodBot","https://github.com/sailxx/FITTER-AI"]}
   </script>
   <script type="application/ld+json">
   {"@context":"https://schema.org","@type":"FAQPage","mainEntity":[
-  {"@type":"Question","name":"Как посчитать калории по фотографии?","acceptedAnswer":{"@type":"Answer","text":"Откройте бота FITTER в Telegram и отправьте фото блюда. ИИ распознает продукты, оценит вес порции и посчитает калории, белки, жиры и углеводы. Запись сразу появится в дневнике, её можно проверить и поправить."}},
-  {"@type":"Question","name":"Насколько точен расчёт калорий по фото?","acceptedAnswer":{"@type":"Answer","text":"Оценка по фото приблизительная и зависит от состава и размера порции. Чтобы было точнее, добавьте подпись к фото («200 г риса») или поправьте вес и продукт кнопкой под записью. Для упаковок бот берёт КБЖУ прямо с этикетки. FITTER не заменяет консультацию врача или диетолога."}},
-  {"@type":"Question","name":"Нужно ли устанавливать приложение?","acceptedAnswer":{"@type":"Answer","text":"Нет. FITTER работает прямо в Telegram, а дневник открывается как Telegram Mini App. Регистрация не нужна."}},
-  {"@type":"Question","name":"Сколько стоит FITTER?","acceptedAnswer":{"@type":"Answer","text":"Сейчас FITTER бесплатный и без рекламы. Откройте бота в Telegram и начните вести дневник."}},
-  {"@type":"Question","name":"Как FITTER рассчитывает мою норму?","acceptedAnswer":{"@type":"Answer","text":"При первом запуске бот задаёт 6 вопросов: пол, возраст, рост, вес, активность и цель. Норма калорий и БЖУ считается по формуле Миффлина — Сан-Жеора и пересчитывается, когда вы записываете новый вес."}},
-  {"@type":"Question","name":"Можно ли исправить продукт или вес?","acceptedAnswer":{"@type":"Answer","text":"Да. Нажмите на продукт под записью и укажите правильный вес, название или и то и другое, например «форель 200 г». Калории и БЖУ пересчитаются."}},
-  {"@type":"Question","name":"Что делать с упакованными продуктами?","acceptedAnswer":{"@type":"Answer","text":"Сфотографируйте этикетку — бот перепишет КБЖУ точно с неё. Если этикетки не видно, бот прочитает штрихкод и найдёт продукт в базе Open Food Facts. Цифры штрихкода можно прислать и текстом."}},
-  {"@type":"Question","name":"Есть ли напоминания пить воду?","acceptedAnswer":{"@type":"Answer","text":"Да. Включите их командой /remind и выберите интервал: 30 минут, 1 час, 1,5 часа или 2 часа. Ночью напоминаний нет, а после выполнения нормы они прекращаются."}},
-  {"@type":"Question","name":"Сохраняются ли мои фотографии?","acceptedAnswer":{"@type":"Answer","text":"Нет. Фото передаётся в нейросеть только для распознавания и не сохраняется. В дневнике хранятся анкета и записи еды, воды, веса и таблеток. Данные можно удалить в любой момент."}}
+  {"@type":"Question","name":"How do I count calories from a photo?","acceptedAnswer":{"@type":"Answer","text":"Open the FITTER bot in Telegram and send a photo of your dish. The AI recognizes the foods, estimates the portion weight and counts calories, protein, fat and carbs. The entry appears in your diary right away, where you can check and correct it."}},
+  {"@type":"Question","name":"How accurate is calorie counting from a photo?","acceptedAnswer":{"@type":"Answer","text":"A photo-based estimate is approximate and depends on the dish and the portion size. For better accuracy, add a caption to the photo (“200 g rice”) or fix the weight and product with the button under the entry. For packaged foods, the bot takes the values straight from the label. FITTER is not a substitute for advice from a doctor or dietitian."}},
+  {"@type":"Question","name":"Do I need to install an app?","acceptedAnswer":{"@type":"Answer","text":"No. FITTER works right inside Telegram, and the diary opens as a Telegram Mini App. No sign-up needed."}},
+  {"@type":"Question","name":"How much does FITTER cost?","acceptedAnswer":{"@type":"Answer","text":"FITTER is currently free and ad-free. Open the bot in Telegram and start your diary."}},
+  {"@type":"Question","name":"How does FITTER calculate my goal?","acceptedAnswer":{"@type":"Answer","text":"On first launch the bot asks 6 questions: sex, age, height, weight, activity and goal. Your calorie and macro goal is calculated with the Mifflin–St Jeor formula and recalculated whenever you log a new weight."}},
+  {"@type":"Question","name":"Can I correct a product or its weight?","acceptedAnswer":{"@type":"Answer","text":"Yes. Tap the product under the entry and enter the right weight, name or both, for example “trout 200 g”. Calories and macros are recalculated."}},
+  {"@type":"Question","name":"What about packaged foods?","acceptedAnswer":{"@type":"Answer","text":"Photograph the label — the bot copies the nutrition values exactly from it. If the label isn't visible, the bot reads the barcode and finds the product in the Open Food Facts database. You can also send the barcode digits as text."}},
+  {"@type":"Question","name":"Are there reminders to drink water?","acceptedAnswer":{"@type":"Answer","text":"Yes. Turn them on with the /remind command and pick an interval: 30 minutes, 1 hour, 1.5 hours or 2 hours. There are no reminders at night, and they stop once you reach your goal."}},
+  {"@type":"Question","name":"Are my photos stored?","acceptedAnswer":{"@type":"Answer","text":"No. The photo is passed to the AI only for recognition and is not stored. The diary keeps your profile and your food, water, weight and pill entries. You can delete your data at any time."}}
   ]}
   </script>
 <style>
@@ -69,6 +73,7 @@ header{position:sticky;top:0;z-index:30;background:#000000b8;backdrop-filter:blu
 .brand img{width:34px;height:34px;filter:drop-shadow(0 0 10px #30d15866)}
 nav{display:flex;align-items:center;gap:26px;font-size:13px;font-weight:600;color:var(--muted)}
 nav a{text-decoration:none;transition:color .2s}nav a:hover{color:#fff}
+nav a.lang{padding:5px 10px;border:1px solid var(--line);border-radius:99px;font-size:12px;font-weight:800;letter-spacing:.04em}
 
 /* buttons */
 .button{display:inline-flex;align-items:center;justify-content:center;gap:10px;min-height:56px;padding:0 28px;border-radius:16px;background:#fff;color:#000;text-decoration:none;font-weight:700;font-size:16px;border:0;cursor:pointer;font-family:inherit;transition:transform .2s,background .2s,box-shadow .2s}
@@ -280,6 +285,7 @@ footer{padding:40px 0 110px;color:var(--muted);font-size:14px}
   .offer{padding:40px 28px}
   .res{border-left:0;border-top:1px solid var(--line)}
   nav a:not(.button){display:none}
+  nav a.lang{display:inline-block}
 }
 @media (max-width:640px){
   section{padding-bottom:80px}
@@ -300,19 +306,20 @@ footer{padding:40px 0 110px;color:var(--muted);font-size:14px}
 </head>
 <body id="top">
 
-<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
   <symbol id="tg" viewBox="0 0 24 24"><path fill="currentColor" d="M21.9 4.6 18.7 19.8c-.2 1-.9 1.3-1.7.8l-4.8-3.6-2.3 2.2c-.3.3-.5.5-1 .5l.3-4.9 8.9-8c.4-.3-.1-.5-.6-.2L6.5 13.5 1.8 12c-1-.3-1-1 .2-1.5L20.5 3.4c.9-.3 1.6.2 1.4 1.2z"/></symbol>
 </svg>
 
 <header>
   <div class="wrap head">
     <a class="brand" href="#top"><img src="logo.svg" alt="" width="34" height="34"><span>FITTER</span></a>
-    <nav aria-label="Основная навигация">
-      <a href="#how">Как работает</a>
-      <a href="#calc">Твоя норма</a>
-      <a href="#features">Возможности</a>
-      <a href="#faq">Вопросы</a>
-      <a class="button small" href="https://t.me/FitterFoodBot?start=site_nav" target="_blank" rel="noopener"><svg class="tg"><use href="#tg"/></svg>Начать бесплатно</a>
+    <nav aria-label="Main navigation">
+      <a href="#how">How it works</a>
+      <a href="#calc">Your goal</a>
+      <a href="#features">Features</a>
+      <a href="#faq">FAQ</a>
+      <a class="lang" href="ru/" hreflang="ru" lang="ru">RU</a>
+      <a class="button small" href="https://t.me/FitterFoodBot?start=site_nav" target="_blank" rel="noopener"><svg class="tg"><use href="#tg"/></svg>Get started free</a>
     </nav>
   </div>
 </header>
@@ -321,20 +328,20 @@ footer{padding:40px 0 110px;color:var(--muted);font-size:14px}
 <!-- HERO -->
 <div class="wrap hero">
   <div>
-    <span class="eyebrow"><b>0 ₽</b> ИИ-нутрициолог в твоём Telegram</span>
-    <h1>Худей без весов и&nbsp;таблиц. <span class="hl">Просто сфоткай еду</span></h1>
-    <p class="lead">Отправь фото тарелки — FITTER за <strong>~8 секунд</strong> найдёт продукты, оценит порцию, посчитает <strong>калории и БЖУ</strong> и запишет в дневник. Ты просто ешь и видишь, сколько осталось до нормы.</p>
+    <span class="eyebrow"><b>$0</b> AI nutritionist in your Telegram</span>
+    <h1>Lose weight without scales or&nbsp;spreadsheets. <span class="hl">Just snap your food</span></h1>
+    <p class="lead">Send a photo of your plate — in <strong>~8 seconds</strong> FITTER finds the foods, estimates the portion, counts <strong>calories and macros</strong> and logs it in your diary. You just eat and see how much is left.</p>
     <div class="cta-row">
-      <a class="button lime pulse" href="https://t.me/FitterFoodBot?start=site_hero" target="_blank" rel="noopener"><svg class="tg"><use href="#tg"/></svg>Посчитать первый приём пищи</a>
-      <a class="button ghost" href="#calc">Узнать свою норму</a>
+      <a class="button lime pulse" href="https://t.me/FitterFoodBot?start=site_hero" target="_blank" rel="noopener"><svg class="tg"><use href="#tg"/></svg>Count my first meal</a>
+      <a class="button ghost" href="#calc">Find your daily goal</a>
     </div>
-    <div class="cta-note"><span>Без установки</span><span>Без регистрации</span><span>Без рекламы</span><span>Старт за 1 минуту</span></div>
+    <div class="cta-note"><span>No install</span><span>No sign-up</span><span>No ads</span><span>Start in 1 minute</span></div>
   </div>
 
-  <div class="phone-wrap" aria-label="Пример диалога с ботом">
+  <div class="phone-wrap" aria-label="Example chat with the bot">
     <div class="phone">
       <div class="phone-in">
-        <div class="p-head"><img src="logo.svg" alt="" width="34" height="34"><div><b>FITTER</b><small>бот</small></div></div>
+        <div class="p-head"><img src="logo.svg" alt="" width="34" height="34"><div><b>FITTER</b><small>bot</small></div></div>
         <div class="chat">
           <div class="msg me d1">
             <div class="photo" aria-hidden="true">
@@ -343,65 +350,65 @@ footer{padding:40px 0 110px;color:var(--muted);font-size:14px}
               <i style="width:30px;height:24px;left:78px;top:66px;background:#7fb04a"></i>
               <i style="width:14px;height:14px;left:110px;top:36px;background:#e05a3a"></i>
             </div>
-            Обед 🙂
+            Lunch 🙂
           </div>
-          <div class="msg bot d2">🔍 Смотрю на фото и считаю…</div>
+          <div class="msg bot d2">🔍 Looking at the photo and counting…</div>
           <div class="msg bot d3">
-            <b>🍽 Обед · 13:42</b>
-            <div class="row"><span>• Курица гриль — 150 г</span><b>248</b></div>
-            <div class="row"><span>• Рис отварной — 180 г</span><b>209</b></div>
-            <div class="row"><span>• Салат овощной — 120 г</span><b>23</b></div>
-            <div class="tot">🔥 480 ккал · 🥩 52 · 🧈 6 · 🍞 50</div>
+            <b>🍽 Lunch · 13:42</b>
+            <div class="row"><span>• Grilled chicken — 150 g</span><b>248</b></div>
+            <div class="row"><span>• Boiled rice — 180 g</span><b>209</b></div>
+            <div class="row"><span>• Vegetable salad — 120 g</span><b>23</b></div>
+            <div class="tot">🔥 480 kcal · 🥩 52 · 🧈 6 · 🍞 50</div>
             <div class="bar"><i></i></div>
-            <small>📊 1 240 из 1 850 ккал · <b>осталось 610</b></small>
+            <small>📊 1,240 of 1,850 kcal · <b>610 left</b></small>
           </div>
-          <div class="chips msg d4"><span>✏️ Курица 150 г</span><span>✏️ Рис 180 г</span><span>📱 Дневник</span></div>
+          <div class="chips msg d4"><span>✏️ Chicken 150 g</span><span>✏️ Rice 180 g</span><span>📱 Diary</span></div>
         </div>
       </div>
     </div>
-    <div class="badge b1"><big>≈ 8 сек</big>от фото до записи</div>
-    <div class="badge b2"><big>−0 мин</big>на взвешивание</div>
+    <div class="badge b1"><big>≈ 8 sec</big>from photo to log</div>
+    <div class="badge b2"><big>−0 min</big>on weighing</div>
   </div>
 </div>
 
 <div class="ticker" aria-hidden="true"><div>
-  <span>Фото → калории</span><span>Текстом: «2 яйца и тост»</span><span>Этикетка и штрихкод</span><span>Личная норма КБЖУ</span><span>Вода и напоминания</span><span>График веса</span><span>ИИ подскажет, что съесть</span><span>Разбор недели</span>
-  <span>Фото → калории</span><span>Текстом: «2 яйца и тост»</span><span>Этикетка и штрихкод</span><span>Личная норма КБЖУ</span><span>Вода и напоминания</span><span>График веса</span><span>ИИ подскажет, что съесть</span><span>Разбор недели</span>
+  <span>Photo → calories</span><span>By text: “2 eggs and toast”</span><span>Label and barcode</span><span>Personal macro goal</span><span>Water and reminders</span><span>Weight chart</span><span>AI tells you what to eat</span><span>Weekly review</span>
+  <span>Photo → calories</span><span>By text: “2 eggs and toast”</span><span>Label and barcode</span><span>Personal macro goal</span><span>Water and reminders</span><span>Weight chart</span><span>AI tells you what to eat</span><span>Weekly review</span>
 </div></div>
 
 <!-- PAIN -->
 <section>
   <div class="wrap">
     <div class="section-head reveal">
-      <span class="kicker">Почему диеты не работают</span>
-      <h2>Ты не бросаешь цель. Ты бросаешь <span class="hl">рутину</span></h2>
-      <p>Считать калории — самый надёжный способ управлять весом. Но в обычных приложениях это вторая работа, и большинство сдаётся через неделю. FITTER забирает рутину на себя.</p>
+      <span class="kicker">Why diets don't work</span>
+      <h2>You don't give up on the goal. You give up on the <span class="hl">routine</span></h2>
+      <p>Counting calories is the most reliable way to manage weight. But in regular apps it's a second job, and most people give up within a week. FITTER takes the routine off your hands.</p>
     </div>
     <div class="vs">
       <div class="card bad reveal">
-        <h3>Обычный счётчик <span class="time">~15 мин в день</span></h3>
+        <h3>A regular tracker <span class="time">~15 min a day</span></h3>
         <ul>
-          <li>Взвешивать каждый продукт на кухонных весах</li>
-          <li>Искать блюдо в базе среди десятков похожих</li>
-          <li>Вручную складывать порции и пересчитывать БЖУ</li>
-          <li>Ставить отдельное приложение и регистрироваться</li>
-          <li>Забыть записать ужин — и бросить через неделю</li>
+          <li>Weigh every product on a kitchen scale</li>
+          <li>Search for the dish among dozens of similar ones</li>
+          <li>Add up portions by hand and recalculate macros</li>
+          <li>Install a separate app and sign up</li>
+          <li>Forget to log dinner — and quit within a week</li>
         </ul>
       </div>
       <div class="card good reveal">
-        <h3>С FITTER <span class="time">~8 сек на приём пищи</span></h3>
+        <h3>With FITTER <span class="time">~8 sec per meal</span></h3>
         <ul>
-          <li>Одно фото — ИИ сам найдёт продукты и оценит вес</li>
-          <li>Или текстом: «съел 2 яйца и тост»</li>
-          <li>Итог дня и остаток нормы — автоматически</li>
-          <li>Прямо в Telegram, который и так всегда под рукой</li>
-          <li>Напоминания, серии и награды — чтобы не бросить</li>
+          <li>One photo — the AI finds the foods and estimates the weight itself</li>
+          <li>Or type it: “ate 2 eggs and toast”</li>
+          <li>Daily summary and what's left of your goal — automatic</li>
+          <li>Right in Telegram, which is always at hand anyway</li>
+          <li>Reminders, streaks and awards — so you don't quit</li>
         </ul>
       </div>
     </div>
     <div class="save reveal">
-      <b>≈ 90 часов в год</b>
-      <p>столько уходит на ручной подсчёт по 15 минут в день. С FITTER это время остаётся тебе — на тренировки, сон или просто жизнь.</p>
+      <b>≈ 90 hours a year</b>
+      <p>that's how much manual counting takes at 15 minutes a day. With FITTER that time stays yours — for workouts, sleep or just life.</p>
     </div>
   </div>
 </section>
@@ -410,14 +417,14 @@ footer{padding:40px 0 110px;color:var(--muted);font-size:14px}
 <section id="how">
   <div class="wrap">
     <div class="section-head center reveal">
-      <span class="kicker">Как это работает</span>
-      <h2>Три шага до первой записи</h2>
-      <p>Меньше минуты на старт. Дальше — одно фото на каждый приём пищи.</p>
+      <span class="kicker">How it works</span>
+      <h2>Three steps to your first entry</h2>
+      <p>Less than a minute to start. After that — one photo per meal.</p>
     </div>
     <div class="steps">
-      <div class="card step reveal"><span class="t">30 сек</span><h3>Ответь на 6 вопросов</h3><p>Пол, возраст, рост, вес, активность и цель. FITTER рассчитает твою норму калорий и БЖУ по формуле Миффлина — Сан-Жеора.</p></div>
-      <div class="card step reveal"><span class="t">8 сек</span><h3>Отправь фото еды</h3><p>ИИ распознает каждый продукт, оценит граммы и посчитает КБЖУ. Подпись «это 200 г риса» сделает оценку ещё точнее.</p></div>
-      <div class="card step reveal"><span class="t">каждый день</span><h3>Смотри на результат</h3><p>Бот сразу покажет, сколько осталось до нормы. Итоги дня и недели, вода и вес — в красивом дневнике.</p></div>
+      <div class="card step reveal"><span class="t">30 sec</span><h3>Answer 6 questions</h3><p>Sex, age, height, weight, activity and goal. FITTER calculates your calorie and macro goal with the Mifflin–St Jeor formula.</p></div>
+      <div class="card step reveal"><span class="t">8 sec</span><h3>Send a photo of your food</h3><p>The AI recognizes every product, estimates the grams and counts the macros. A caption like “this is 200 g of rice” makes the estimate even more accurate.</p></div>
+      <div class="card step reveal"><span class="t">every day</span><h3>Watch the result</h3><p>The bot instantly shows how much is left until your goal. Daily and weekly summaries, water and weight — in a beautiful diary.</p></div>
     </div>
   </div>
 </section>
@@ -426,40 +433,40 @@ footer{padding:40px 0 110px;color:var(--muted);font-size:14px}
 <section id="calc">
   <div class="wrap">
     <div class="section-head center reveal">
-      <span class="kicker">Попробуй прямо сейчас</span>
-      <h2>Сколько тебе нужно <span class="hl">есть в день?</span></h2>
-      <p>Тот же расчёт, что делает FITTER при старте. Заполни — и получи свою норму калорий и БЖУ.</p>
+      <span class="kicker">Try it right now</span>
+      <h2>How much do you need <span class="hl">to eat a day?</span></h2>
+      <p>The same calculation FITTER does at the start. Fill it in and get your calorie and macro goal.</p>
     </div>
     <div class="calc reveal">
       <form id="cf" onsubmit="return false">
-        <label class="full">Пол
-          <div class="seg" data-k="sex"><button type="button" class="on" data-v="f">Женский</button><button type="button" data-v="m">Мужской</button></div>
+        <label class="full">Sex
+          <div class="seg" data-k="sex"><button type="button" class="on" data-v="f">Female</button><button type="button" data-v="m">Male</button></div>
         </label>
-        <label>Возраст<input type="number" id="age" value="28" min="14" max="90" inputmode="numeric"></label>
-        <label>Рост, см<input type="number" id="h" value="168" min="130" max="220" inputmode="numeric"></label>
-        <label>Вес, кг<input type="number" id="w" value="68" min="35" max="250" inputmode="decimal"></label>
-        <label>Активность
+        <label>Age<input type="number" id="age" value="28" min="14" max="90" inputmode="numeric"></label>
+        <label>Height, cm<input type="number" id="h" value="168" min="130" max="220" inputmode="numeric"></label>
+        <label>Weight, kg<input type="number" id="w" value="68" min="35" max="250" inputmode="decimal"></label>
+        <label>Activity
           <select id="act">
-            <option value="1.2">Сидячая работа</option>
-            <option value="1.375" selected>1–3 тренировки</option>
-            <option value="1.55">3–5 тренировок</option>
-            <option value="1.725">Каждый день</option>
+            <option value="1.2">Desk job</option>
+            <option value="1.375" selected>1–3 workouts</option>
+            <option value="1.55">3–5 workouts</option>
+            <option value="1.725">Every day</option>
           </select>
         </label>
-        <label class="full">Цель
-          <div class="seg" data-k="goal"><button type="button" class="on" data-v="lose">Похудеть</button><button type="button" data-v="keep">Держать</button><button type="button" data-v="gain">Набрать</button></div>
+        <label class="full">Goal
+          <div class="seg" data-k="goal"><button type="button" class="on" data-v="lose">Lose</button><button type="button" data-v="keep">Maintain</button><button type="button" data-v="gain">Gain</button></div>
         </label>
       </form>
       <div class="res" aria-live="polite">
-        <small>Твоя дневная норма</small>
-        <div class="kcal"><b id="kcal">1 850</b><span>ккал</span></div>
+        <small>Your daily goal</small>
+        <div class="kcal"><b id="kcal">1,850</b><span>kcal</span></div>
         <div class="macros">
-          <div><b id="p">—</b><span>белки, г</span></div>
-          <div><b id="f">—</b><span>жиры, г</span></div>
-          <div><b id="c">—</b><span>углеводы, г</span></div>
+          <div><b id="p">—</b><span>protein, g</span></div>
+          <div><b id="f">—</b><span>fat, g</span></div>
+          <div><b id="c">—</b><span>carbs, g</span></div>
         </div>
-        <a class="button lime" id="calcBtn" href="https://t.me/FitterFoodBot?start=site_calc" target="_blank" rel="noopener"><svg class="tg"><use href="#tg"/></svg>Следить за нормой в FITTER</a>
-        <span class="fine">Ориентировочный расчёт. В боте норма пересчитывается сама, когда ты записываешь новый вес. Не заменяет консультацию врача.</span>
+        <a class="button lime" id="calcBtn" href="https://t.me/FitterFoodBot?start=site_calc" target="_blank" rel="noopener"><svg class="tg"><use href="#tg"/></svg>Track your goal in FITTER</a>
+        <span class="fine">An approximate estimate. In the bot your goal recalculates itself when you log a new weight. Not a substitute for medical advice.</span>
       </div>
     </div>
   </div>
@@ -469,29 +476,29 @@ footer{padding:40px 0 110px;color:var(--muted);font-size:14px}
 <section id="features">
   <div class="wrap">
     <div class="section-head reveal">
-      <span class="kicker">Возможности</span>
-      <h2>Всё для дневника питания — в одном чате</h2>
-      <p>От записи обеда до разбора недели. Ничего не нужно настраивать.</p>
+      <span class="kicker">Features</span>
+      <h2>Everything for a food diary — in one chat</h2>
+      <p>From logging lunch to the weekly review. Nothing to set up.</p>
     </div>
     <div class="bento">
       <div class="card wide reveal">
         <div class="ico">📸</div>
-        <h3>Записывай еду так, как удобно</h3>
-        <p>Ошиблась нейросеть — нажми ✏️ и поправь вес или продукт, КБЖУ пересчитаются.</p>
+        <h3>Log food the way that suits you</h3>
+        <p>If the AI got it wrong, tap ✏️ and fix the weight or product — the macros are recalculated.</p>
         <div class="ways">
-          <div><b>Фото</b>продукты и порция</div>
-          <div><b>Текст</b>«творог и банан»</div>
-          <div><b>Этикетка</b>КБЖУ с упаковки</div>
-          <div><b>Штрихкод</b>Open Food Facts</div>
+          <div><b>Photo</b>foods and portion</div>
+          <div><b>Text</b>“cottage cheese and a banana”</div>
+          <div><b>Label</b>values from the pack</div>
+          <div><b>Barcode</b>Open Food Facts</div>
         </div>
       </div>
-      <div class="card reveal"><div class="ico">🎯</div><h3>Личная норма</h3><p>Калории и БЖУ под твою цель. Записал новый вес — норма пересчитается сама.</p></div>
-      <div class="card reveal"><div class="ico">💧</div><h3>Вода и напоминания</h3><p>30 мл на 1 кг веса. Бот напомнит попить — от 30 мин до 2 часов, ночью молчит.</p></div>
-      <div class="card reveal"><div class="ico">📉</div><h3>Вес и график</h3><p>История замеров, разница с прошлым разом и наглядный график.</p></div>
-      <div class="card reveal"><div class="ico">💊</div><h3>Таблетки и витамины</h3><p>Напоминание вовремя с кнопками «Принял», «Через 30 мин», «Пропустить».</p></div>
-      <div class="card reveal"><div class="ico">🔥</div><h3>Серии и награды</h3><p>Дни подряд и 13 достижений. Пропускать становится жалко.</p><div class="streak"><span>🔥 Железная привычка — 30 дней</span></div></div>
-      <div class="card reveal"><div class="ico">📊</div><h3>Итоги дня и недели</h3><p>Сколько съедено, сколько осталось и где был перебор — с графиком.</p></div>
-      <div class="card wide reveal"><div class="ico">📱</div><h3>Красивый дневник без скачивания</h3><p>Открывается кнопкой прямо из чата как Telegram Mini App: кольцо калорий, календарь недели, карточки БЖУ, стакан воды с кнопками ±250 мл. Подстраивается под светлую и тёмную тему.</p><img class="shot" src="screens.webp" width="1000" height="791" loading="lazy" alt="Чат с ботом FITTER и дневник питания в Telegram Mini App"><a class="button small" style="align-self:flex-start;margin-top:10px" href="https://t.me/FitterFoodBot?start=site_app" target="_blank" rel="noopener">Открыть дневник ↗</a></div>
+      <div class="card reveal"><div class="ico">🎯</div><h3>Personal goal</h3><p>Calories and macros for your target. Log a new weight and the goal recalculates itself.</p></div>
+      <div class="card reveal"><div class="ico">💧</div><h3>Water and reminders</h3><p>30 ml per kg of body weight. The bot reminds you to drink — every 30 min to 2 hours, and stays quiet at night.</p></div>
+      <div class="card reveal"><div class="ico">📉</div><h3>Weight and chart</h3><p>History of measurements, the change since last time and a clear chart.</p></div>
+      <div class="card reveal"><div class="ico">💊</div><h3>Pills and vitamins</h3><p>A timely reminder with “Taken”, “In 30 min” and “Skip” buttons.</p></div>
+      <div class="card reveal"><div class="ico">🔥</div><h3>Streaks and awards</h3><p>Days in a row and 13 achievements. You'll hate to skip a day.</p><div class="streak"><span>🔥 Iron habit — 30 days</span></div></div>
+      <div class="card reveal"><div class="ico">📊</div><h3>Daily and weekly summaries</h3><p>How much you ate, how much is left and where you went over — with a chart.</p></div>
+      <div class="card wide reveal"><div class="ico">📱</div><h3>A beautiful diary, no download</h3><p>Opens with a button right from the chat as a Telegram Mini App: calorie ring, week calendar, macro cards, a glass of water with ±250 ml buttons. Adapts to light and dark themes.</p><img class="shot" src="screens.webp" width="1000" height="791" loading="lazy" alt="FITTER chat and the food diary in a Telegram Mini App"><a class="button small" style="align-self:flex-start;margin-top:10px" href="https://t.me/FitterFoodBot?start=site_app" target="_blank" rel="noopener">Open the diary ↗</a></div>
     </div>
   </div>
 </section>
@@ -500,22 +507,22 @@ footer{padding:40px 0 110px;color:var(--muted);font-size:14px}
 <section id="ai">
   <div class="wrap ai">
     <div class="reveal">
-      <span class="kicker">ИИ-ассистент</span>
-      <h2>Не только считает, но и <span class="hl">подсказывает</span></h2>
-      <p class="lead">FITTER знает твою норму и то, что ты уже съел. Поэтому его советы — про тебя, а не «ешьте больше овощей».</p>
+      <span class="kicker">AI assistant</span>
+      <h2>It doesn't just count — it <span class="hl">advises</span></h2>
+      <p class="lead">FITTER knows your goal and what you've already eaten. So its tips are about you, not a generic “eat more vegetables”.</p>
       <div class="ai-list">
-        <div><i>🥗</i><div><b>«Что съесть»</b><p>3 варианта следующего приёма пищи под остаток калорий и белка, время суток и цель. Понравился — запиши одной кнопкой.</p></div></div>
-        <div><i>🗓</i><div><b>Разбор недели</b><p>Каждое воскресенье в 20:00: оценка питания, что получилось и 3 совета на следующую неделю.</p></div></div>
-        <div><i>💬</i><div><b>Вопросы о питании</b><p>«Сколько белка в твороге?» — ответ с учётом твоей нормы и съеденного за день.</p></div></div>
+        <div><i>🥗</i><div><b>“What to eat”</b><p>3 options for your next meal based on the calories and protein you have left, the time of day and your goal. Like one? Log it with one button.</p></div></div>
+        <div><i>🗓</i><div><b>Weekly review</b><p>Every Sunday at 8 PM: a nutrition score, what went well and 3 tips for the next week.</p></div></div>
+        <div><i>💬</i><div><b>Nutrition questions</b><p>“How much protein is in cottage cheese?” — an answer that takes your goal and what you've eaten today into account.</p></div></div>
       </div>
-      <a class="button" href="https://t.me/FitterFoodBot?start=site_ai" target="_blank" rel="noopener"><svg class="tg"><use href="#tg"/></svg>Спросить ассистента</a>
+      <a class="button" href="https://t.me/FitterFoodBot?start=site_ai" target="_blank" rel="noopener"><svg class="tg"><use href="#tg"/></svg>Ask the assistant</a>
     </div>
     <div class="sugg reveal">
-      <h4>🥗 Что съесть</h4>
-      <small>Осталось 610 ккал и 38 г белка · ужин</small>
-      <div class="opt"><div><b>Омлет из 3 яиц с овощами</b><small>≈ 320 ккал · 21 г белка</small></div><span>Записать</span></div>
-      <div class="opt"><div><b>Творог 5% с ягодами</b><small>≈ 250 ккал · 30 г белка</small></div><span>Записать</span></div>
-      <div class="opt"><div><b>Рыба на пару и салат</b><small>≈ 380 ккал · 35 г белка</small></div><span>Записать</span></div>
+      <h4>🥗 What to eat</h4>
+      <small>610 kcal and 38 g protein left · dinner</small>
+      <div class="opt"><div><b>3-egg omelet with vegetables</b><small>≈ 320 kcal · 21 g protein</small></div><span>Log it</span></div>
+      <div class="opt"><div><b>5% cottage cheese with berries</b><small>≈ 250 kcal · 30 g protein</small></div><span>Log it</span></div>
+      <div class="opt"><div><b>Steamed fish and salad</b><small>≈ 380 kcal · 35 g protein</small></div><span>Log it</span></div>
     </div>
   </div>
 </section>
@@ -524,13 +531,13 @@ footer{padding:40px 0 110px;color:var(--muted);font-size:14px}
 <section>
   <div class="wrap">
     <div class="section-head center reveal">
-      <span class="kicker">Под любую цель</span>
-      <h2>Худеешь, держишь форму или набираешь</h2>
+      <span class="kicker">For any goal</span>
+      <h2>Losing, maintaining or gaining</h2>
     </div>
     <div class="goals">
-      <div class="card goal reveal"><div class="em">🏃</div><h3>Похудеть</h3><p>Дефицит калорий без голодовок: видно, где перебор, а советы предлагают сытные варианты в рамках остатка.</p><a href="https://t.me/FitterFoodBot?start=site_goal_lose" target="_blank" rel="noopener">Начать худеть →</a></div>
-      <div class="card goal reveal"><div class="em">⚖️</div><h3>Держать вес</h3><p>Спокойный контроль: дни в норме, график веса и разбор недели помогают не съехать.</p><a href="https://t.me/FitterFoodBot?start=site_goal_keep" target="_blank" rel="noopener">Держать форму →</a></div>
-      <div class="card goal reveal"><div class="em">💪</div><h3>Набрать массу</h3><p>Следи за белком в каждом приёме пищи и добирай норму с подсказками «Что съесть».</p><a href="https://t.me/FitterFoodBot?start=site_goal_gain" target="_blank" rel="noopener">Набрать массу →</a></div>
+      <div class="card goal reveal"><div class="em">🏃</div><h3>Lose weight</h3><p>A calorie deficit without starving: you see where you went over, and the tips suggest filling options within what's left.</p><a href="https://t.me/FitterFoodBot?start=site_goal_lose" target="_blank" rel="noopener">Start losing →</a></div>
+      <div class="card goal reveal"><div class="em">⚖️</div><h3>Maintain weight</h3><p>Calm control: days on goal, the weight chart and the weekly review help you stay on track.</p><a href="https://t.me/FitterFoodBot?start=site_goal_keep" target="_blank" rel="noopener">Stay in shape →</a></div>
+      <div class="card goal reveal"><div class="em">💪</div><h3>Gain muscle</h3><p>Keep an eye on protein in every meal and reach your goal with “What to eat” suggestions.</p><a href="https://t.me/FitterFoodBot?start=site_goal_gain" target="_blank" rel="noopener">Start gaining →</a></div>
     </div>
   </div>
 </section>
@@ -540,20 +547,20 @@ footer{padding:40px 0 110px;color:var(--muted);font-size:14px}
   <div class="wrap">
     <div class="offer reveal">
       <div style="position:relative">
-        <span class="kicker">Цена</span>
-        <div class="price">0 ₽<small>Сейчас бесплатно и без рекламы</small></div>
-        <p>Никаких пробных периодов, привязки карты и платных «премиум»-функций. Открой бота — и все возможности уже твои.</p>
+        <span class="kicker">Price</span>
+        <div class="price">$0<small>Free and ad-free for now</small></div>
+        <p>No trial periods, no card required, no paid “premium” features. Open the bot and everything is already yours.</p>
       </div>
       <div style="position:relative">
         <ul class="incl">
-          <li>Калории и БЖУ по фото, тексту, этикетке и штрихкоду</li>
-          <li>Личная норма и автоматический пересчёт</li>
-          <li>Дневник в Telegram Mini App</li>
-          <li>ИИ-ассистент «Что съесть» и разбор недели</li>
-          <li>Вода, вес, витамины, напоминания</li>
-          <li>Серии, награды и итоги недели</li>
+          <li>Calories and macros from a photo, text, label or barcode</li>
+          <li>Personal goal with automatic recalculation</li>
+          <li>Diary as a Telegram Mini App</li>
+          <li>AI assistant “What to eat” and weekly review</li>
+          <li>Water, weight, vitamins, reminders</li>
+          <li>Streaks, awards and weekly summaries</li>
         </ul>
-        <a class="button lime" href="https://t.me/FitterFoodBot?start=site_offer" target="_blank" rel="noopener"><svg class="tg"><use href="#tg"/></svg>Забрать бесплатно</a>
+        <a class="button lime" href="https://t.me/FitterFoodBot?start=site_offer" target="_blank" rel="noopener"><svg class="tg"><use href="#tg"/></svg>Get it for free</a>
       </div>
     </div>
   </div>
@@ -563,15 +570,15 @@ footer{padding:40px 0 110px;color:var(--muted);font-size:14px}
 <section>
   <div class="wrap">
     <div class="section-head reveal">
-      <span class="kicker">Честно</span>
-      <h2>Твои данные — твои</h2>
-      <p>Дневник питания — личная вещь. Поэтому FITTER хранит минимум и ничего не продаёт.</p>
+      <span class="kicker">Honestly</span>
+      <h2>Your data is yours</h2>
+      <p>A food diary is personal. That's why FITTER stores the minimum and sells nothing.</p>
     </div>
     <div class="trust">
-      <div class="card reveal"><div class="ck">✓</div><b>Фото не хранятся</b><p>Снимок уходит в нейросеть только для распознавания и нигде не сохраняется.</p></div>
-      <div class="card reveal"><div class="ck">✓</div><b>Без рекламы и трекеров</b><p>Не продаём данные и не ставим сторонние счётчики. Подробно — в <a href="privacy.html">политике</a>.</p></div>
-      <div class="card reveal"><div class="ck">✓</div><b>Открытый код</b><p>Весь сервис можно проверить на <a href="https://github.com/sailxx/FITTER-AI" target="_blank" rel="noopener">GitHub</a>.</p></div>
-      <div class="card reveal"><div class="ck">✓</div><b>Ты всё контролируешь</b><p>Любую запись можно поправить или удалить, а все данные — стереть по запросу.</p></div>
+      <div class="card reveal"><div class="ck">✓</div><b>Photos aren't stored</b><p>The picture goes to the AI only for recognition and isn't saved anywhere.</p></div>
+      <div class="card reveal"><div class="ck">✓</div><b>No ads or trackers</b><p>We don't sell data or add third-party counters. Details are in the <a href="privacy.html">privacy policy</a>.</p></div>
+      <div class="card reveal"><div class="ck">✓</div><b>Open source</b><p>The whole service can be checked on <a href="https://github.com/sailxx/FITTER-AI" target="_blank" rel="noopener">GitHub</a>.</p></div>
+      <div class="card reveal"><div class="ck">✓</div><b>You're in control</b><p>Any entry can be edited or deleted, and all your data can be erased on request.</p></div>
     </div>
   </div>
 </section>
@@ -580,20 +587,20 @@ footer{padding:40px 0 110px;color:var(--muted);font-size:14px}
 <section id="faq">
   <div class="wrap">
     <div class="section-head center reveal">
-      <span class="kicker">Вопросы и ответы</span>
-      <h2>Частые вопросы</h2>
-      <p>Не нашли ответ? <a href="https://t.me/arkhitkovv" target="_blank" rel="noopener">Напишите автору</a>.</p>
+      <span class="kicker">Questions and answers</span>
+      <h2>Frequently asked questions</h2>
+      <p>Didn't find an answer? <a href="https://t.me/arkhitkovv" target="_blank" rel="noopener">Message the author</a>.</p>
     </div>
     <div class="faq">
-      <details open><summary>Как посчитать калории по фотографии?</summary><p>Откройте бота FITTER в Telegram и отправьте фото блюда. ИИ распознает продукты, оценит вес порции и посчитает калории, белки, жиры и углеводы. Запись сразу появится в дневнике, её можно проверить и поправить.</p></details>
-      <details><summary>Насколько точен расчёт калорий по фото?</summary><p>Оценка по фото приблизительная и зависит от состава и размера порции. Чтобы было точнее, добавьте подпись к фото («200 г риса») или поправьте вес и продукт кнопкой под записью. Для упаковок бот берёт КБЖУ прямо с этикетки. FITTER не заменяет консультацию врача или диетолога.</p></details>
-      <details><summary>Сколько стоит FITTER?</summary><p>Сейчас FITTER бесплатный и без рекламы. Откройте бота в Telegram и начните вести дневник.</p></details>
-      <details><summary>Нужно ли устанавливать приложение?</summary><p>Нет. FITTER работает прямо в Telegram, а дневник открывается как Telegram Mini App. Регистрация не нужна.</p></details>
-      <details><summary>Как FITTER рассчитывает мою норму?</summary><p>При первом запуске бот задаёт 6 вопросов: пол, возраст, рост, вес, активность и цель. Норма калорий и БЖУ считается по формуле Миффлина — Сан-Жеора и пересчитывается, когда вы записываете новый вес.</p></details>
-      <details><summary>Можно ли исправить продукт или вес?</summary><p>Да. Нажмите на продукт под записью и укажите правильный вес, название или и то и другое, например «форель 200 г». Калории и БЖУ пересчитаются.</p></details>
-      <details><summary>Что делать с упакованными продуктами?</summary><p>Сфотографируйте этикетку — бот перепишет КБЖУ точно с неё. Если этикетки не видно, бот прочитает штрихкод и найдёт продукт в базе Open Food Facts. Цифры штрихкода можно прислать и текстом.</p></details>
-      <details><summary>Есть ли напоминания пить воду?</summary><p>Да. Включите их командой /remind и выберите интервал: 30 минут, 1 час, 1,5 часа или 2 часа. Ночью напоминаний нет, а после выполнения нормы они прекращаются.</p></details>
-      <details><summary>Сохраняются ли мои фотографии?</summary><p>Нет. Фото передаётся в нейросеть только для распознавания и не сохраняется. В дневнике хранятся анкета и записи еды, воды, веса и таблеток. Данные можно удалить в любой момент.</p></details>
+      <details open><summary>How do I count calories from a photo?</summary><p>Open the FITTER bot in Telegram and send a photo of your dish. The AI recognizes the foods, estimates the portion weight and counts calories, protein, fat and carbs. The entry appears in your diary right away, where you can check and correct it.</p></details>
+      <details><summary>How accurate is calorie counting from a photo?</summary><p>A photo-based estimate is approximate and depends on the dish and the portion size. For better accuracy, add a caption to the photo (“200 g rice”) or fix the weight and product with the button under the entry. For packaged foods, the bot takes the values straight from the label. FITTER is not a substitute for advice from a doctor or dietitian.</p></details>
+      <details><summary>How much does FITTER cost?</summary><p>FITTER is currently free and ad-free. Open the bot in Telegram and start your diary.</p></details>
+      <details><summary>Do I need to install an app?</summary><p>No. FITTER works right inside Telegram, and the diary opens as a Telegram Mini App. No sign-up needed.</p></details>
+      <details><summary>How does FITTER calculate my goal?</summary><p>On first launch the bot asks 6 questions: sex, age, height, weight, activity and goal. Your calorie and macro goal is calculated with the Mifflin–St Jeor formula and recalculated whenever you log a new weight.</p></details>
+      <details><summary>Can I correct a product or its weight?</summary><p>Yes. Tap the product under the entry and enter the right weight, name or both, for example “trout 200 g”. Calories and macros are recalculated.</p></details>
+      <details><summary>What about packaged foods?</summary><p>Photograph the label — the bot copies the nutrition values exactly from it. If the label isn't visible, the bot reads the barcode and finds the product in the Open Food Facts database. You can also send the barcode digits as text.</p></details>
+      <details><summary>Are there reminders to drink water?</summary><p>Yes. Turn them on with the /remind command and pick an interval: 30 minutes, 1 hour, 1.5 hours or 2 hours. There are no reminders at night, and they stop once you reach your goal.</p></details>
+      <details><summary>Are my photos stored?</summary><p>No. The photo is passed to the AI only for recognition and is not stored. The diary keeps your profile and your food, water, weight and pill entries. You can delete your data at any time.</p></details>
     </div>
   </div>
 </section>
@@ -602,11 +609,11 @@ footer{padding:40px 0 110px;color:var(--muted);font-size:14px}
 <section>
   <div class="wrap">
     <div class="final reveal">
-      <span class="kicker">Первая запись — через минуту</span>
-      <h2>Что у тебя на тарелке прямо сейчас? Сфоткай&nbsp;— и&nbsp;узнаешь</h2>
-      <p>Открой FITTER, ответь на 6 вопросов и отправь первое фото. Это бесплатно.</p>
-      <a class="button" href="https://t.me/FitterFoodBot?start=site_cta" target="_blank" rel="noopener"><svg class="tg"><use href="#tg"/></svg>Открыть @FitterFoodBot</a>
-      <small>Бесплатно · Без установки · Без рекламы</small>
+      <span class="kicker">Your first entry in a minute</span>
+      <h2>What's on your plate right now? Snap it&nbsp;and&nbsp;find out</h2>
+      <p>Open FITTER, answer 6 questions and send your first photo. It's free.</p>
+      <a class="button" href="https://t.me/FitterFoodBot?start=site_cta" target="_blank" rel="noopener"><svg class="tg"><use href="#tg"/></svg>Open @FitterFoodBot</a>
+      <small>Free · No install · No ads</small>
     </div>
   </div>
 </section>
@@ -615,22 +622,22 @@ footer{padding:40px 0 110px;color:var(--muted);font-size:14px}
 <footer>
   <div class="wrap foot">
     <a class="brand" href="#top"><img src="logo.svg" alt="" width="34" height="34"><span>FITTER</span></a>
-    <nav aria-label="Ссылки в подвале">
-      <a href="privacy.html">Конфиденциальность</a>
+    <nav aria-label="Footer links">
+      <a href="privacy.html">Privacy</a>
       <a href="https://github.com/sailxx/FITTER-AI" target="_blank" rel="noopener">GitHub</a>
-      <a href="https://t.me/arkhitkovv" target="_blank" rel="noopener">Автор</a>
-      <a href="https://t.me/FitterFoodBot?start=site" target="_blank" rel="noopener">Telegram-бот</a>
+      <a href="https://t.me/arkhitkovv" target="_blank" rel="noopener">Author</a>
+      <a href="https://t.me/FitterFoodBot?start=site" target="_blank" rel="noopener">Telegram bot</a>
     </nav>
   </div>
 </footer>
 
-<div class="sticky"><a class="button lime" href="https://t.me/FitterFoodBot?start=site_mobile" target="_blank" rel="noopener"><svg class="tg"><use href="#tg"/></svg>Начать бесплатно в Telegram</a></div>
+<div class="sticky"><a class="button lime" href="https://t.me/FitterFoodBot?start=site_mobile" target="_blank" rel="noopener"><svg class="tg"><use href="#tg"/></svg>Start free in Telegram</a></div>
 
 <script>
 // Calculator (Mifflin — St Jeor)
 const st={sex:'f',goal:'lose'};
 const $=id=>document.getElementById(id);
-const fmt=n=>Math.round(n).toLocaleString('ru-RU');
+const fmt=n=>Math.round(n).toLocaleString('en-US');
 document.querySelectorAll('.seg').forEach(seg=>{
   seg.addEventListener('click',e=>{
     const b=e.target.closest('button');if(!b)return;

@@ -1,279 +1,288 @@
-# История версий
+# Changelog
 
-## v3.7.2 — Виджеты без обводки
-- 🔲 У виджетов убрана тонкая обводка по краю
+**English** · [Русский](CHANGELOG.ru.md)
 
-## v3.7.1 — Виджет воды по центру
-- 💧 Виджет «Вода»: стакан и текст стоят по центру и не прижимаются к краю на широких размерах
+## v3.8 — English and Russian
+- 🌐 The bot, the Telegram diary, the Android app and the widgets speak English and Russian. The language follows Telegram on first launch (Russian for ru, be, kk, English otherwise); people who used FITTER before keep Russian
+- 🔁 Switch it anywhere: `/lang` or the “🌐 Language” button in the profile, the EN/RU button in the diary header, Settings → Language in the app. One choice per account, synced between the bot, the diary, the app and the widgets
+- 🤖 AI answers (food names, tips, recipes, the weekly review) follow the chosen language; the bot understands English phrases (“water 300”, “2 glasses of water”, “trout 200 g”, “Vitamin D, 1 capsule, 9:00”)
+- 🏋️ The exercise catalog, notifications and widgets are in English; widget names in the picker follow the phone's language
+- 🌍 Website and privacy policy: English at the root, Russian in `/ru/`, with hreflang and an EN/RU switch. README, SETUP and CHANGELOG exist in both languages
 
-## v3.7 — OLED и виджет воды 1×1
-- 🖤 Тёмная тема — чистый OLED-чёрный фон, светлая — чистый белый; карточки чуть светлее/темнее фона
-- 💧 Виджет «Вода» теперь можно поставить размером 1×1: стакан и литры под ним
+## v3.7.2 — Widgets without an outline
+- 🔲 Removed the thin outline around the widget edges
 
-## v3.6 — Тёмная иконка
-- 🖤 «Настройки → Оформление → Иконка»: зелёная или тёмная — тот же логотип-яблоко на чёрном фоне. Значок на рабочем столе меняется через несколько секунд
+## v3.7.1 — Centered water widget
+- 💧 “Water” widget: the glass and text are centered and no longer cling to the edge at wide sizes
 
-## v3.5 — Новый логотип и напоминания
-- 🔔 Напоминания в приложении: «Настройки → Напоминания» — вода, еда и таблетки, приходят без интернета и бота
-- 💧 Вода: как часто (1–3 ч), с какого и до какого часа, молчать, когда норма выпита. В уведомлении — сколько выпито с полоской прогресса, кнопки «＋ Стакан 250 мл» (записывает сразу) и «Через 30 мин»
-- 🍽 Еда: завтрак, обед и ужин — своё время у каждого; кнопки «📸 Сфотографировать» (сразу камера) и «✍️ Записать текстом»; не напоминает, если еду уже записали
-- 💊 Таблетки: по расписанию из бота, кнопки «✓ Принял» и «Пропустить» прямо в уведомлении
-- 🎨 Карточки «Белков / Углеводов / Жиров осталось» — каждая в лёгком оттенке своего цвета
-- 🍏 Новый логотип FITTER: зелёная плитка-яблоко с листиком, глаза-объективы и вспышка камеры, искристое зерно
-- 📱 Иконка приложения для Android — адаптивная (круг, скруглённый квадрат), с монохромным вариантом для тематических иконок Android 13+
-- 🔐 Новый логотип на экране входа и в виджетах
-- 🌐 Логотип на сайте, в фавиконках и в README; аватар бота
-- 🎨 Первый стабильный выпуск с дизайном v3.2 (до этого — бета)
+## v3.7 — OLED and a 1×1 water widget
+- 🖤 The dark theme is a pure OLED black, the light theme a pure white; cards are slightly lighter/darker than the background
+- 💧 The “Water” widget can now be placed at 1×1: a glass with the liters below
 
-## v3.2 — Новый дизайн приложения
-- 🌙 Приложение для Android в духе Cal AI: графитовый фон (в светлой теме — серый), нейтральные карточки со скруглением 24, поля 20 по краям, контрастные кнопки-капсулы
-- 🔥 «Сегодня»: зелёная карточка калорий с градиентом в бирюзу и искристым зерном — крупный остаток слева, белое кольцо с огоньком справа
-- 🎯 Белки, углеводы и жиры — как в Cal AI: сверху сколько осталось или сколько сверх, ниже цветное кольцо с иконкой
-- 💧 Вода — карточка во всю ширину: «+» добавляет стакан, долгое нажатие убирает
-- 💊 Таблетки — отдельная карточка: названия целиком, доза, время и полоска «принято»; отметка нажатием
-- ✏️ Нажатие на приём пищи открывает правку: у каждого продукта название, вес, калории, белки, жиры и углеводы; при смене веса КБЖУ пересчитываются сами, «Пересчитать ИИ» подбирает КБЖУ по новому названию (`/api/item/set` на сервере)
-- ✨ «Советы ИИ», «Тренировки», «Настройки» и окно «Добавить еду» — в том же стиле: обычный заголовок вместо зелёной шапки, карточки, чипы и кнопки-капсулы
-- ⚖️ Плитка веса с графиком и изменением за период
-- 🍽 «Недавно добавлено»: у каждого приёма пищи картинка по названию блюда, время, калории и БЖУ
-- 🗓 Кнопка календаря рядом с серией 🔥 раскрывает неделю; долгое нажатие — меню (обновить, настройки, бот, выход)
-- 🫧 Нижняя панель в стиле liquid glass: размытие контента под ней (Android 12+), стеклянная кнопка камеры посередине сразу открывает камеру
+## v3.6 — Dark icon
+- 🖤 “Settings → Appearance → Icon”: green or dark — the same apple logo on a black background. The home-screen icon changes in a few seconds
 
-## v3.1 — Дневник тренировок
-- 💪 Новый раздел «Тренировки» в приложении Fitter для Android — вкладка в нижней панели
-- 📋 Более 140 упражнений: грудь, спина, ноги, ягодицы, плечи, бицепс, трицепс, пресс, кардио, растяжка; поиск и фильтр «🏠 Дома» для занятий без зала
-- ➕ Свои упражнения: название, группа мышц и как записывать — вес × повторы, повторы, время или кардио (минуты и км); удержание — удалить
-- 🔁 Подходы: «＋ Подход» копирует предыдущий, новое упражнение подставляет подходы из прошлого раза
-- 😌😐🥵 У каждого упражнения отметка «Легко», «Средне» или «Сложно»
-- 🗓 Тренировку можно записать задним числом, исправить или удалить; в списке — подходы, тоннаж и итог за 7 дней
-- ☁️ Тренировки хранятся на сервере (`/api/workouts`), видны на всех телефонах и стираются командой `/delete`
+## v3.5 — New logo and reminders
+- 🔔 Reminders in the app: “Settings → Reminders” — water, food and pills, delivered without the internet or the bot
+- 💧 Water: how often (1–3 h), from and until which hour, stay quiet once the goal is reached. The notification shows how much you've had with a progress bar, plus “＋ Glass 250 ml” (logs right away) and “In 30 min” buttons
+- 🍽 Food: breakfast, lunch and dinner each with its own time; “📸 Take a photo” (opens the camera right away) and “✍️ Type it” buttons; no reminder if the food was already logged
+- 💊 Pills: on the schedule from the bot, with “✓ Taken” and “Skip” buttons right in the notification
+- 🎨 The “Protein / Carbs / Fat left” cards — each in a light tint of its own color
+- 🍏 New FITTER logo: a green apple tile with a leaf, lens eyes and a camera flash, sparkly grain
+- 📱 Adaptive Android app icon (circle, squircle) with a monochrome variant for themed icons on Android 13+
+- 🔐 The new logo on the sign-in screen and in the widgets
+- 🌐 The logo on the website, in favicons and in the README; the bot's avatar
+- 🎨 First stable release with the v3.2 design (before that — beta)
 
-## v3.0 — Приложение Fitter для Android
-**Приложение**
-- 📱 Отдельное приложение Fitter (Kotlin + Compose) с логотипом FITTER: `Fitter.apk` в релизе на GitHub, Android 8.0+
-- 🔐 Вход через бота: «Войти через Telegram» → кнопка подтверждения в @FitterFoodBot, без паролей
-- 🟢 Экран «Сегодня» как дневник в боте: кольцо калорий, БЖУ с подсказкой, вода стаканами, таблетки (отмечаются нажатием), еда за день
-- 📸 Зелёная «+»: еда текстом, снимком с камеры или фото из галереи — калории и БЖУ считает нейросеть, как в боте; долгое нажатие на приём пищи — удалить
-- ✨ «Советы ИИ»: «Что съесть сейчас» под остаток нормы (вариант записывается одной кнопкой) и разбор недели с оценкой; нажатие на вариант открывает полный рецепт и «Найти похожее»
-- ⚡ Живая синхронизация: пока приложение открыто, записи из бота и дневника появляются в нём сразу
-- 🧭 Нижняя панель: «Сегодня», «Советы», «Настройки» и приподнятая зелёная «+» в вырезе
-- ⚙️ «Настройки»: тема (как в системе, светлая, тёмная) и всё про виджеты
+## v3.2 — New app design
+- 🌙 The Android app in the spirit of Cal AI: graphite background (gray in the light theme), neutral cards with a 24 radius, 20 margins, contrasting capsule buttons
+- 🔥 “Today”: a green calorie card with a gradient into teal and sparkly grain — the big remainder on the left, a white ring with a flame on the right
+- 🎯 Protein, carbs and fat as in Cal AI: how much is left or over on top, a colored ring with an icon below
+- 💧 Water — a full-width card: “+” adds a glass, a long press removes one
+- 💊 Pills — a separate card: full names, dose, time and a “taken” bar; tap to mark
+- ✏️ Tapping a meal opens editing: each product has a name, weight, calories, protein, fat and carbs; when you change the weight the values recalculate on their own, “Recalculate with AI” picks values for a new name (`/api/item/set` on the server)
+- ✨ “AI tips”, “Workouts”, “Settings” and the “Add food” sheet in the same style: a regular heading instead of the green header, cards, chips and capsule buttons
+- ⚖️ A weight tile with a chart and the change over the period
+- 🍽 “Recently added”: each meal has a picture based on the dish name, time, calories and macros
+- 🗓 The calendar button next to the 🔥 streak expands the week; a long press opens a menu (refresh, settings, bot, sign out)
+- 🫧 A liquid-glass bottom bar: the content behind it is blurred (Android 12+), the glass camera button in the middle opens the camera right away
 
-**Виджеты**
-- 🧩 8 виджетов: «Калории», «Сегодня», «Вода», «БЖУ», «Неделя», «Таблетки», «Осталось», «Фото еды»
-- ⚪⚫ Белые при светлой теме Fitter и чёрные при тёмной; непрозрачность фона, углы, «осталось» или «съедено», БЖУ и вода в «Сегодня»
-- 🔠 Размер текста: пресеты S, M, L, XL, отдельно «Главное число», «Текст» и «Подписи», можно не учитывать системный шрифт
-- 📐 Подстраиваются под размер: растянул — крупнее и больше содержимого (БЖУ, приёмы пищи, список таблеток, итог недели)
-- 👀 Только показывают; «Фото еды» открывает приложение сразу с камерой. Обновляются в фоне раз в 15 минут и сразу после записей в приложении
+## v3.1 — Workout diary
+- 💪 A new “Workouts” section in the Fitter Android app — a tab in the bottom bar
+- 📋 More than 140 exercises: chest, back, legs, glutes, shoulders, biceps, triceps, abs, cardio, stretching; search and a “🏠 At home” filter for workouts without a gym
+- ➕ Custom exercises: a name, a muscle group and how to log it — weight × reps, reps, time or cardio (minutes and km); hold to delete
+- 🔁 Sets: “＋ Add set” copies the previous one, a new exercise fills in the sets from last time
+- 😌😐🥵 Every exercise gets an “Easy”, “Medium” or “Hard” mark
+- 🗓 A workout can be logged for a past date, edited or deleted; the list shows sets, tonnage and a 7-day total
+- ☁️ Workouts are stored on the server (`/api/workouts`), visible on all phones and erased by `/delete`
 
-**Бот и дневник в Telegram**
-- 🩹 Дневник на Android больше не рвётся на куски: без тяжёлых фильтров, теней и бесконечных анимаций; стакан воды рисуется без маски, страница не кэшируется
-- 🌐 Сервер для приложения: фото еды, советы ИИ, живая синхронизация через Durable Object
+## v3.0 — The Fitter Android app
+**App**
+- 📱 A separate Fitter app (Kotlin + Compose) with the FITTER logo: `Fitter.apk` in the GitHub release, Android 8.0+
+- 🔐 Sign-in through the bot: “Sign in with Telegram” → a confirmation button in @FitterFoodBot, no passwords
+- 🟢 The “Today” screen like the diary in the bot: calorie ring, macros with a hint, water in glasses, pills (tap to mark), the day's food
+- 📸 The green “+”: food by text, a camera shot or a photo from the gallery — the AI counts calories and macros as in the bot; a long press on a meal deletes it
+- ✨ “AI tips”: “What to eat now” for what's left of your goal (an option is logged with one button) and a weekly review with a score; tapping an option opens the full recipe and “Find similar”
+- ⚡ Live sync: while the app is open, entries from the bot and the diary show up in it instantly
+- 🧭 Bottom bar: “Today”, “Tips”, “Settings” and a raised green “+” in the notch
+- ⚙️ “Settings”: the theme (system, light, dark) and everything about widgets
 
-## v2.10 — Подготовка к приложению Android
-- 📱 Вход в будущее приложение Fitter через бота: ссылка «Войти через Telegram» и кнопка подтверждения, без паролей
-- 🔑 Приложение получает свой ключ доступа (в базе только хэш), до 5 телефонов, выход отключает ключ, `/delete` стирает все ключи
-- 🧩 `/api/widget` — короткая сводка за сегодня для виджетов: калории, БЖУ, вода, таблетки, серия
+**Widgets**
+- 🧩 8 widgets: “Calories”, “Today”, “Water”, “Macros”, “Week”, “Pills”, “Left”, “Food photo”
+- ⚪⚫ White in the light Fitter theme and black in the dark one; background opacity, corners, “left” or “eaten”, macros and water in “Today”
+- 🔠 Text size: S, M, L, XL presets, separate “Main number”, “Text” and “Captions”, with the option to ignore the system font
+- 📐 They adapt to size: stretch one and it gets bigger with more content (macros, meals, the pill list, the week summary)
+- 👀 Display only; “Food photo” opens the app with the camera right away. They refresh in the background every 15 minutes and right after entries in the app
 
-## v2.9.5 — Воздух в дневнике
-- 👤 Убран кружок с буквой аккаунта справа от кнопки темы
-- 🟢 В светлой теме шапка снова яркая зелёная
-- 📐 Плашки дневника стали просторнее: больше внутренних отступов и промежутков между ними
+**Bot and diary in Telegram**
+- 🩹 The Android diary no longer falls apart: no heavy filters, shadows or endless animations; the water glass is drawn without a mask, the page isn't cached
+- 🌐 A server for the app: food photos, AI tips, live sync via a Durable Object
 
-## v2.9.4 — Светлее дневник
-- 🗑 Тема Okto убрана: в дневнике один вид с зелёным кольцом, кнопка переключения вида исчезла
-- ☀️ Светлая тема стала воздушнее: мятная шапка вместо ярко-зелёной, более светлый фон, мягкие тени карточек
+## v2.10 — Preparing for the Android app
+- 📱 Sign-in to the upcoming Fitter app through the bot: a “Sign in with Telegram” link and a confirmation button, no passwords
+- 🔑 The app gets its own access key (only a hash is stored), up to 5 phones, signing out disables the key, `/delete` erases all keys
+- 🧩 `/api/widget` — a short summary for today for widgets: calories, macros, water, pills, streak
 
-## v2.9.3 — Логотип в «Помощи»
-- 🟩 Вместо яблока у названия FITTER — настоящий логотип: зелёная плитка с видоискателем и яблоком (в «Помощи» и приветствии)
+## v2.9.5 — Air in the diary
+- 👤 Removed the account-letter circle to the right of the theme button
+- 🟢 The header is bright green again in the light theme
+- 📐 The diary tiles are roomier: more inner padding and gaps between them
 
-## v2.9.2 — Цитаты и стили текста
-- 💬 В «Помощи» и «Профиле» вернулись цитаты: подзаголовок, напоминание про врача и как считается норма (формула Миффлина — Сан-Жеора)
-- ✍️ Разные стили: жирный и подчёркнутый текст, примеры <code>моноширинным</code> — нажми, чтобы скопировать, лайфхак под спойлером
-- 🗂 Команды разбиты на группы: «Каждый день», «Итоги», «Профиль»
+## v2.9.4 — A lighter diary
+- 🗑 The Okto theme is gone: the diary has a single look with a green ring, the look-switch button disappeared
+- ☀️ The light theme is airier: a mint header instead of bright green, a lighter background, soft card shadows
 
-## v2.9.1 — Новые «Помощь» и «Профиль»
-- ❓ «Помощь»: понятный подзаголовок, живые подсказки и у каждой команды своя иконка
-- 👤 «Профиль»: рост и вес отдельными строками, доля калорий из белков, жиров и углеводов, вода в стаканах
-- 🔘 Кнопки профиля в две строки: «Записать вес», «Достижения», «Неделя», «Изменить анкету»
+## v2.9.3 — Logo in “Help”
+- 🟩 Instead of the apple, the FITTER name now has the real logo: a green tile with a viewfinder and an apple (in “Help” and the greeting)
 
-## v2.9 — Весёлые иконки
-- 🎨 Все иконки бота перерисованы в одном цветном и весёлом стиле: объёмный градиент, блик и мягкая тень — 72 premium-эмодзи
-- 🧩 Один набор FITTER вместо трёх: в сообщениях и на кнопках больше нет монохромных и чужих иконок
-- 👋 Появились свои иконки для смайликов, напоминаний, пола, восхода и заката, «Что съесть», «Добавить» и «Пропустить»
+## v2.9.2 — Quotes and text styles
+- 💬 Quotes are back in “Help” and “Profile”: a subtitle, a reminder about doctors and how the goal is calculated (the Mifflin–St Jeor formula)
+- ✍️ Different styles: bold and underlined text, <code>monospaced</code> examples — tap to copy, a pro tip under a spoiler
+- 🗂 Commands are split into groups: “Every day”, “Summaries”, “Profile”
 
-## v2.8 — Тема Okto
-- 🎛 Эксклюзивная тема Okto в честь запуска моего приложения Okto: дневник в виде монохромного «прибора» — дни-клавиши, на дисплее калорий слева «осталось», справа крупно «съедено», под ними сегментная шкала, БЖУ на трёх дисплеях, еда строками без карточек
-- 🔁 Классический вид с зелёной шапкой и кольцом никуда не делся: тема переключается кнопкой в шапке, выбор запоминается на устройстве
-- 🥛 Вода считается стаканами по 250 мл в обоих видах: «5 из 10 стаканов», ячейки загораются по одной
+## v2.9.1 — New “Help” and “Profile”
+- ❓ “Help”: a clear subtitle, live hints and its own icon for every command
+- 👤 “Profile”: height and weight on separate lines, the share of calories from protein, fat and carbs, water in glasses
+- 🔘 Profile buttons in two rows: “Log weight”, “Achievements”, “Week”, “Edit profile”
 
-## v2.7 — Аккуратные сообщения
-- 🌿 Сообщения бота стали чище: без цитат-блоков, больше воздуха между группами, короче подписи
-- 📊 «Сегодня», «Неделя», «Профиль», «Помощь», вода, таблетки, достижения, разбор недели и «Что съесть» — в одном минималистичном стиле
-- 🎨 Все иконки FITTER на месте
+## v2.9 — Fun icons
+- 🎨 All bot icons redrawn in one colorful, fun style: a volumetric gradient, a highlight and a soft shadow — 72 premium emoji
+- 🧩 One FITTER set instead of three: no more monochrome or foreign icons in messages and on buttons
+- 👋 Own icons for smileys, reminders, sex, sunrise and sunset, “What to eat”, “Add” and “Skip”
 
-## v2.6.1 — Короткое меню
-- 🧹 В меню бота убраны кнопки «Вода» и «Таблетки» — остались «Сегодня», «Неделя», «Профиль» и «Помощь»; вода и таблетки — командами /water и /pills
+## v2.8 — Okto theme
+- 🎛 An exclusive Okto theme to celebrate the launch of my Okto app: the diary as a monochrome “instrument” — day keys, “left” on the left of the calorie display, a big “eaten” on the right, a segmented scale below, macros on three displays, food in rows without cards
+- 🔁 The classic look with the green header and ring is still there: the theme switches with a button in the header, the choice is remembered on the device
+- 🥛 Water is counted in glasses of 250 ml in both looks: “5 of 10 glasses”, the cells light up one by one
 
-## v2.6 — Новый вид дневника
-- 🟢 Яркая зелёная шапка: крупное «Сегодня», дата, инициал и неделя с выделенным днём; текст хорошо читается в обеих темах
-- ⭕ Новое кольцо калорий: белая дуга с бегунком, число на белом диске и процент от нормы
-- 💡 Подсказка по БЖУ: чего не хватает сильнее всего и чем добрать, или что уже больше нормы
-- 🥗 У карточек БЖУ — «ещё N г» или «в норме», у приёмов пищи — доля дня, Б/Ж/У и цветная полоска
-- 📊 График недели: столбики с линией нормы, среднее и сколько дней в норме; нажми на день, чтобы открыть его
-- ✨ Аккуратные плашки с единым стилем в светлой и тёмной теме, числа с разрядами (1 240) и вес через запятую
+## v2.7 — Tidy messages
+- 🌿 Bot messages are cleaner: no quote blocks, more air between groups, shorter captions
+- 📊 “Today”, “Week”, “Profile”, “Help”, water, pills, achievements, the weekly review and “What to eat” — in one minimalist style
+- 🎨 All FITTER icons are in place
 
-## v2.5.3 — Защита дневника
-- 🛡 Дневник защищён политикой CSP: запускается только его собственный скрипт и скрипт Telegram, данные уходят только на сервер FITTER
-- 🔢 Дневной лимит запросов к ИИ не обходится, если отправить много фото одновременно
+## v2.6.1 — Short menu
+- 🧹 Removed the “Water” and “Pills” buttons from the bot menu — “Today”, “Week”, “Profile” and “Help” remain; water and pills are available through /water and /pills
 
-## v2.5.2 — Синхронизация с дневником
-- 🔄 Открытый дневник сам подтягивает изменения из чата: отметки таблеток, новые и удалённые препараты, воду и записи еды — без перезапуска
+## v2.6 — New diary look
+- 🟢 A bright green header: a big “Today”, the date, an initial and the week with the selected day; the text reads well in both themes
+- ⭕ A new calorie ring: a white arc with a knob, the number on a white disc and the percentage of your goal
+- 💡 A macro hint: what's missing the most and how to make it up, or what is already over your goal
+- 🥗 Macro cards show “N g to go” or “on goal”, meals show the share of the day, P/F/C and a colored bar
+- 📊 The week chart: bars with a goal line, the average and how many days were on goal; tap a day to open it
+- ✨ Neat tiles in a single style in the light and dark themes, numbers with thousands separators (1,240) and weight with a decimal point
 
-## v2.5.1 — Безопасность
-- 🗑 Команда /delete: удаляет анкету, дневник, воду, вес, таблетки и напоминания после подтверждения
-- 🔒 Служебные команды иконок и /stats работают только у владельца (ADMIN_ID); без ADMIN_ID они закрыты
-- 🔑 /setup: секрет вводится в форме, а не в адресе страницы; можно задать отдельный SETUP_SECRET
-- ⏱ Подпись дневника действует сутки вместо недели
-- 📷 Картинки файлом больше 5 МБ не отправляются в нейросеть
-- 🛠 Дневник: проверка номера продукта при удалении
+## v2.5.3 — Diary protection
+- 🛡 The diary is protected by a CSP policy: only its own script and Telegram's script run, data goes only to the FITTER server
+- 🔢 The daily limit of AI requests can't be bypassed by sending many photos at once
 
-## v2.5 — Таблетки в меню
-- 💊 Кнопка «Таблетки» в меню бота вместо «Вес»: список приёмов на сегодня, отметка одним нажатием
-- ➕ Добавить препарат прямо в чате: «Витамин D, 1 капсула, 9:00 21:00» — напоминания придут в бот
-- 🗑 Удаление препаратов из чата, команда /pills
-- ✏️ Карандаш у веса в дневнике: вес можно изменить прямо там, норма пересчитается
-- ⚖️ Записать вес — в профиле и командой /weight
+## v2.5.2 — Syncing with the diary
+- 🔄 An open diary picks up changes from the chat on its own: pill marks, new and deleted medications, water and food entries — without a restart
 
-## v2.4.2 — Иконка «Сегодня»
-- 📊 Цветные столбики у кнопок «Сегодня» в меню и сообщениях
+## v2.5.1 — Security
+- 🗑 The /delete command: erases the profile, diary, water, weight, pills and reminders after confirmation
+- 🔒 The icon admin commands and /stats work only for the owner (ADMIN_ID); without ADMIN_ID they are closed
+- 🔑 /setup: the secret is entered in a form, not in the page address; a separate SETUP_SECRET can be set
+- ⏱ The diary signature is valid for a day instead of a week
+- 📷 Images sent as files larger than 5 MB are not passed to the AI
+- 🛠 Diary: the product index is checked on deletion
 
-## v2.4.1 — Иконки достижений
-- 🔒 Цветной замок у ещё не полученных достижений; после получения он сменяется иконкой награды
-- 📷 📓 💯 Цветные иконки для «Фотографа», «Дневника в деле» и «Сотни»
-- 📅 Цветной календарь у кнопок «Неделя»
+## v2.5 — Pills in the menu
+- 💊 A “Pills” button in the bot menu instead of “Weight”: today's doses, marked with one tap
+- ➕ Add a medication right in the chat: “Vitamin D, 1 capsule, 9:00 21:00” — reminders arrive in the bot
+- 🗑 Deleting medications from the chat, the /pills command
+- ✏️ A pencil next to the weight in the diary: change your weight right there, the goal is recalculated
+- ⚖️ Log weight — in the profile and with the /weight command
 
-## v2.4 — Цветные иконки
-- 💊 Свои цветные иконки для таблеток, будильника напоминаний, разбора от ИИ и мишени нормы
-- ⚖️ Весы перерисованы в цвете; в справке — цветные иконки записи текстом и вопросов
-- 🟩 Квадратики шкал в итогах дня и недели — в стиле FITTER ICONS
-- /makeemoji сам заменяет перерисованные иконки в наборе
+## v2.4.2 — “Today” icon
+- 📊 Colored bars on the “Today” buttons in the menu and messages
 
-## v2.3 — Светлая и тёмная тема
-- ☀️ Кнопка в шапке дневника переключает светлую и тёмную тему
-- По умолчанию тема как в Telegram, выбор запоминается на устройстве
+## v2.4.1 — Achievement icons
+- 🔒 A colored lock on achievements not yet earned; after earning it is replaced by the award icon
+- 📷 📓 💯 Colored icons for “Photographer”, “Diary in action” and “The hundred”
+- 📅 A colored calendar on the “Week” buttons
 
-## v2.2 — Аналитика
-- 📊 Подробная статистика для владельца в /stats: активные сегодня, за 7 и 30 дней, мини-графики новых и активных за 14 дней
-- Воронка новых: анкета и первая запись; удержание через 1, 7 и 30 дней
-- Удержание по неделям прихода и по источникам
+## v2.4 — Colored icons
+- 💊 Own colored icons for pills, the reminder alarm clock, the AI review and the goal target
+- ⚖️ The scales are redrawn in color; colored icons for typing and questions in the help
+- 🟩 The scale squares in the daily and weekly summaries are in the FITTER ICONS style
+- /makeemoji replaces redrawn icons in the set by itself
 
-## v2.1.1 — Исправление
-- 💊 «Через 30 мин» после 23:30 теперь срабатывает: напоминание приходит в 00:00, а раньше терялось при смене даты
+## v2.3 — Light and dark theme
+- ☀️ A button in the diary header switches between the light and dark theme
+- By default the theme follows Telegram, the choice is remembered on the device
 
-## v2.1 — Таблетки
-- 💊 Блок «Таблетки» в дневнике: добавь витамины или лекарства и время приёма, отмечай приём одним нажатием
-- Напоминания в чате в нужное время с кнопками «Принял», «Через 30 мин» и «Пропустить»
-- Отметки из чата и из дневника синхронизируются, видно, во сколько принято
-- Можно посмотреть и отметить приёмы за прошедшие дни
+## v2.2 — Analytics
+- 📊 Detailed owner statistics in /stats: active today, in 7 and 30 days, mini-charts of new and active users over 14 days
+- A funnel of new users: the questionnaire and the first entry; retention after 1, 7 and 30 days
+- Retention by sign-up week and by source
 
-## v2.0 — Ассистент
-- 🥗 «Что съесть»: ИИ предлагает 3 варианта следующего приёма пищи под остаток калорий и белка, время суток и цель. Любой вариант записывается в дневник одной кнопкой
-- Учитывает, что ты уже ел сегодня и что обычно ешь за неделю, чтобы не повторяться
-- Кнопка «Что съесть» в «Сегодня» и «Неделе», команда /advice
-- Новая «Неделя»: компактный график по дням, блоки «Итоги» и «Совет», дни без записей больше не занимают место
+## v2.1.1 — Fix
+- 💊 “In 30 min” after 23:30 now works: the reminder arrives at 00:00, where before it was lost at the date change
 
-## v1.8 — Запись еды в дневнике
-- В дневнике (Mini App) появилось поле «Что съел?»: пишешь текстом, ИИ считает калории и БЖУ и добавляет приём пищи
-- Можно дописать еду за прошедший день: открой нужную дату в дневнике
-- Новая запись подсвечивается в списке, на кнопке крутится индикатор, пока ИИ считает
+## v2.1 — Pills
+- 💊 A “Pills” block in the diary: add vitamins or medications and the dose times, mark a dose with one tap
+- Reminders in the chat at the right time with “Taken”, “In 30 min” and “Skip” buttons
+- Marks from the chat and the diary are synced, and you can see what time it was taken
+- You can view and mark doses for past days
 
-## v1.7.1 — Откуда приходят люди
-- Ссылки с меткой: t.me/FitterFoodBot?start=habr — бот запоминает, откуда пришёл новый пользователь
-- Команда /stats для владельца: новые пользователи, анкета, первая запись еды и возвраты через неделю по каждому источнику
-- На сайте и в README ссылки на бота с метками site и github
+## v2.0 — Assistant
+- 🥗 “What to eat”: the AI suggests 3 options for your next meal based on the calories and protein left, the time of day and your goal. Any option is logged in the diary with one button
+- It takes into account what you've eaten today and what you usually eat during the week, to avoid repeats
+- A “What to eat” button in “Today” and “Week”, the /advice command
+- A new “Week”: a compact chart by day, “Summary” and “Tip” blocks, days without entries no longer take up space
 
-## v1.7 — Напоминания о воде
-- Напоминания о воде: каждые 30 минут, 1 час, 1,5 часа или 2 часа — /remind или кнопка «⏰ Напоминания»
-- Настраиваемые начало (06:00–11:00) и конец дня (20:00–24:00): ночью бот молчит
-- Когда норма воды выполнена, напоминания на сегодня заканчиваются; каждый стакан сбрасывает таймер
-- Новая карточка приёма пищи: продукты в цитате, итог и БЖУ одной строкой, полоска «за сегодня»
-- Новые экраны в описании: чат и дневник в актуальном дизайне
+## v1.8 — Logging food in the diary
+- The diary (Mini App) got a “What did you eat?” field: type it, the AI counts calories and macros and adds the meal
+- You can add food for a past day: open the date in the diary
+- The new entry is highlighted in the list, and the button spins while the AI is counting
 
-## v1.6 — Привычки и ИИ-разбор
-- Серия дней подряд с записями: в «Сегодня», в дневнике и в достижениях
-- 13 достижений: первые записи, серии, дни в норме, вода, этикетки, вес; поздравление с анимацией 🎉
-- Команда /awards и кнопка «Достижения» в профиле
-- ИИ-разбор недели: оценка, итог, что получилось, что улучшить и 3 совета — /analysis и кнопка в «Неделе»
-- Каждое воскресенье в 20:00 по Москве разбор приходит сам (можно отключить кнопкой)
+## v1.7.1 — Where people come from
+- Tagged links: t.me/FitterFoodBot?start=habr — the bot remembers where a new user came from
+- The /stats command for the owner: new users, questionnaire, first food entry and returns after a week for every source
+- Links to the bot with the tags site and github on the website and in the README
+
+## v1.7 — Water reminders
+- Water reminders: every 30 minutes, 1 hour, 1.5 hours or 2 hours — /remind or the “⏰ Reminders” button
+- Adjustable start (06:00–11:00) and end of the day (20:00–24:00): the bot stays quiet at night
+- Once the water goal is reached, reminders for today stop; every glass resets the timer
+- A new meal card: products in a quote, the total and macros in one line, a “today” bar
+- New screens in the description: the chat and the diary in the current design
+
+## v1.6 — Habits and AI review
+- A streak of days in a row with entries: in “Today”, in the diary and in achievements
+- 13 achievements: first entries, streaks, days on goal, water, labels, weight; a congratulation with a 🎉 animation
+- The /awards command and the “Achievements” button in the profile
+- An AI weekly review: a score, a summary, what went well, what to improve and 3 tips — /analysis and a button in “Week”
+- Every Sunday at 20:00 Moscow time the review arrives by itself (it can be turned off with a button)
 
 ## v1.5 — FITTER UI
-- Свой монохромный набор FITTER UI из 22 иконок интерфейса вместо чужого tgiosicons
-- Иконки перекрашиваются под тему Telegram: белые в тёмной, чёрные в светлой
-- Мягкая заливка и единая толщина линий: сегодня, неделя, вес, профиль, помощь, карандаш, корзина, лампочка и другие
+- Its own monochrome FITTER UI set of 22 interface icons instead of someone else's tgiosicons
+- Icons are recolored to match the Telegram theme: white in dark, black in light
+- Soft fill and a uniform line width: today, week, weight, profile, help, pencil, trash, light bulb and others
 
-## v1.4.3 — Цифры и надёжные иконки
-- Иконки цифр 1–4 в стиле FITTER для шагов в «Помощи»
-- Иконки набора сопоставляются по порядку, поэтому логотип FITTER и другие иконки не теряются
-- Если Telegram не принял иконки в цитатах, бот отправляет иконки без цитат; причину показывает /emojierr
+## v1.4.3 — Digits and reliable icons
+- Digit icons 1–4 in the FITTER style for the steps in “Help”
+- Set icons are matched by order, so the FITTER logo and other icons don't get lost
+- If Telegram rejects icons in quotes, the bot sends the icons without quotes; /emojierr shows the reason
 
-## v1.4.2 — Сегодня и помощь
-- «Сегодня»: цветная полоска калорий, проценты по БЖУ, приёмы пищи в отдельном блоке, подсказки по белку
-- Кнопки «+250 мл воды», «Неделя» и «Открыть дневник» под итогами дня
-- Вода: синяя полоска из квадратиков и проценты
-- Новая «Помощь»: шаги, возможности и команды в аккуратных блоках
+## v1.4.2 — Today and help
+- “Today”: a colored calorie bar, macro percentages, meals in a separate block, protein hints
+- “+250 ml water”, “Week” and “Open diary” buttons under the daily summary
+- Water: a blue bar of squares and percentages
+- A new “Help”: steps, features and commands in neat blocks
 
-## v1.4.1 — Неделя и профиль
-- Неделя: цветные полоски по дням, среднее, дни в норме, лучший день, вода, вес и совет
-- Профиль: аккуратные блоки с данными и нормой, вода в норме, кнопки «Записать вес» и «Неделя»
-- Новые иконки в FITTER ICONS: линейка, торт и кубок
+## v1.4.1 — Week and profile
+- Week: colored bars by day, the average, days on goal, the best day, water, weight and a tip
+- Profile: neat blocks with your data and goal, water goal, “Log weight” and “Week” buttons
+- New icons in FITTER ICONS: a ruler, a cake and a trophy
 
-## v1.4 — Новый дневник
-- Яркая зелёная шапка с большим кольцом калорий и календарём недели
-- Карточки белков, жиров и углеводов с цветными иконками FITTER
-- Вода: стакан, который наполняется волной
-- Приёмы пищи с иконками, цветными метками продуктов и счётчиком калорий
-- График веса с заливкой
-- Красиво и в светлой, и в тёмной теме Telegram
+## v1.4 — New diary
+- A bright green header with a big calorie ring and a week calendar
+- Protein, fat and carbs cards with colored FITTER icons
+- Water: a glass that fills with a wave
+- Meals with icons, colored product markers and a calorie counter
+- A weight chart with a fill
+- Looks good in both the light and dark Telegram themes
 
-## v1.3.1 — Эффекты
-- Кнопки в дневнике пружинят при нажатии и отвечают вибрацией телефона
-- Кольцо калорий, полоски БЖУ и воды плавно заполняются, число калорий «набегает»
-- Вода добавляется мгновенно, над кнопкой всплывает «+250»
-- Норма воды выполнена: салют из капель в дневнике и анимация 🎉 в чате
-- Калории сегодня в норме: салют у кольца один раз за день
-- Если в телефоне включено «Уменьшить движение», анимации отключаются
+## v1.3.1 — Effects
+- Buttons in the diary spring on tap and answer with a phone vibration
+- The calorie ring and the macro and water bars fill smoothly, the calorie number counts up
+- Water is added instantly, a “+250” floats up above the button
+- Water goal reached: a water-drop fireworks in the diary and a 🎉 animation in the chat
+- Calories on goal today: fireworks at the ring once a day
+- If “Reduce motion” is on in the phone, animations are turned off
 
-## v1.3 — Вода и упаковки
-- Учёт воды: кнопка «💧 Вода», команда `/water`, кнопки +250 и +500 мл, ввод текстом «вода 300»
-- Норма воды 30 мл на 1 кг веса, вода в итогах дня и в дневнике Mini App
-- Фото упаковки: КБЖУ переписываются с этикетки
-- Поиск по штрихкоду в открытой базе Open Food Facts: с фото или цифрами в чат
-- Проверка контрольной цифры штрихкода и кэш найденных продуктов
-- Две новые иконки в наборе FITTER ICONS: стакан воды и коробка со штрихкодом
+## v1.3 — Water and packages
+- Water tracking: a “💧 Water” button, the `/water` command, +250 and +500 ml buttons, typing “water 300”
+- A water goal of 30 ml per kg of weight, water in the daily summary and in the Mini App diary
+- Package photos: nutrition values are copied from the label
+- Barcode lookup in the open Open Food Facts database: with a photo or digits in the chat
+- Barcode check-digit validation and a cache of found products
+- Two new icons in the FITTER ICONS set: a glass of water and a barcode box
 
-## v1.2 — Стиль
-- Новый бренд: **FITTER — твой счётчик калорий 🥦** и логотип
-- Свои иконки в стиле iOS в сообщениях и на кнопках
-- Набор FITTER Icons: тарелка, весы, белки, жиры, углеводы, дневник, логотип
-- Команды `/emojipack`, `/emojiid`, `/makeemoji`
-- Если Telegram не принял иконки, сообщение уходит с обычными эмодзи
+## v1.2 — Style
+- A new brand: **FITTER — your calorie counter 🥦** and a logo
+- Own iOS-style icons in messages and on buttons
+- The FITTER Icons set: plate, scales, protein, fat, carbs, diary, logo
+- The `/emojipack`, `/emojiid`, `/makeemoji` commands
+- If Telegram rejects the icons, the message is sent with regular emoji
 
-## v1.1 — Точность и скорость
-- Можно исправить название продукта: `форель 200 г`, КБЖУ пересчитываются нейросетью
-- Переименование продуктов в дневнике Mini App
-- Фото обрабатываются быстрее: бот запоминает рабочую модель Gemini и отправляет фото меньшего размера
-- Ограничение по времени: бот больше не зависает на «Смотрю на фото…»
-- Включены логи Cloudflare
+## v1.1 — Accuracy and speed
+- You can correct a product name: `trout 200 g`, the AI recalculates the values
+- Renaming products in the Mini App diary
+- Photos are processed faster: the bot remembers the working Gemini model and sends smaller photos
+- A time limit: the bot no longer hangs on “Looking at the photo…”
+- Cloudflare logs are on
 
-## v1.0 — Бот
-- Перенос с n8n на бесплатный Cloudflare Workers
-- Анкета и дневная норма по формуле Миффлина — Сан‑Жеора
-- Распознавание еды по фото и по тексту через Google Gemini
-- Исправление веса порции кнопкой ✏️
-- Итоги дня и недели, учёт веса
-- Дневник Mini App по дням
-- Ответы на вопросы о питании
-- Автотесты
+## v1.0 — The bot
+- Moved from n8n to free Cloudflare Workers
+- The questionnaire and daily goal with the Mifflin–St Jeor formula
+- Food recognition from a photo and from text with Google Gemini
+- Fixing the portion weight with the ✏️ button
+- Daily and weekly summaries, weight tracking
+- The Mini App diary by day
+- Answers to nutrition questions
+- Automated tests
 
-## v0.1 — Прототип
-- Схема без кода в n8n: Telegram → Gemini → Google Таблица
+## v0.1 — Prototype
+- A no-code scheme in n8n: Telegram → Gemini → Google Sheets

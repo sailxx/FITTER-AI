@@ -18,7 +18,7 @@
 > **FITTER estimates calories approximately.** Photo results depend on the ingredients and portion size, and any entry can be corrected by hand. The bot does not replace advice from a doctor or dietitian.
 
 > [!NOTE]
-> The bot currently speaks Russian. This page is a translation of the [Russian README](README.md).
+> The bot, the diary and the Android app speak **English and Russian**. The language follows your Telegram by default; switch it any time with `/lang`, on the diary's EN/RU button or in the app under Settings → Language. Russian version of this page: [README.ru.md](README.ru.md).
 
 <p align="center"><img src="assets/readme/about-en.svg" width="100%" alt="About FITTER"></p>
 
@@ -103,7 +103,7 @@ The whole server is a single file, [`worker.js`](worker.js), with zero dependenc
 - Keys live in Cloudflare secrets, not in the code.
 - Photos are **not stored**: they go to Gemini only for recognition.
 
-More: [privacy policy](https://sailxx.github.io/FITTER-AI/privacy.html) (in Russian).
+More: [privacy policy](https://sailxx.github.io/FITTER-AI/privacy.html).
 
 ---
 
@@ -112,9 +112,10 @@ More: [privacy policy](https://sailxx.github.io/FITTER-AI/privacy.html) (in Russ
 - [x] **v1** Cloudflare bot, survey, target, photo logging, diary, weight, water, labels and barcodes
 - [x] **v2** “What to eat” assistant, pills with reminders, analytics, light and dark theme
 - [x] **v2.6** New diary look, macro hints, week chart; redesigned water and pills in the bot
-- [ ] **v3.0** Product: a standalone app
+- [x] **v3.0** Product: a standalone Android app with widgets
+- [x] **v3.8** English and Russian everywhere: bot, diary, Android app, widgets and website, with a language switch
 
-Full history: [CHANGELOG.md](CHANGELOG.md) (in Russian).
+Full history: [CHANGELOG.md](CHANGELOG.md) ([in Russian](CHANGELOG.ru.md)).
 
 ---
 
