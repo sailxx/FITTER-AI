@@ -2,6 +2,10 @@
 
 **English** · [Русский](CHANGELOG.ru.md)
 
+## v3.11.0 — Diary in the app style
+- 🎨 The Telegram diary now looks like the Android app: white or OLED-black background, grey cards without borders, round header buttons, a green calories card with a ring, protein/carbs/fat tiles tinted with their colour and a ring each
+- 💧 Water is a card with a glass icon, litres and a “+” button; pills have a purple tile; meals show a dish picture (emoji by name) on a colour background
+
 ## v3.10.2 — Steadier schedule
 - 🧠 Sunday reviews no longer stop at 50 people: whoever did not fit is picked up by the next runs the same evening, nobody gets a review twice
 - ⏰ Water and pill reminders are sent in parallel batches, and one failed user no longer stops the rest; changing reminder settings at the moment of a reminder can no longer be overwritten
