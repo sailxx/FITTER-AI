@@ -2,6 +2,10 @@
 
 **English** · [Русский](CHANGELOG.ru.md)
 
+## v3.10.2 — Steadier schedule
+- 🧠 Sunday reviews no longer stop at 50 people: whoever did not fit is picked up by the next runs the same evening, nobody gets a review twice
+- ⏰ Water and pill reminders are sent in parallel batches, and one failed user no longer stops the rest; changing reminder settings at the moment of a reminder can no longer be overwritten
+
 ## v3.10.1 — Faster answers
 - ⚡ The AI is asked to think as little as possible (food counting doesn't need long reasoning): the main cause of slow replies; if a model rejects the setting, the bot retries without it
 - ⚡ The photo downloads while the “Looking at the photo…” message is sent; micronutrients are requested from the AI only for dishes not matched in USDA (shorter answers); USDA lookup timeout 2.5 s
