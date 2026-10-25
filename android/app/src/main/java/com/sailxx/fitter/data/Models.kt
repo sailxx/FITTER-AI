@@ -48,7 +48,7 @@ data class Summary(
 }
 
 /** Приём пищи из дневника — часть ответа /api/day. */
-data class Meal(val id: String, val time: String, val title: String, val kcal: Int, val p: Int, val f: Int, val c: Int, val items: List<MealItem> = emptyList())
+data class Meal(val id: String, val time: String, val title: String, val kcal: Int, val p: Int, val f: Int, val c: Int, val items: List<MealItem> = emptyList(), val micro: Map<String, Double> = emptyMap())
 
 /** Продукт в приёме пищи: вес и КБЖУ порции (не на 100 г). */
 data class MealItem(val name: String, val grams: Int, val kcal: Double, val p: Double, val f: Double, val c: Double)
@@ -86,6 +86,7 @@ data class Day(
                         id = m.optString("id"), time = m.optString("time"), title = m.optString("title"),
                         kcal = t.optDouble("kcal", 0.0).roundToInt(), p = t.optDouble("p", 0.0).roundToInt(),
                         f = t.optDouble("f", 0.0).roundToInt(), c = t.optDouble("c", 0.0).roundToInt(),
+                        micro = m.optJSONObject("micro")?.let { mi -> MICROS.mapNotNull { k -> mi.optDouble(k.key, 0.0).takeIf { it > 0 }?.let { k.key to it } }.toMap() } ?: emptyMap(),
                         items = m.optJSONArray("items").let { arr ->
                             (0 until (arr?.length() ?: 0)).map { k ->
                                 val it = arr!!.getJSONObject(k)

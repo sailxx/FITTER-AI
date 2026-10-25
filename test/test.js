@@ -1120,6 +1120,51 @@ console.log("✓ /app и /setup");
 }
 
 
+// 11b. Точность: калории сверяются с БЖУ, микронутриенты считаются и показываются
+{
+  const { cleanItems, sumMicro, mealDetails, reconcile } = _test;
+  // Нейросеть завысила калории: 4·10 + 9·5 + 4·20 = 165, а прислала 400
+  let [it] = cleanItems([{ name: "Каша", grams: 200, kcal_100: 400, protein_100: 10, fat_100: 5, carbs_100: 20 }]);
+  assert.equal(it.kcal_100, 165, "калории исправлены по макросам");
+  [it] = cleanItems([{ name: "Каша", grams: 200, kcal_100: 170, protein_100: 10, fat_100: 5, carbs_100: 20 }]);
+  assert.equal(it.kcal_100, 170, "в пределах 15% не трогаем");
+  [it] = cleanItems([{ name: "Этикетка", grams: 100, kcal_100: 400, protein_100: 10, fat_100: 5, carbs_100: 20 }], { trust: true });
+  assert.equal(it.kcal_100, 400, "данные с этикетки не меняем");
+  assert.equal(reconcile({ kcal_100: 100, protein_100: 80, fat_100: 60, carbs_100: 60 }).protein_100 + 0 < 80, true, "БЖУ на 100 г не больше 100 г");
+  const items = cleanItems([
+    { name: "Овсянка", grams: 200, kcal_100: 70, protein_100: 2.5, fat_100: 1.5, carbs_100: 12, micro_100: { iron: 0.7, sodium: 40, fiber: 1.7, zinc: -5, junk: 9 } },
+    { name: "Банан", grams: 100, kcal_100: 89, protein_100: 1.1, fat_100: 0.3, carbs_100: 22.8, micro_100: { potassium: 358, iron: 0.3 } },
+  ]);
+  assert.equal(items[0].mi.zinc, undefined, "отрицательное и лишнее отбрасывается");
+  const m = sumMicro(items);
+  assert.equal(Math.round(m.iron * 10) / 10, 1.7);
+  assert.equal(m.potassium, 358);
+  assert.equal(sumMicro([{ name: "старая", grams: 100 }]), null, "у старых записей данных нет");
+  const u = { lang: "en", targets: { kcal: 2000, p: 100, f: 60, c: 250 } };
+  const txt = mealDetails(u, { title: "Oatmeal", time: "08:00", items });
+  assert.match(txt, /Iron <b>1\.7<\/b> mg/);
+  assert.match(txt, /Potassium <b>358<\/b> mg/);
+  assert.ok(!/[А-Яа-яЁё]/.test(txt));
+  assert.match(mealDetails({ ...u, lang: "ru" }, { title: "Каша", time: "08:00", items }), /Железо <b>1,7|Железо <b>1\.7<\/b> mg/);
+  // Кнопка «Подробнее» в боте
+  geminiReply = { is_food: true, title: "Oatmeal", comment: "", is_package: false, label_found: false, barcode: "",
+    items: [{ name: "Oatmeal", grams: 200, kcal_100: 70, protein_100: 2.5, fat_100: 1.5, carbs_100: 12, micro_100: { iron: 0.7, fiber: 1.7 } }] };
+  const en2 = { id: 301, first_name: "Kim", language_code: "en" }, c2 = { id: 301, type: "private" };
+  await env.DB.put("u:301", JSON.stringify({ id: 301, name: "Kim", lang: "en", tz: 180, targets: { kcal: 2000, p: 100, f: 60, c: 250 }, weight: 70 }));
+  s = await call({ message: { message_id: 2, from: en2, chat: c2, photo: [{ file_id: "p", width: 800, height: 600 }] } });
+  const kb = s.find((x) => x.method === "editMessageText").body.reply_markup.inline_keyboard.flat();
+  const det = kb.find((b) => /^n\|/.test(b.callback_data || ""));
+  assert.ok(det, "есть кнопка «Подробнее»");
+  s = await call({ callback_query: { id: "q", from: en2, data: det.callback_data, message: { message_id: 9, chat: c2 } } });
+  assert.match(lastText(s), /Fiber <b>3\.4<\/b> g/);
+  const rd = await apiCall("/api/day", "GET", null, await signInit({ id: 301, first_name: "Kim" }, TOKEN));
+  const dj = await rd.json();
+  assert.equal(Math.round(dj.meals[0].micro.iron * 10) / 10, 1.4);
+  assert.ok(dj.micro.fiber > 3);
+  console.log("✓ сверка калорий с БЖУ, микронутриенты и «Подробнее»");
+}
+
+
 // 12. Лимит запросов к ИИ
 env.DAILY_AI_LIMIT = "1";
 s = await msg("что поесть?");

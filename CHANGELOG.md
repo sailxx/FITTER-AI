@@ -2,6 +2,11 @@
 
 **English** · [Русский](CHANGELOG.ru.md)
 
+## v3.9 — Accuracy and micronutrients
+- 🎯 Calories are now checked against the macros (4·protein + 9·fat + 4·carbs): if the AI's calories differ by more than 15%, they are recalculated from the macros; label and barcode values are left as they are. Macros per 100 g can no longer add up to more than 100 g
+- 🧠 Sharper AI instructions: values for the dish as eaten, hidden oil and sauces, scale cues for the portion weight
+- 🔬 Micronutrients: fiber, sugar, saturated fat, cholesterol, sodium, potassium, calcium, iron, magnesium, zinc, vitamins C, A, D, B12 — “🔬 Details” in the bot, “Details” in each meal of the diary, “Nutrition details” in the app, with the share of the daily value (new entries only; values are estimates)
+
 ## v3.8 — English and Russian
 - 🌐 The bot, the Telegram diary, the Android app and the widgets speak English and Russian. The language follows Telegram on first launch (Russian for ru, be, kk, English otherwise); people who used FITTER before keep Russian
 - 🔁 Switch it anywhere: `/lang` or the “🌐 Language” button in the profile, the EN/RU button in the diary header, Settings → Language in the app. One choice per account, synced between the bot, the diary, the app and the widgets
