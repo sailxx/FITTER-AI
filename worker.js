@@ -410,6 +410,7 @@ async function deleteUserData(env, id) {
     ...((u && u.apps) || []).map((a) => `tk:${a.h}`),
     ...(await listAll(env, `d:${id}:`)),
     ...(await listAll(env, `an:${id}:`)),
+    ...(await listAll(env, `wk:${id}:`)),
   ];
   await Promise.all(keys.map((k) => env.DB.delete(k)));
   await wrIndex(env, id, false);
@@ -439,7 +440,12 @@ function humanDate(date, u) {
   const d = new Date(date + "T00:00:00Z");
   return L(u, `${d.getUTCDate()} ${MONTHS.ru[d.getUTCMonth()]}`, `${MONTHS.en[d.getUTCMonth()]} ${d.getUTCDate()}`);
 }
-const isDate = (s) => typeof s === "string" && /^\d{4}-\d{2}-\d{2}$/.test(s);
+// Настоящая дата: «2026-13-45» и «2026-02-31» не проходят (иначе shiftDate падает с ошибкой)
+const isDate = (s) => {
+  if (typeof s !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(s)) return false;
+  const d = new Date(s + "T00:00:00Z");
+  return !Number.isNaN(d.getTime()) && d.toISOString().slice(0, 10) === s;
+};
 
 // ───────────────────────────── Подсчёты ─────────────────────────────
 
@@ -3320,7 +3326,8 @@ async function api(request, url, env) {
       await saveUser(env, u);
       return json({ ok: true, lang: u.lang });
     }
-    if (!isDate(body.date)) return json({ error: "bad date" }, 400);
+    // Запись в далёкое будущее или прошлое — ошибка клиента; запас в сутки на разницу часовых поясов
+    if (!isDate(body.date) || body.date < "2024-01-01" || body.date > shiftDate(today(u), 1)) return json({ error: "bad date" }, 400);
     // Тренировка: новая или исправленная (тот же id)
     if (url.pathname === "/api/workout/save") {
       if (body.date > today(u)) return json({ error: "future" }, 400);
@@ -4541,4 +4548,4 @@ const APP_HTML = `<!doctype html>
 </html>`;
 
 // Для тестов
-export const _test = { perUser, parseUsda, lookupUsda, MICRO, sumMicro, reconcile, mealDetails, live, widgetPayload, analyzePhoto, checkAiLimit, appHeaders, waterTick, pillTick, parsePill, nextSlot, slotOf, adviceText, weekTip, startSource, statsText, spark, ACHIEVEMENTS, baseEmoji, calcTargets, verifyInitData, cleanItems, sumItems, parseFix, parseWater, cleanBarcode, waterGoal, HELP, APP_HTML };
+export const _test = { isDate, perUser, parseUsda, lookupUsda, MICRO, sumMicro, reconcile, mealDetails, live, widgetPayload, analyzePhoto, checkAiLimit, appHeaders, waterTick, pillTick, parsePill, nextSlot, slotOf, adviceText, weekTip, startSource, statsText, spark, ACHIEVEMENTS, baseEmoji, calcTargets, verifyInitData, cleanItems, sumItems, parseFix, parseWater, cleanBarcode, waterGoal, HELP, APP_HTML };
