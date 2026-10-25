@@ -611,6 +611,11 @@ console.log("✓ /app и /setup");
   assert.ok(sent.some((x) => x.body.chat_id === 77 && /Разбор недели/.test(x.body.text || "")), "разбор пришёл по расписанию");
   const off = sent.find((x) => x.body.chat_id === 77).body.reply_markup.inline_keyboard.flat().find((b) => b.callback_data === "an_off");
   assert.ok(off);
+  // Повторный запуск (добор в тот же вечер) не шлёт разбор второй раз
+  sent.length = 0;
+  await worker.scheduled({ cron: "*/30 * * * *", scheduledTime: Date.UTC(2026, 9, 25, 17, 30) }, env, ctx);
+  await Promise.all(pending.splice(0));
+  assert.ok(!sent.some((x) => x.body.chat_id === 77 && /Разбор недели/.test(x.body.text || "")), "разбор не дублируется");
   await call({ callback_query: { id: "q", from: from2, data: "an_off", message: { message_id: 5, chat: chat2 } } });
   assert.equal((await env.DB.get("u:77", "json")).weekly, false);
   console.log("✓ серия, достижения, ИИ-разбор и воскресная рассылка");
