@@ -1,5 +1,7 @@
 package com.sailxx.fitter.ui
 
+import com.sailxx.fitter.data.Lang
+import com.sailxx.fitter.data.tr
 import android.text.format.DateUtils
 import androidx.annotation.DrawableRes
 import androidx.compose.animation.AnimatedVisibility
@@ -102,16 +104,20 @@ private suspend fun deleteMeal(context: android.content.Context, id: String) {
     FitterRepository.refresh(context)
 }
 private val Tile = RoundedCornerShape(22.dp)
-private val MONTHS = listOf("января", "февраля", "марта", "апреля", "мая", "июня", "июля", "августа", "сентября", "октября", "ноября", "декабря")
-private val MON = listOf("янв", "фев", "мар", "апр", "мая", "июн", "июл", "авг", "сен", "окт", "ноя", "дек")
-private val WD = listOf("Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс")
-private val WDF = listOf("понедельник", "вторник", "среда", "четверг", "пятница", "суббота", "воскресенье")
+private val MONTHS get() = if (Lang.code == "ru") listOf("января", "февраля", "марта", "апреля", "мая", "июня", "июля", "августа", "сентября", "октября", "ноября", "декабря")
+    else listOf("January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December")
+private val MON get() = if (Lang.code == "ru") listOf("янв", "фев", "мар", "апр", "мая", "июн", "июл", "авг", "сен", "окт", "ноя", "дек")
+    else listOf("Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec")
+private val WD get() = if (Lang.code == "ru") listOf("Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс") else listOf("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun")
+private val WDF get() = if (Lang.code == "ru") listOf("понедельник", "вторник", "среда", "четверг", "пятница", "суббота", "воскресенье")
+    else listOf("Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday")
 private const val CUP = 250
 
-private fun n(x: Int) = String.format(Locale("ru"), "%,d", x).replace(' ', ' ')
-private fun liters(ml: Int) = (Math.round(ml / 10.0) / 100.0).toString().removeSuffix(".0").replace('.', ',')
-private fun kg(x: Double) = (Math.round(x * 10) / 10.0).toString().removeSuffix(".0").replace('.', ',')
-private fun short(date: String) = runCatching { LocalDate.parse(date) }.getOrNull()?.let { "${it.dayOfMonth} ${MON[it.monthValue - 1]}" } ?: date
+private fun n(x: Int) = String.format(Locale(Lang.code), "%,d", x).replace(' ', ' ')
+private fun dec(s: String) = if (Lang.code == "ru") s.replace('.', ',') else s
+private fun liters(ml: Int) = dec((Math.round(ml / 10.0) / 100.0).toString().removeSuffix(".0"))
+private fun kg(x: Double) = dec((Math.round(x * 10) / 10.0).toString().removeSuffix(".0"))
+private fun short(date: String) = runCatching { LocalDate.parse(date) }.getOrNull()?.let { tr("${it.dayOfMonth} ${MON[it.monthValue - 1]}", "${MON[it.monthValue - 1]} ${it.dayOfMonth}") } ?: date
 
 /** Фон плитки: цвет показателя, приглушённый под тему. */
 private fun tint(c: Color, dark: Boolean) = c.copy(alpha = if (dark) 0.15f else 0.13f)
@@ -151,9 +157,9 @@ fun TodayScreen(st: AppState, onAdd: () -> Unit, onSettings: () -> Unit) {
             item { CalorieTile(s) }
             item {
                 Row(Modifier.padding(start = Side, end = Side, top = Gap), horizontalArrangement = Arrangement.spacedBy(Gap)) {
-                    MacroTile(R.drawable.ic_bolt, "белков", s.p, s.targets.p, Palette.MacroP, Modifier.weight(1f), 60)
-                    MacroTile(R.drawable.ic_wheat, "углев.", s.c, s.targets.c, Palette.MacroC, Modifier.weight(1f), 120)
-                    MacroTile(R.drawable.ic_drop, "жиров", s.f, s.targets.f, Palette.MacroF, Modifier.weight(1f), 180)
+                    MacroTile(R.drawable.ic_bolt, tr("белков", "protein"), s.p, s.targets.p, Palette.MacroP, Modifier.weight(1f), 60)
+                    MacroTile(R.drawable.ic_wheat, tr("углев.", "carbs"), s.c, s.targets.c, Palette.MacroC, Modifier.weight(1f), 120)
+                    MacroTile(R.drawable.ic_drop, tr("жиров", "fat"), s.f, s.targets.f, Palette.MacroF, Modifier.weight(1f), 180)
                 }
             }
             macroHint(s, day)?.let { (text, kind) -> item { TipTile(text, kind) } }
@@ -164,7 +170,7 @@ fun TodayScreen(st: AppState, onAdd: () -> Unit, onSettings: () -> Unit) {
             day?.weights?.takeIf { it.isNotEmpty() }?.let { w -> item { WeightTile(w) } }
             item {
                 val meals = day?.meals.orEmpty()
-                BlockTitle("Недавно добавлено", meals.takeIf { it.isNotEmpty() }?.let { "${n(it.sumOf { m -> m.kcal })} ккал" })
+                BlockTitle(tr("Недавно добавлено", "Recently added"), meals.takeIf { it.isNotEmpty() }?.let { "${n(it.sumOf { m -> m.kcal })} ${tr("ккал", "kcal")}" })
             }
             val meals = day?.meals.orEmpty()
             if (meals.isEmpty()) item { EmptyMeals() } else items(meals.reversed(), key = { it.id }) { m ->
@@ -173,7 +179,7 @@ fun TodayScreen(st: AppState, onAdd: () -> Unit, onSettings: () -> Unit) {
             item {
                 val ago = if (st.updatedAt > 0) DateUtils.getRelativeTimeSpanString(st.updatedAt).toString() else ""
                 Text(
-                    listOfNotNull(st.error, ago.takeIf { it.isNotEmpty() }?.let { "Обновлено $it" }).joinToString(" · "),
+                    listOfNotNull(st.error, ago.takeIf { it.isNotEmpty() }?.let { tr("Обновлено $it", "Updated $it") }).joinToString(" · "),
                     fontSize = 12.sp, color = t.hint, textAlign = TextAlign.Center,
                     modifier = Modifier.fillMaxWidth().padding(top = 16.dp),
                 )
@@ -193,22 +199,22 @@ private fun Header(s: Summary?, day: Day?, onRefresh: () -> Unit, onBot: () -> U
     Column(Modifier.fillMaxWidth().statusBarsPadding().padding(start = Side, end = 16.dp, top = 14.dp, bottom = 4.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
-                Text("Сегодня", fontSize = 34.sp, fontWeight = FontWeight.ExtraBold, color = t.text, letterSpacing = (-0.8).sp, lineHeight = 38.sp)
+                Text(tr("Сегодня", "Today"), fontSize = 34.sp, fontWeight = FontWeight.ExtraBold, color = t.text, letterSpacing = (-0.8).sp, lineHeight = 38.sp)
                 Text(
-                    date?.let { "${WDF[it.dayOfWeek.value - 1]}, ${it.dayOfMonth} ${MONTHS[it.monthValue - 1]}" } ?: "FITTER",
+                    date?.let { tr("${WDF[it.dayOfWeek.value - 1]}, ${it.dayOfMonth} ${MONTHS[it.monthValue - 1]}", "${WDF[it.dayOfWeek.value - 1]}, ${MONTHS[it.monthValue - 1]} ${it.dayOfMonth}") } ?: "FITTER",
                     fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = t.hint,
                 )
             }
             var menu by remember { mutableStateOf(false) }
             Box {
                 HeaderChip(Modifier.size(40.dp), active = week, onClick = { week = !week }, onLongClick = { menu = true }) {
-                    Icon(painterResource(R.drawable.ic_nav_calendar), "Неделя", Modifier.size(19.dp), tint = if (week) Palette.HeroInk else t.text)
+                    Icon(painterResource(R.drawable.ic_nav_calendar), tr("Неделя", "Week"), Modifier.size(19.dp), tint = if (week) Palette.HeroInk else t.text)
                 }
                 DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
-                    DropdownMenuItem(text = { Text("Обновить") }, onClick = { menu = false; onRefresh() })
-                    DropdownMenuItem(text = { Text("Настройки") }, onClick = { menu = false; onSettings() })
-                    DropdownMenuItem(text = { Text("Открыть бота") }, onClick = { menu = false; onBot() })
-                    DropdownMenuItem(text = { Text("Выйти") }, onClick = { menu = false; onLogout() })
+                    DropdownMenuItem(text = { Text(tr("Обновить", "Refresh")) }, onClick = { menu = false; onRefresh() })
+                    DropdownMenuItem(text = { Text(tr("Настройки", "Settings")) }, onClick = { menu = false; onSettings() })
+                    DropdownMenuItem(text = { Text(tr("Открыть бота", "Open the bot")) }, onClick = { menu = false; onBot() })
+                    DropdownMenuItem(text = { Text(tr("Выйти", "Sign out")) }, onClick = { menu = false; onLogout() })
                 }
             }
             val streak = s?.streak ?: 0
@@ -321,9 +327,9 @@ private fun CalorieTile(s: Summary) {
                 (if (over) "+" else "") + n(count.value.roundToInt()), fontSize = 50.sp, fontWeight = FontWeight.ExtraBold,
                 color = Color.White, letterSpacing = (-1.8).sp, lineHeight = 52.sp, maxLines = 1,
             )
-            Text(if (over) "Ккал сверх нормы" else "Ккал осталось", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = Color.White.copy(alpha = 0.95f))
+            Text(if (over) tr("Ккал сверх нормы", "kcal over goal") else tr("Ккал осталось", "kcal left"), fontSize = 15.sp, fontWeight = FontWeight.Bold, color = Color.White.copy(alpha = 0.95f))
             Spacer(Modifier.height(4.dp))
-            Text("${n(s.kcal)} из ${n(goal)} съедено", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = Color.White.copy(alpha = 0.78f))
+            Text(tr("${n(s.kcal)} из ${n(goal)} съедено", "${n(s.kcal)} of ${n(goal)} eaten"), fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = Color.White.copy(alpha = 0.78f))
         }
         Spacer(Modifier.width(12.dp))
         ProgressRing(s.progress, if (over) Palette.OverDark else Color.White, 118.dp, 15.dp, trackColor = Color.White.copy(alpha = 0.28f)) {
@@ -357,11 +363,12 @@ private fun MacroTile(@DrawableRes icon: Int, gen: String, value: Int, max: Int,
     // Лёгкий оттенок цвета нутриента поверх карточки: белки, углеводы и жиры различаются с первого взгляда
     Column(modifier.rise(delay).calCard().background(color.copy(alpha = if (t.dark) 0.13f else 0.10f)).padding(start = 14.dp, end = 10.dp, top = 16.dp, bottom = 16.dp)) {
         Text(
-            when { max == 0 || ok -> "$value г"; over -> "${-left} г"; else -> "$left г" },
+            when { max == 0 || ok -> "$value ${tr("г", "g")}"; over -> "${-left} ${tr("г", "g")}"; else -> "$left ${tr("г", "g")}" },
             fontSize = 20.sp, fontWeight = FontWeight.ExtraBold, color = t.text, maxLines = 1, letterSpacing = (-0.3).sp,
         )
+        val cap = gen.replaceFirstChar { it.uppercase() }
         Text(
-            when { max == 0 -> gen.replaceFirstChar { it.uppercase() }; ok -> "в норме"; over -> "${gen.replaceFirstChar { it.uppercase() }} сверх"; else -> "${gen.replaceFirstChar { it.uppercase() }} ост." },
+            when { max == 0 -> cap; ok -> tr("в норме", "on goal"); over -> tr("$cap сверх", "$cap over"); else -> tr("$cap ост.", "$cap left") },
             fontSize = 13.sp, fontWeight = FontWeight.SemiBold, maxLines = 1,
             color = when { ok -> if (t.dark) Palette.G1 else Palette.G3; over -> Palette.Danger; else -> t.text.copy(alpha = 0.8f) },
         )
@@ -376,8 +383,9 @@ private fun MacroTile(@DrawableRes icon: Int, gen: String, value: Int, max: Int,
     }
 }
 
-private val FOODS = mapOf("p" to "творог 200 г или куриная грудка 150 г", "f" to "горсть орехов или ложка масла в салат", "c" to "порция каши, хлеб или фрукт")
-private val NAMES = mapOf("p" to "белка", "f" to "жиров", "c" to "углеводов")
+private val FOODS get() = if (Lang.code == "ru") mapOf("p" to "творог 200 г или куриная грудка 150 г", "f" to "горсть орехов или ложка масла в салат", "c" to "порция каши, хлеб или фрукт")
+    else mapOf("p" to "200 g of cottage cheese or 150 g of chicken breast", "f" to "a handful of nuts or a spoon of oil in a salad", "c" to "a serving of oatmeal, bread or a piece of fruit")
+private val NAMES get() = if (Lang.code == "ru") mapOf("p" to "белка", "f" to "жиров", "c" to "углеводов") else mapOf("p" to "protein", "f" to "fat", "c" to "carbs")
 
 /** Подсказка под БЖУ — та же логика, что macroHint в дневнике. kind: warn | good | "" */
 private fun macroHint(s: Summary, day: Day?): Pair<String, String>? {
@@ -394,10 +402,17 @@ private fun macroHint(s: Summary, day: Day?): Pair<String, String>? {
         if (k1 < 0.9f && (need == null || k1 < tot[need]!!.toFloat() / g[need]!!)) need = k
     }
     return when {
-        over != null -> "${NAMES[over]!!.replaceFirstChar { it.uppercase() }} уже больше нормы на ${tot[over]!! - g[over]!!} г. " +
-            (if (need != null) "А вот ${NAMES[need]} не хватает ${g[need]!! - tot[need]!!} г." else "Остальное в порядке.") to "warn"
-        need != null -> "Сильнее всего не хватает ${NAMES[need]}: добери ${g[need]!! - tot[need]!!} г — например, ${FOODS[need]}." to ""
-        else -> "БЖУ в балансе. Белки, жиры и углеводы — все в пределах нормы." to "good"
+        over != null -> tr(
+            "${NAMES[over]!!.replaceFirstChar { it.uppercase() }} уже больше нормы на ${tot[over]!! - g[over]!!} г. " +
+                (if (need != null) "А вот ${NAMES[need]} не хватает ${g[need]!! - tot[need]!!} г." else "Остальное в порядке."),
+            "${NAMES[over]!!.replaceFirstChar { it.uppercase() }} is already ${tot[over]!! - g[over]!!} g over your goal. " +
+                (if (need != null) "But you're ${g[need]!! - tot[need]!!} g short on ${NAMES[need]}." else "Everything else is fine."),
+        ) to "warn"
+        need != null -> tr(
+            "Сильнее всего не хватает ${NAMES[need]}: добери ${g[need]!! - tot[need]!!} г — например, ${FOODS[need]}.",
+            "Biggest gap is ${NAMES[need]}: add ${g[need]!! - tot[need]!!} g — for example, ${FOODS[need]}.",
+        ) to ""
+        else -> tr("БЖУ в балансе. Белки, жиры и углеводы — все в пределах нормы.", "Macros are balanced. Protein, fat and carbs are all within your goal.") to "good"
     }
 }
 
@@ -442,18 +457,18 @@ private fun WaterTile(s: Summary, modifier: Modifier, onWater: (Int) -> Unit) {
                 Text(
                     buildAnnotatedString {
                         append(liters(shown))
-                        withStyle(SpanStyle(fontSize = 14.sp, color = t.hint, fontWeight = FontWeight.SemiBold)) { append(" / ${liters(s.waterGoal)} л") }
+                        withStyle(SpanStyle(fontSize = 14.sp, color = t.hint, fontWeight = FontWeight.SemiBold)) { append(" / ${liters(s.waterGoal)} ${tr("л", "L")}") }
                     },
                     fontSize = 24.sp, fontWeight = FontWeight.ExtraBold, color = t.text, letterSpacing = (-0.5).sp, maxLines = 1,
                 )
-                Text("Вода · держи «+», чтобы убрать стакан", fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = t.hint, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text(tr("Вода · держи «+», чтобы убрать стакан", "Water · hold “+” to remove a glass"), fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = t.hint, maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
             Spacer(Modifier.width(8.dp))
             Box(
                 Modifier.size(44.dp).clip(CircleShape).background(c)
                     .combinedClickable(onClick = { onWater(CUP) }, onLongClick = { if (s.water > 0) onWater(-CUP) }),
                 contentAlignment = Alignment.Center,
-            ) { Icon(painterResource(R.drawable.ic_nav_plus), "Добавить стакан", Modifier.size(20.dp), tint = Color(0xFF04263F)) }
+            ) { Icon(painterResource(R.drawable.ic_nav_plus), tr("Добавить стакан", "Add a glass"), Modifier.size(20.dp), tint = Color(0xFF04263F)) }
         }
         Spacer(Modifier.height(14.dp))
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
@@ -480,8 +495,8 @@ private fun PillsTile(day: Day, modifier: Modifier) {
             }
             Spacer(Modifier.width(12.dp))
             Column(Modifier.weight(1f)) {
-                Text("Таблетки", fontSize = 18.sp, fontWeight = FontWeight.ExtraBold, color = t.text)
-                Text("$taken из ${day.pills.size} принято", fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = t.hint)
+                Text(tr("Таблетки", "Pills"), fontSize = 18.sp, fontWeight = FontWeight.ExtraBold, color = t.text)
+                Text(tr("$taken из ${day.pills.size} принято", "$taken of ${day.pills.size} taken"), fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = t.hint)
             }
         }
         Box(Modifier.padding(top = 14.dp, bottom = 4.dp).fillMaxWidth().height(6.dp).clip(RoundedCornerShape(3.dp)).background(track(t.dark))) {
@@ -535,11 +550,11 @@ private fun WeightTile(ws: List<WeightPoint>) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(painterResource(R.drawable.ic_nav_scale), null, Modifier.size(16.dp), tint = t.hint)
                 Spacer(Modifier.width(6.dp))
-                Text("Вес", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = t.hint)
+                Text(tr("Вес", "Weight"), fontSize = 14.sp, fontWeight = FontWeight.Bold, color = t.hint)
             }
-            Text("${kg(last.kg)} кг", fontSize = 26.sp, fontWeight = FontWeight.ExtraBold, color = t.text, letterSpacing = (-0.5).sp)
+            Text("${kg(last.kg)} ${tr("кг", "kg")}", fontSize = 26.sp, fontWeight = FontWeight.ExtraBold, color = t.text, letterSpacing = (-0.5).sp)
             if (ws.size > 1) Text(
-                (if (diff > 0) "+" else if (diff < 0) "−" else "") + "${kg(abs(diff))} кг с ${short(ws.first().date)}",
+                (if (diff > 0) "+" else if (diff < 0) "−" else "") + tr("${kg(abs(diff))} кг с ${short(ws.first().date)}", "${kg(abs(diff))} kg since ${short(ws.first().date)}"),
                 fontSize = 13.sp, fontWeight = FontWeight.ExtraBold, color = if (t.dark) Palette.G1 else Palette.G3,
             )
         }
@@ -564,21 +579,21 @@ private fun WeightTile(ws: List<WeightPoint>) {
 
 /** Картинка блюда: эмодзи по названию на цветной подложке. Фото на сервере не хранятся. */
 private val FOOD = listOf(
-    listOf("салат", "цезар") to "🥗", listOf("суп", "борщ", "щи", "солянк", "бульон", "рамен") to "🍲",
-    listOf("каш", "овсян", "гречк", "мюсли", "гранол") to "🥣", listOf("яйц", "омлет", "яичниц") to "🍳",
-    listOf("кофе", "капуч", "латте", "американо", "раф") to "☕", listOf("чай") to "🍵",
-    listOf("пицц") to "🍕", listOf("бургер", "шаурм", "хот-дог", "хотдог") to "🍔",
-    listOf("паст", "макарон", "спагет", "лапш") to "🍝", listOf("рис", "плов", "ризотто") to "🍚",
-    listOf("суши", "ролл", "сашими") to "🍣", listOf("рыб", "лосос", "сёмг", "семг", "тунец", "форел", "треск") to "🐟",
-    listOf("кур", "индей", "крыл", "наггетс") to "🍗", listOf("мяс", "говя", "свин", "стейк", "котлет", "фарш", "шашлык") to "🥩",
-    listOf("пельмен", "вареник", "манты", "хинкал") to "🥟", listOf("блин", "сырник", "оладь", "панкейк") to "🥞",
-    listOf("творог", "йогурт", "кефир", "молок", "ряженк", "протеин") to "🥛", listOf("сыр") to "🧀",
-    listOf("хлеб", "бутер", "тост", "сэндв", "лаваш", "батон") to "🥪", listOf("банан") to "🍌", listOf("яблок") to "🍎",
-    listOf("ягод", "клубник", "черник", "малин") to "🍓", listOf("фрукт", "апельсин", "мандарин", "груш", "виноград") to "🍊",
-    listOf("орех", "миндал", "арахис") to "🥜", listOf("шоколад", "конфет", "торт", "печень", "десерт", "пирож", "мороже") to "🍰",
-    listOf("картоф", "пюре", "фри") to "🥔", listOf("овощ", "брокк", "огур", "помидор", "томат", "морков") to "🥦",
-    listOf("сок", "смузи", "лимонад", "кола", "напит") to "🧃",
-    listOf("завтрак") to "🍳", listOf("обед") to "🍲", listOf("ужин") to "🍽", listOf("перекус") to "🍎",
+    listOf("салат", "цезар", "salad", "caesar") to "🥗", listOf("суп", "борщ", "щи", "солянк", "бульон", "рамен", "soup", "borscht", "broth", "ramen") to "🍲",
+    listOf("каш", "овсян", "гречк", "мюсли", "гранол", "porridge", "oatmeal", "buckwheat", "muesli", "granola") to "🥣", listOf("яйц", "омлет", "яичниц", "egg", "omelet", "omelette") to "🍳",
+    listOf("кофе", "капуч", "латте", "американо", "раф", "coffee", "cappuccino", "latte", "americano") to "☕", listOf("чай", "green tea", "black tea", "herbal tea") to "🍵",
+    listOf("пицц", "pizza") to "🍕", listOf("бургер", "шаурм", "хот-дог", "хотдог", "burger", "shawarma", "hot dog", "hotdog") to "🍔",
+    listOf("паст", "макарон", "спагет", "лапш", "pasta", "macaroni", "spaghetti", "noodle") to "🍝", listOf("рис", "плов", "ризотто", "rice", "pilaf", "risotto") to "🍚",
+    listOf("суши", "ролл", "сашими", "sushi", "sashimi") to "🍣", listOf("рыб", "лосос", "сёмг", "семг", "тунец", "форел", "треск", "fish", "salmon", "tuna", "trout", "cod") to "🐟",
+    listOf("кур", "индей", "крыл", "наггетс", "chicken", "turkey", "wings", "nugget") to "🍗", listOf("мяс", "говя", "свин", "стейк", "котлет", "фарш", "шашлык", "meat", "beef", "pork", "steak", "cutlet", "patty", "kebab") to "🥩",
+    listOf("пельмен", "вареник", "манты", "хинкал", "dumpling", "pelmeni", "vareniki", "manti") to "🥟", listOf("блин", "сырник", "оладь", "панкейк", "pancake", "syrniki", "crepe") to "🥞",
+    listOf("творог", "йогурт", "кефир", "молок", "ряженк", "протеин", "cottage cheese", "yogurt", "kefir", "milk", "protein") to "🥛", listOf("сыр", "cheese") to "🧀",
+    listOf("хлеб", "бутер", "тост", "сэндв", "лаваш", "батон", "bread", "sandwich", "toast", "wrap") to "🥪", listOf("банан", "banana") to "🍌", listOf("яблок", "apple") to "🍎",
+    listOf("ягод", "клубник", "черник", "малин", "berr", "strawberr", "blueberr", "raspberr") to "🍓", listOf("фрукт", "апельсин", "мандарин", "груш", "виноград", "fruit", "orange", "tangerine", "pear", "grape") to "🍊",
+    listOf("орех", "миндал", "арахис", "nut", "almond", "peanut") to "🥜", listOf("шоколад", "конфет", "торт", "печень", "десерт", "пирож", "мороже", "chocolate", "candy", "cake", "cookie", "dessert", "pastry", "ice cream") to "🍰",
+    listOf("картоф", "пюре", "фри", "potato", "mash", "fries") to "🥔", listOf("овощ", "брокк", "огур", "помидор", "томат", "морков", "veg", "broccoli", "cucumber", "tomato", "carrot") to "🥦",
+    listOf("сок", "смузи", "лимонад", "кола", "напит", "juice", "smoothie", "lemonade", "cola", "drink") to "🧃",
+    listOf("завтрак", "breakfast") to "🍳", listOf("обед", "lunch") to "🍲", listOf("ужин", "dinner") to "🍽", listOf("перекус", "snack") to "🍎",
 )
 private val THUMB = mapOf(
     "🥗" to 0, "🥦" to 0, "🍵" to 0,
@@ -621,7 +636,7 @@ private fun MacroMini(@DrawableRes icon: Int, color: Color, grams: Int) {
     Row(verticalAlignment = Alignment.CenterVertically) {
         Icon(painterResource(icon), null, Modifier.size(14.dp), tint = color)
         Spacer(Modifier.width(3.dp))
-        Text("$grams г", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = t.hint)
+        Text("$grams ${tr("г", "g")}", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = t.hint)
     }
 }
 
@@ -636,10 +651,10 @@ private fun MealCard(m: Meal, onDelete: () -> Unit) {
     if (ask) {
         AlertDialog(
             onDismissRequest = { ask = false },
-            title = { Text("Удалить «${m.title}»?") },
-            text = { Text("${m.kcal} ккал уберутся из дневника — и здесь, и в боте.") },
-            confirmButton = { TextButton(onClick = { ask = false; onDelete() }) { Text("Удалить", color = Palette.Danger) } },
-            dismissButton = { TextButton(onClick = { ask = false }) { Text("Отмена") } },
+            title = { Text(tr("Удалить «${m.title}»?", "Delete “${m.title}”?")) },
+            text = { Text(tr("${m.kcal} ккал уберутся из дневника — и здесь, и в боте.", "${m.kcal} kcal will be removed from the diary — here and in the bot.")) },
+            confirmButton = { TextButton(onClick = { ask = false; onDelete() }) { Text(tr("Удалить", "Delete"), color = Palette.Danger) } },
+            dismissButton = { TextButton(onClick = { ask = false }) { Text(tr("Отмена", "Cancel")) } },
         )
     }
     Row(
@@ -662,7 +677,7 @@ private fun MealCard(m: Meal, onDelete: () -> Unit) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Image(painterResource(R.drawable.ic_kcal), null, Modifier.size(18.dp))
                 Spacer(Modifier.width(5.dp))
-                Text("${n(m.kcal)} ккал", fontSize = 17.sp, fontWeight = FontWeight.ExtraBold, color = t.text)
+                Text("${n(m.kcal)} ${tr("ккал", "kcal")}", fontSize = 17.sp, fontWeight = FontWeight.ExtraBold, color = t.text)
             }
             Spacer(Modifier.height(6.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -683,8 +698,8 @@ private fun EmptyMeals() {
     ) {
         FoodThumb("салат", 60.dp)
         Spacer(Modifier.height(10.dp))
-        Text("Пока пусто", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = t.text)
-        Text("Сфотографируй еду — она появится здесь и на виджетах", color = t.hint, textAlign = TextAlign.Center, fontSize = 14.sp)
+        Text(tr("Пока пусто", "Nothing here yet"), fontSize = 16.sp, fontWeight = FontWeight.Bold, color = t.text)
+        Text(tr("Сфотографируй еду — она появится здесь и на виджетах", "Photograph your food and it will show up here and on the widgets"), color = t.hint, textAlign = TextAlign.Center, fontSize = 14.sp)
     }
 }
 

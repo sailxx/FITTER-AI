@@ -103,7 +103,7 @@ Sunucunun tamamı tek bir dosya: [`worker.js`](worker.js), sıfır bağımlılı
 - Anahtarlar kodda değil, Cloudflare secret'larında durur.
 - Fotoğraflar **saklanmaz**: yalnızca tanıma için Gemini'ye gider.
 
-Ayrıntılar: [gizlilik politikası](https://sailxx.github.io/FITTER-AI/privacy.html) (Rusça).
+Ayrıntılar: [gizlilik politikası](https://sailxx.github.io/FITTER-AI/privacy.html).
 
 ---
 
@@ -114,7 +114,7 @@ Ayrıntılar: [gizlilik politikası](https://sailxx.github.io/FITTER-AI/privacy.
 - [x] **v2.6** Günlüğün yeni görünümü, makro ipuçları, haftalık grafik; botta yenilenen su ve ilaçlar
 - [ ] **v3.0** Ürün: bağımsız uygulama
 
-Tüm geçmiş: [CHANGELOG.md](CHANGELOG.md) (Rusça).
+Tüm geçmiş: [CHANGELOG.md](CHANGELOG.md).
 
 ---
 

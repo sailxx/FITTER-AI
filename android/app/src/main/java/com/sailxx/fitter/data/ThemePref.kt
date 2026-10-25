@@ -6,7 +6,11 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 
 /** Тема Fitter: как в системе, всегда светлая или всегда тёмная. От неё же зависит цвет виджетов. */
-enum class ThemeMode(val title: String) { SYSTEM("Как в системе"), LIGHT("Светлая"), DARK("Тёмная") }
+enum class ThemeMode(private val ru: String, private val en: String) {
+    SYSTEM("Как в системе", "Same as system"), LIGHT("Светлая", "Light"), DARK("Тёмная", "Dark");
+
+    val title get() = tr(ru, en)
+}
 
 /**
  * Выбор темы живёт в отдельном файле настроек: выход из аккаунта стирает данные дневника, но не тему.

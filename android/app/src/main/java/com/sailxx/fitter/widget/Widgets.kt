@@ -1,5 +1,7 @@
 package com.sailxx.fitter.widget
 
+import com.sailxx.fitter.data.Lang
+import com.sailxx.fitter.data.tr
 import android.appwidget.AppWidgetManager
 import android.content.ComponentName
 import android.content.Context
@@ -67,8 +69,8 @@ import kotlinx.coroutines.sync.withLock
 
 private const val CUP = 250
 private fun cp(c: Color) = ColorProvider(c)
-private fun n(x: Int) = String.format(Locale("ru"), "%,d", x).replace(' ', ' ')
-private fun liters(ml: Int) = (Math.round(ml / 10.0) / 100.0).toString().removeSuffix(".0").replace('.', ',') + " л"
+private fun n(x: Int) = String.format(Locale(Lang.code), "%,d", x).replace(' ', ' ')
+private fun liters(ml: Int) = (Math.round(ml / 10.0) / 100.0).toString().removeSuffix(".0").let { if (Lang.code == "ru") it.replace('.', ',') + " л" else "$it L" }
 private fun Dp.px(context: Context) = (value * context.resources.displayMetrics.density).toInt().coerceAtLeast(1)
 private fun Context.density() = resources.displayMetrics.density
 
@@ -140,7 +142,7 @@ private fun SignIn(g: Skin) {
     Column(GlanceModifier.fillMaxSize(), horizontalAlignment = Alignment.CenterHorizontally, verticalAlignment = Alignment.CenterVertically) {
         Image(ImageProvider(R.drawable.ic_logo), contentDescription = "FITTER", modifier = GlanceModifier.size(36.dp))
         Spacer(GlanceModifier.height(6.dp))
-        T("Войдите в Fitter", 12.sp, g.ink, bold = true, align = TextAlign.Center)
+        T(tr("Войдите в Fitter", "Sign in to Fitter"), 12.sp, g.ink, bold = true, align = TextAlign.Center)
     }
 }
 
@@ -160,10 +162,10 @@ private fun KcalCenter(g: Skin, s: Summary, numSize: TextUnit, labelSize: TextUn
     val left = s.kcalLeft
     if (g.look.showEaten) {
         T(n(s.kcal), numSize, g.ink, bold = true)
-        T(if (short) "съедено" else "съедено ккал", labelSize, g.mut)
+        T(if (short) tr("съедено", "eaten") else tr("съедено ккал", "kcal eaten"), labelSize, g.mut)
     } else {
         T(n(kotlin.math.abs(left)), numSize, if (left < 0) Palette.Protein else g.ink, bold = true)
-        T(if (left < 0) "сверх нормы" else if (short) "осталось" else "осталось ккал", labelSize, g.mut)
+        T(if (left < 0) tr("сверх нормы", "over goal") else if (short) tr("осталось", "left") else tr("осталось ккал", "kcal left"), labelSize, g.mut)
     }
 }
 
@@ -173,7 +175,7 @@ private fun MacroLine(g: Skin, label: String, v: Int, max: Int, color: Color, w:
     Column(GlanceModifier.fillMaxWidth().padding(bottom = dp(4f, k))) {
         Row(GlanceModifier.fillMaxWidth()) {
             T(label, sp(11f, k), g.mut, modifier = GlanceModifier.defaultWeight())
-            T("$v / $max г", sp(11f, k), g.ink, bold = true)
+            T("$v / $max ${tr("г", "g")}", sp(11f, k), g.ink, bold = true)
         }
         Spacer(GlanceModifier.height(dp(2f, k)))
         Bmp(barBitmap(g, if (max > 0) v.toFloat() / max else 0f, color, w.px(ctx), dp(5f, k).px(ctx)), w, dp(5f, k))
@@ -182,9 +184,9 @@ private fun MacroLine(g: Skin, label: String, v: Int, max: Int, color: Color, w:
 
 @Composable
 private fun Macros(g: Skin, s: Summary, w: Dp, k: Float) {
-    MacroLine(g, "Белки", s.p, s.targets.p, Palette.Protein, w, k)
-    MacroLine(g, "Жиры", s.f, s.targets.f, Palette.Fat, w, k)
-    MacroLine(g, "Углеводы", s.c, s.targets.c, Palette.Carbs, w, k)
+    MacroLine(g, tr("Белки", "Protein"), s.p, s.targets.p, Palette.Protein, w, k)
+    MacroLine(g, tr("Жиры", "Fat"), s.f, s.targets.f, Palette.Fat, w, k)
+    MacroLine(g, tr("Углеводы", "Carbs"), s.c, s.targets.c, Palette.Carbs, w, k)
 }
 
 /** Основа: читаем сохранённое и оформление, рисуем содержимое или просьбу войти. */
@@ -231,7 +233,7 @@ class CaloriesWidget : FitterWidget() {
                     val col = w - ring - dp(14f, k)
                     Column(GlanceModifier.width(col)) {
                         KcalCenter(g, s, sp(30f, k), sp(12f, k))
-                        T("${n(s.kcal)} из ${n(s.targets.kcal)} ккал", sp(12f, k), g.mut)
+                        T(tr("${n(s.kcal)} из ${n(s.targets.kcal)} ккал", "${n(s.kcal)} of ${n(s.targets.kcal)} kcal"), sp(12f, k), g.mut)
                         if (h.value >= 120f) {
                             Spacer(GlanceModifier.height(dp(6f, k)))
                             Macros(g, s, col, k)
@@ -246,7 +248,7 @@ class CaloriesWidget : FitterWidget() {
                 Column(GlanceModifier.fillMaxSize(), horizontalAlignment = Alignment.CenterHorizontally) {
                     RingBox(g, s.progress, ring, 0.085f) { KcalCenter(g, s, (ring.value * 0.2f).sp, sp(10f, k)) }
                     Spacer(GlanceModifier.height(dp(6f, k)))
-                    T("${n(s.kcal)} из ${n(s.targets.kcal)}", sp(12f, k), g.mut)
+                    T(tr("${n(s.kcal)} из ${n(s.targets.kcal)}", "${n(s.kcal)} of ${n(s.targets.kcal)}"), sp(12f, k), g.mut)
                     Spacer(GlanceModifier.defaultWeight())
                     Macros(g, s, w, k)
                 }
@@ -257,7 +259,7 @@ class CaloriesWidget : FitterWidget() {
                 Column(GlanceModifier.fillMaxSize(), horizontalAlignment = Alignment.CenterHorizontally, verticalAlignment = Alignment.CenterVertically) {
                     RingBox(g, s.progress, ring, 0.085f) { KcalCenter(g, s, (ring.value * 0.21f).sp, sp(10f, k)) }
                     Spacer(GlanceModifier.height(dp(4f, k)))
-                    T("${n(s.kcal)} из ${n(s.targets.kcal)}", sp(11f, k), g.mut)
+                    T(tr("${n(s.kcal)} из ${n(s.targets.kcal)}", "${n(s.kcal)} of ${n(s.targets.kcal)}"), sp(11f, k), g.mut)
                 }
             }
         }
@@ -277,7 +279,7 @@ class LeftWidget : FitterWidget() {
             RingBox(g, s.progress, ring, 0.09f) {
                 val v = if (g.look.showEaten) s.kcal else kotlin.math.abs(s.kcalLeft)
                 T(n(v), (ring.value * 0.22f).sp, if (!g.look.showEaten && s.kcalLeft < 0) Palette.Protein else g.ink, bold = true)
-                if (ring.value >= 90f) T(if (g.look.showEaten) "съедено" else "осталось", (ring.value * 0.1f).sp, g.mut)
+                if (ring.value >= 90f) T(if (g.look.showEaten) tr("съедено", "eaten") else tr("осталось", "left"), (ring.value * 0.1f).sp, g.mut)
             }
         }
     }
@@ -308,7 +310,7 @@ class TodayWidget : FitterWidget() {
                 Column(GlanceModifier.width(colW)) {
                     val left = s.kcalLeft
                     T(
-                        when { g.look.showEaten && left >= 0 -> "Осталось ${n(left)} ккал"; left >= 0 -> "Съедено ${n(s.kcal)} ккал"; else -> "+${n(-left)} ккал сверх нормы" },
+                        when { g.look.showEaten && left >= 0 -> tr("Осталось ${n(left)} ккал", "${n(left)} kcal left"); left >= 0 -> tr("Съедено ${n(s.kcal)} ккал", "${n(s.kcal)} kcal eaten"); else -> tr("+${n(-left)} ккал сверх нормы", "+${n(-left)} kcal over goal") },
                         sp(14f, k), if (left < 0) Palette.Protein else g.ink, bold = true,
                     )
                     Spacer(GlanceModifier.height(dp(5f, k)))
@@ -319,17 +321,17 @@ class TodayWidget : FitterWidget() {
                             Img(R.drawable.ic_water, dp(16f, k))
                             Spacer(GlanceModifier.width(dp(6f, k)))
                             val all = maxOf(1, (s.waterGoal + CUP - 1) / CUP)
-                            T("${s.water / CUP} из $all стаканов · ${liters(s.water)}", sp(12f, k), g.ink, modifier = GlanceModifier.defaultWeight())
+                            T(tr("${s.water / CUP} из $all стаканов · ${liters(s.water)}", "${s.water / CUP} of $all glasses · ${liters(s.water)}"), sp(12f, k), g.ink, modifier = GlanceModifier.defaultWeight())
                         }
                     }
                 }
             }
             if (tall) {
                 Spacer(GlanceModifier.height(12.dp))
-                T("Приёмы пищи", sp(13f, k), g.ink, bold = true)
+                T(tr("Приёмы пищи", "Meals"), sp(13f, k), g.ink, bold = true)
                 val meals = st.day?.meals.orEmpty().takeLast(((h - top - 30.dp).value / 30f).toInt().coerceIn(1, 6))
                 if (meals.isEmpty()) {
-                    T("Пока пусто — нажми «Фото еды» или «+» в приложении", sp(12f, k), g.mut, maxLines = 2)
+                    T(tr("Пока пусто — нажми «Фото еды» или «+» в приложении", "Nothing yet — tap “Food photo” or “+” in the app"), sp(12f, k), g.mut, maxLines = 2)
                 } else {
                     meals.forEach { m ->
                         Row(GlanceModifier.fillMaxWidth().padding(top = 6.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -379,9 +381,9 @@ class WaterWidget : FitterWidget() {
         val glass = glassBitmap(level, water, glassW.px(ctx), glassH.px(ctx))
 
         val info: @Composable () -> Unit = {
-            T("Вода", sp(12f, k), g.mut)
+            T(tr("Вода", "Water"), sp(12f, k), g.mut)
             T(liters(s.water), sp(30f, k), g.ink, bold = true)
-            T(if (s.water >= s.waterGoal) "норма ${liters(s.waterGoal)} ✓" else "из ${liters(s.waterGoal)}", sp(12f, k), g.mut)
+            T(if (s.water >= s.waterGoal) tr("норма ${liters(s.waterGoal)} ✓", "goal ${liters(s.waterGoal)} ✓") else tr("из ${liters(s.waterGoal)}", "of ${liters(s.waterGoal)}"), sp(12f, k), g.mut)
         }
         val cups: @Composable (Dp) -> Unit = { width ->
             val cupW = ((width.value - (all - 1) * 3 * k) / all).coerceIn(4f, 16f * k).dp
@@ -390,7 +392,7 @@ class WaterWidget : FitterWidget() {
         }
         val left: @Composable () -> Unit = {
             val rest = s.waterGoal - s.water
-            T(if (rest > 0) "Ещё ${(rest + CUP - 1) / CUP} ${if ((rest + CUP - 1) / CUP == 1) "стакан" else "стакана"} до нормы" else "Норма выполнена 💧", sp(12f, k), g.ink, bold = true)
+            T(if (rest > 0) { val cups = (rest + CUP - 1) / CUP; tr("Ещё $cups ${if (cups == 1) "стакан" else "стакана"} до нормы", "$cups more ${if (cups == 1) "glass" else "glasses"} to go") } else tr("Норма выполнена 💧", "Goal reached 💧"), sp(12f, k), g.ink, bold = true)
         }
 
         if (wide) {
@@ -436,9 +438,9 @@ class MacrosWidget : FitterWidget() {
         val w = size.width - 24.dp
         val h = size.height - 24.dp
         val items = listOf(
-            Triple(R.drawable.ic_protein, "Белки", Triple(s.p, s.targets.p, Palette.Protein)),
-            Triple(R.drawable.ic_fat, "Жиры", Triple(s.f, s.targets.f, Palette.Fat)),
-            Triple(R.drawable.ic_carbs, "Углеводы", Triple(s.c, s.targets.c, Palette.Carbs)),
+            Triple(R.drawable.ic_protein, tr("Белки", "Protein"), Triple(s.p, s.targets.p, Palette.Protein)),
+            Triple(R.drawable.ic_fat, tr("Жиры", "Fat"), Triple(s.f, s.targets.f, Palette.Fat)),
+            Triple(R.drawable.ic_carbs, tr("Углеводы", "Carbs"), Triple(s.c, s.targets.c, Palette.Carbs)),
         )
         val colW = (w - 16.dp) / 3
         if (h.value >= 110f) {
@@ -452,11 +454,11 @@ class MacrosWidget : FitterWidget() {
                         RingBox(g, if (m.second > 0) m.first.toFloat() / m.second else 0f, ring, 0.09f, m.third) {
                             Img(icon, ring * 0.22f)
                             T("${m.first}", (ring.value * 0.2f).sp, g.ink, bold = true)
-                            T("из ${m.second} г", (ring.value * 0.09f).sp, g.mut)
+                            T(tr("из ${m.second} г", "of ${m.second} g"), (ring.value * 0.09f).sp, g.mut)
                         }
                         Spacer(GlanceModifier.height(dp(4f, k)))
                         val left = m.second - m.first
-                        T(if (left > 0) "$label: ещё $left г" else label, sp(11f, k), g.mut, align = TextAlign.Center)
+                        T(if (left > 0) tr("$label: ещё $left г", "$label: $left g to go") else label, sp(11f, k), g.mut, align = TextAlign.Center)
                     }
                 }
             }
@@ -502,12 +504,12 @@ class PillsWidget : FitterWidget() {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Img(R.drawable.ic_pill, dp(24f, k))
                 Spacer(GlanceModifier.width(dp(8f, k)))
-                T("Таблетки", sp(14f, k), g.ink, bold = true, modifier = GlanceModifier.defaultWeight())
+                T(tr("Таблетки", "Pills"), sp(14f, k), g.ink, bold = true, modifier = GlanceModifier.defaultWeight())
                 if (s.pillsTotal > 0) T("${s.pillsTaken}/${s.pillsTotal}", sp(14f, k), g.mut, bold = true)
             }
             if (s.pillsTotal == 0) {
                 Spacer(GlanceModifier.defaultWeight())
-                T("Добавь витамины в дневнике — напомню вовремя", sp(12f, k), g.mut, maxLines = 3)
+                T(tr("Добавь витамины в дневнике — напомню вовремя", "Add vitamins in the diary and I'll remind you on time"), sp(12f, k), g.mut, maxLines = 3)
                 Spacer(GlanceModifier.defaultWeight())
                 return@Column
             }
@@ -528,14 +530,14 @@ class PillsWidget : FitterWidget() {
                 }
             } else {
                 Spacer(GlanceModifier.height(dp(6f, k)))
-                T("принято сегодня", sp(11f, k), g.mut)
+                T(tr("принято сегодня", "taken today"), sp(11f, k), g.mut)
             }
             Spacer(GlanceModifier.defaultWeight())
             val next = nextDose(s, st)
             if (next == null) {
-                T("Все приняты ✅", sp(13f, k), g.ink, bold = true)
+                T(tr("Все приняты ✅", "All taken ✅"), sp(13f, k), g.ink, bold = true)
             } else {
-                T("Следующая в ${next.time}: ${next.name}", sp(13f, k), g.ink, bold = true)
+                T(tr("Следующая в ${next.time}: ${next.name}", "Next at ${next.time}: ${next.name}"), sp(13f, k), g.ink, bold = true)
             }
         }
     }
@@ -561,8 +563,8 @@ class PhotoWidget : GlanceAppWidget() {
                     Img(R.drawable.ic_camera, side * 0.55f)
                     Spacer(GlanceModifier.width(10.dp))
                     Column {
-                        T("Фото еды", (side.value * 0.2f).sp, g.ink, bold = true)
-                        T("посчитаю калории", (side.value * 0.14f).sp, g.mut)
+                        T(tr("Фото еды", "Food photo"), (side.value * 0.2f).sp, g.ink, bold = true)
+                        T(tr("посчитаю калории", "I'll count calories"), (side.value * 0.14f).sp, g.mut)
                     }
                 }
             } else {
@@ -572,7 +574,7 @@ class PhotoWidget : GlanceAppWidget() {
                 ) {
                     Img(R.drawable.ic_camera, side * 0.45f)
                     Spacer(GlanceModifier.height(2.dp))
-                    T("Фото", (side.value * 0.15f).sp, g.ink, bold = true)
+                    T(tr("Фото", "Photo"), (side.value * 0.15f).sp, g.ink, bold = true)
                 }
             }
         }
@@ -581,7 +583,7 @@ class PhotoWidget : GlanceAppWidget() {
 
 // ───────────────────────────── «Неделя» 4×2 (растягивается) ─────────────────────────────
 
-private val WD = listOf("Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс")
+private val WD get() = if (Lang.code == "ru") listOf("Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс") else listOf("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun")
 
 class WeekWidget : FitterWidget() {
     @Composable
@@ -598,8 +600,8 @@ class WeekWidget : FitterWidget() {
         val chartH = (h - dp(26f, k) - dp(18f, k) - if (showFooter) dp(22f, k) else 0.dp).coerceAtLeast(30.dp)
         Column(GlanceModifier.fillMaxSize()) {
             Row(GlanceModifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                T("Неделя", sp(15f, k), g.ink, bold = true, modifier = GlanceModifier.defaultWeight())
-                if (s.streak > 0) T("🔥 серия ${s.streak} дн.", sp(11f, k), g.mut)
+                T(tr("Неделя", "Week"), sp(15f, k), g.ink, bold = true, modifier = GlanceModifier.defaultWeight())
+                if (s.streak > 0) T(tr("🔥 серия ${s.streak} дн.", "🔥 streak ${s.streak} d"), sp(11f, k), g.mut)
             }
             Spacer(GlanceModifier.height(dp(8f, k)))
             if (week.size == 7) {
@@ -615,10 +617,10 @@ class WeekWidget : FitterWidget() {
                     val avg = withMeals.sumOf { it.kcal } / withMeals.size
                     val inNorm = withMeals.count { it.kcal >= goal * 0.9 && it.kcal <= goal * 1.1 }
                     Spacer(GlanceModifier.height(dp(6f, k)))
-                    T("В среднем ${n(avg)} ккал · в норме $inNorm из ${withMeals.size}", sp(11f, k), g.mut)
+                    T(tr("В среднем ${n(avg)} ккал · в норме $inNorm из ${withMeals.size}", "Average ${n(avg)} kcal · on goal $inNorm of ${withMeals.size}"), sp(11f, k), g.mut)
                 }
             } else {
-                T("Открой приложение, чтобы загрузить неделю", sp(12f, k), g.mut, maxLines = 2)
+                T(tr("Открой приложение, чтобы загрузить неделю", "Open the app to load the week"), sp(12f, k), g.mut, maxLines = 2)
             }
         }
     }

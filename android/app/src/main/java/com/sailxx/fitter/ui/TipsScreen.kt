@@ -1,5 +1,6 @@
 package com.sailxx.fitter.ui
 
+import com.sailxx.fitter.data.tr
 import androidx.annotation.DrawableRes
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.animateFloat
@@ -82,7 +83,7 @@ private fun parseAdvice(j: JSONObject?): Advice? {
         val items = o.optJSONArray("items")
         Option(
             o.optString("title"), o.optString("why"), o.optInt("kcal"), o.optInt("p"), o.optInt("f"), o.optInt("c"),
-            (0 until (items?.length() ?: 0)).joinToString(", ") { k -> items!!.getJSONObject(k).let { "${it.optString("name")} ${it.optInt("grams")} г" } },
+            (0 until (items?.length() ?: 0)).joinToString(", ") { k -> items!!.getJSONObject(k).let { "${it.optString("name")} ${it.optInt("grams")} ${tr("г", "g")}" } },
         )
     }
     return if (opts.isEmpty()) null else Advice(j.optString("intro"), opts)
@@ -102,11 +103,11 @@ private fun parseAnalysis(j: JSONObject?): Analysis? {
 }
 
 private fun aiError(e: Throwable): String = when {
-    e is ApiException && e.code == 429 -> "На сегодня лимит запросов к нейросети закончился. Завтра снова можно!"
-    e is ApiException && e.error == "short" -> "Для разбора нужно хотя бы 2 дня с записями за неделю. Записывай еду каждый день — и всё получится"
-    e is ApiException && e.error == "expired" -> "Варианты устарели — подбери новые"
-    e is ApiException -> "Нейросеть сейчас не отвечает. Попробуй ещё раз через минуту"
-    else -> "Нет связи с сервером. Проверь интернет"
+    e is ApiException && e.code == 429 -> tr("На сегодня лимит запросов к нейросети закончился. Завтра снова можно!", "You've used up today's AI requests. Try again tomorrow!")
+    e is ApiException && e.error == "short" -> tr("Для разбора нужно хотя бы 2 дня с записями за неделю. Записывай еду каждый день — и всё получится", "A review needs at least 2 days with entries this week. Log your food every day and it will work")
+    e is ApiException && e.error == "expired" -> tr("Варианты устарели — подбери новые", "These options are out of date — pick new ones")
+    e is ApiException -> tr("Нейросеть сейчас не отвечает. Попробуй ещё раз через минуту", "The AI isn't responding right now. Please try again in a minute")
+    else -> tr("Нет связи с сервером. Проверь интернет", "Can't reach the server. Check your internet connection")
 }
 
 /** Советы ИИ: «Что съесть сейчас» под остаток нормы и разбор недели — те же, что в боте. */
@@ -160,7 +161,7 @@ fun TipsScreen() {
         open = i; recipe = null; sheetErr = null; recipeBusy = true
         try {
             recipe = parseRecipe(Api.adviceRecipe(token, FitterRepository.today(context), i))
-            if (recipe == null) sheetErr = "Не получилось составить рецепт"
+            if (recipe == null) sheetErr = tr("Не получилось составить рецепт", "Couldn't write the recipe")
         } catch (e: CancellationException) { throw e } catch (e: Exception) { sheetErr = aiError(e) }
         recipeBusy = false
     }
@@ -195,38 +196,38 @@ fun TipsScreen() {
     }
 
     LazyColumn(Modifier.fillMaxSize().screenBg(), contentPadding = PaddingValues(bottom = 130.dp)) {
-        item { ScreenHeader("Советы ИИ", "Нейросеть смотрит на дневник и подсказывает") }
+        item { ScreenHeader(tr("Советы ИИ", "AI tips"), tr("Нейросеть смотрит на дневник и подсказывает", "The AI looks at your diary and suggests what to do")) }
         item {
-            Section(R.drawable.ic_salad, "Что съесть сейчас", "3 варианта под остаток твоей нормы", Modifier.padding(top = 10.dp).rise(0)) {
+            Section(R.drawable.ic_salad, tr("Что съесть сейчас", "What to eat now"), tr("3 варианта под остаток твоей нормы", "3 options for what's left of your goal"), Modifier.padding(top = 10.dp).rise(0)) {
                 when {
-                    advBusy -> Thinking("Подбираю варианты…")
+                    advBusy -> Thinking(tr("Подбираю варианты…", "Picking options…"))
                     advice != null -> {
                         val a = advice!!
                         if (a.intro.isNotBlank()) Note(a.intro)
                         a.options.forEachIndexed { i, o -> OptionCard(i, o, onOpen = { openOption(i) }) { eat(i, o.title) } }
-                        SoftButton("🔄 Другие варианты") { pickAdvice() }
+                        SoftButton(tr("🔄 Другие варианты", "🔄 Other options")) { pickAdvice() }
                     }
                     else -> {
-                        eaten?.let { Note("Записал «$it» в дневник ✅") }
-                        PrimaryButton("✨ Подобрать варианты") { pickAdvice() }
+                        eaten?.let { Note(tr("Записал «$it» в дневник ✅", "Logged “$it” in your diary ✅")) }
+                        PrimaryButton(tr("✨ Подобрать варианты", "✨ Pick options")) { pickAdvice() }
                     }
                 }
                 advErr?.let { Err(it) }
             }
         }
         item {
-            Section(R.drawable.ic_brain, "Разбор недели", "Что получилось и что улучшить за 7 дней", Modifier.padding(top = Gap).rise(120)) {
+            Section(R.drawable.ic_brain, tr("Разбор недели", "Weekly review"), tr("Что получилось и что улучшить за 7 дней", "What went well and what to improve over 7 days"), Modifier.padding(top = Gap).rise(120)) {
                 when {
-                    anBusy -> Thinking("Разбираю твою неделю…")
+                    anBusy -> Thinking(tr("Разбираю твою неделю…", "Reviewing your week…"))
                     analysis != null -> AnalysisView(analysis!!)
-                    else -> PrimaryButton("🧠 Разобрать неделю") { analyze() }
+                    else -> PrimaryButton(tr("🧠 Разобрать неделю", "🧠 Review my week")) { analyze() }
                 }
                 anErr?.let { Err(it) }
             }
         }
         item {
             Text(
-                "FITTER считает примерно и не заменяет врача или диетолога",
+                tr("FITTER считает примерно и не заменяет врача или диетолога", "FITTER's numbers are approximate and don't replace a doctor or dietitian"),
                 fontSize = 12.sp, color = t.hint, textAlign = TextAlign.Center,
                 modifier = Modifier.fillMaxWidth().padding(24.dp),
             )
@@ -268,10 +269,10 @@ private fun OptionCard(i: Int, o: Option, onOpen: () -> Unit, onEat: () -> Unit)
         }
         Spacer(Modifier.height(6.dp))
         Text(o.items, fontSize = 13.sp, color = t.text)
-        Text("Б ${o.p} · Ж ${o.f} · У ${o.c}" + (if (o.why.isNotBlank()) " — ${o.why}" else ""), fontSize = 12.sp, color = t.hint)
+        Text(tr("Б ${o.p} · Ж ${o.f} · У ${o.c}", "P ${o.p} · F ${o.f} · C ${o.c}") + (if (o.why.isNotBlank()) " — ${o.why}" else ""), fontSize = 12.sp, color = t.hint)
         Spacer(Modifier.height(10.dp))
-        PrimaryButton("Съел это", Modifier.width(150.dp), height = 40.dp) { onEat() }
-        Text("Нажми — рецепт и похожее", fontSize = 11.sp, color = t.hint, modifier = Modifier.padding(top = 8.dp))
+        PrimaryButton(tr("Съел это", "I ate this"), Modifier.width(150.dp), height = 40.dp) { onEat() }
+        Text(tr("Нажми — рецепт и похожее", "Tap for the recipe and similar dishes"), fontSize = 11.sp, color = t.hint, modifier = Modifier.padding(top = 8.dp))
     }
 }
 
@@ -291,25 +292,25 @@ private fun RecipeSheet(o: Option, recipe: Recipe?, busy: Boolean, similarBusy: 
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(o.title, fontSize = 20.sp, fontWeight = FontWeight.ExtraBold, color = t.text, modifier = Modifier.weight(1f))
-                Text("🔥 ${o.kcal} ккал", fontWeight = FontWeight.ExtraBold, color = t.text)
+                Text("🔥 ${o.kcal} ${tr("ккал", "kcal")}", fontWeight = FontWeight.ExtraBold, color = t.text)
             }
-            Text("Б ${o.p} · Ж ${o.f} · У ${o.c}" + (if (o.why.isNotBlank()) " — ${o.why}" else ""), fontSize = 12.sp, color = t.hint)
+            Text(tr("Б ${o.p} · Ж ${o.f} · У ${o.c}", "P ${o.p} · F ${o.f} · C ${o.c}") + (if (o.why.isNotBlank()) " — ${o.why}" else ""), fontSize = 12.sp, color = t.hint)
             Text(o.items, fontSize = 13.sp, color = t.text)
             when {
-                busy -> Thinking("Пишу рецепт…")
+                busy -> Thinking(tr("Пишу рецепт…", "Writing the recipe…"))
                 recipe != null -> {
                     if (recipe.time.isNotBlank()) Text("⏱ ${recipe.time}", fontWeight = FontWeight.Bold, color = t.text)
-                    Bullets(R.drawable.ic_salad, "Ингредиенты", recipe.ingredients)
+                    Bullets(R.drawable.ic_salad, tr("Ингредиенты", "Ingredients"), recipe.ingredients)
                     Column(Modifier.fillMaxWidth().background(t.fill, RoundedCornerShape(20.dp)).padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                        Text("Приготовление", fontWeight = FontWeight.ExtraBold, color = t.text)
+                        Text(tr("Приготовление", "Preparation"), fontWeight = FontWeight.ExtraBold, color = t.text)
                         recipe.steps.forEachIndexed { k, st -> Text("${k + 1}. $st", fontSize = 14.sp, color = t.text, lineHeight = 19.sp) }
                     }
                     if (recipe.tip.isNotBlank()) Note("💡 ${recipe.tip}")
                 }
             }
             err?.let { Err(it) }
-            if (similarBusy) Thinking("Ищу похожее…") else SoftButton("🔍 Найти похожее") { onSimilar() }
-            PrimaryButton("✅ Съел это") { onEat() }
+            if (similarBusy) Thinking(tr("Ищу похожее…", "Looking for similar…")) else SoftButton(tr("🔍 Найти похожее", "🔍 Find similar")) { onSimilar() }
+            PrimaryButton(tr("✅ Съел это", "✅ I ate this")) { onEat() }
         }
     }
 }
@@ -319,9 +320,9 @@ private fun AnalysisView(a: Analysis) {
     val t = LocalTokens.current
     Row(verticalAlignment = Alignment.Bottom) {
         Text("${a.score}", fontSize = 44.sp, fontWeight = FontWeight.ExtraBold, color = t.text, letterSpacing = (-1).sp)
-        Text(" из 10", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = t.hint, modifier = Modifier.padding(bottom = 8.dp))
+        Text(tr(" из 10", " out of 10"), fontSize = 18.sp, fontWeight = FontWeight.Bold, color = t.hint, modifier = Modifier.padding(bottom = 8.dp))
         Spacer(Modifier.weight(1f))
-        Text("${a.recorded} дн. с записями", fontSize = 12.sp, color = t.hint, modifier = Modifier.padding(bottom = 10.dp))
+        Text(tr("${a.recorded} дн. с записями", "${a.recorded} days with entries"), fontSize = 12.sp, color = t.hint, modifier = Modifier.padding(bottom = 10.dp))
     }
     Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
         repeat(10) { i ->
@@ -329,9 +330,9 @@ private fun AnalysisView(a: Analysis) {
         }
     }
     if (a.summary.isNotBlank()) Text(a.summary, fontSize = 14.sp, color = t.text, lineHeight = 20.sp)
-    Bullets(R.drawable.ic_check, "Что получилось", a.good)
-    Bullets(R.drawable.ic_goal, "Что улучшить", a.improve)
-    Bullets(R.drawable.ic_tip, "Советы на неделю", a.tips)
+    Bullets(R.drawable.ic_check, tr("Что получилось", "What went well"), a.good)
+    Bullets(R.drawable.ic_goal, tr("Что улучшить", "What to improve"), a.improve)
+    Bullets(R.drawable.ic_tip, tr("Советы на неделю", "Tips for the week"), a.tips)
 }
 
 @Composable

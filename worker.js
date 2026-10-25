@@ -23,6 +23,14 @@
 const MODEL_FALLBACKS = ["gemini-3.5-flash", "gemini-3.5-flash-lite", "gemini-3.1-flash-lite", "gemini-flash-latest"];
 const DEFAULT_TZ = 180; // Москва, UTC+3 (в минутах)
 
+// ───────────────────────────── Язык ─────────────────────────────
+// u.lang = "en" | "ru". Поля нет — человек из версии до перевода, ему остаётся русский.
+// Новым пользователям язык выбирается по языку Telegram, сменить можно в /lang, в дневнике и в приложении.
+const langOf = (u) => (u && u.lang === "en" ? "en" : "ru");
+const L = (u, ru, en) => (langOf(u) === "en" ? en : ru);
+const aiLang = (u) => L(u, "Russian", "English");
+const guessLang = (from) => (/^(ru|be|kk)\b/i.test((from && from.language_code) || "") ? "ru" : "en");
+const dayWord = (u, n) => L(u, plural(n, "день", "дня", "дней"), n === 1 ? "day" : "days");
 // ───────────────────────────── Точка входа ─────────────────────────────
 
 export default {
@@ -357,18 +365,19 @@ function edit(env, chatId, messageId, text, extra = {}) {
   return tg(env, "editMessageText", { chat_id: chatId, message_id: messageId, text, parse_mode: "HTML", disable_web_page_preview: true, ...extra });
 }
 
-const MAIN_KEYBOARD = {
-  keyboard: [
-    [{ text: "📊 Сегодня" }, { text: "📅 Неделя" }],
-    [{ text: "👤 Профиль" }, { text: "❓ Помощь" }],
-  ],
-  resize_keyboard: true,
-  is_persistent: true,
-  input_field_placeholder: "Отправь фото еды или задай вопрос",
-};
+function mainKb(u) {
+  return {
+    keyboard: L(u,
+      [[{ text: "📊 Сегодня" }, { text: "📅 Неделя" }], [{ text: "👤 Профиль" }, { text: "❓ Помощь" }]],
+      [[{ text: "📊 Today" }, { text: "📅 Week" }], [{ text: "👤 Profile" }, { text: "❓ Help" }]]),
+    resize_keyboard: true,
+    is_persistent: true,
+    input_field_placeholder: L(u, "Отправь фото еды или задай вопрос", "Send a photo of food or ask a question"),
+  };
+}
 
-function appButton(env, text = "📱 Открыть дневник") {
-  return { text, web_app: { url: `${env.ORIGIN}/app` } };
+function appButton(env, u, ru = "📱 Открыть дневник", en = "📱 Open diary") {
+  return { text: L(u, ru, en), web_app: { url: `${env.ORIGIN}/app` } };
 }
 
 // ───────────────────────────── База данных (KV) ─────────────────────────────
@@ -415,11 +424,17 @@ function shiftDate(date, n) {
   d.setUTCDate(d.getUTCDate() + n);
   return d.toISOString().slice(0, 10);
 }
-const MONTHS = ["января", "февраля", "марта", "апреля", "мая", "июня", "июля", "августа", "сентября", "октября", "ноября", "декабря"];
-const WEEKDAYS = ["Вс", "Пн", "Вт", "Ср", "Чт", "Пт", "Сб"];
-function humanDate(date) {
+const MONTHS = {
+  ru: ["января", "февраля", "марта", "апреля", "мая", "июня", "июля", "августа", "сентября", "октября", "ноября", "декабря"],
+  en: ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"],
+};
+const WEEKDAYS = {
+  ru: ["Вс", "Пн", "Вт", "Ср", "Чт", "Пт", "Сб"],
+  en: ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"],
+};
+function humanDate(date, u) {
   const d = new Date(date + "T00:00:00Z");
-  return `${d.getUTCDate()} ${MONTHS[d.getUTCMonth()]}`;
+  return L(u, `${d.getUTCDate()} ${MONTHS.ru[d.getUTCMonth()]}`, `${MONTHS.en[d.getUTCMonth()]} ${d.getUTCDate()}`);
 }
 const isDate = (s) => typeof s === "string" && /^\d{4}-\d{2}-\d{2}$/.test(s);
 
@@ -445,12 +460,18 @@ function sumItems(items) {
 const dayTotals = (day) => sumItems(day.meals.flatMap((m) => m.items));
 
 const ACTIVITY = {
-  "1.2": "🛋 Почти не двигаюсь",
-  "1.375": "🚶 1–3 тренировки в неделю",
-  "1.55": "🏃 3–5 тренировок в неделю",
-  "1.725": "🔥 6–7 тренировок в неделю",
+  "1.2": ["🛋 Почти не двигаюсь", "🛋 Barely move"],
+  "1.375": ["🚶 1–3 тренировки в неделю", "🚶 1–3 workouts a week"],
+  "1.55": ["🏃 3–5 тренировок в неделю", "🏃 3–5 workouts a week"],
+  "1.725": ["🔥 6–7 тренировок в неделю", "🔥 6–7 workouts a week"],
 };
-const GOALS = { lose: "📉 Похудеть", keep: "⚖️ Держать вес", gain: "💪 Набрать массу" };
+const GOALS = {
+  lose: ["📉 Похудеть", "📉 Lose weight"],
+  keep: ["⚖️ Держать вес", "⚖️ Maintain weight"],
+  gain: ["💪 Набрать массу", "💪 Gain muscle"],
+};
+const activityText = (u, k) => L(u, ACTIVITY[k][0], ACTIVITY[k][1]);
+const goalText = (u, k) => L(u, GOALS[k][0], GOALS[k][1]);
 
 // Формула Миффлина — Сан-Жеора
 function calcTargets(u) {
@@ -470,12 +491,12 @@ function calcTargets(u) {
 const ITEM_SCHEMA = {
   type: "OBJECT",
   properties: {
-    name: { type: "STRING", description: "Название продукта или блюда по-русски, коротко" },
-    grams: { type: "NUMBER", description: "Примерный вес порции в граммах" },
-    kcal_100: { type: "NUMBER", description: "Калории на 100 г" },
-    protein_100: { type: "NUMBER", description: "Белки на 100 г" },
-    fat_100: { type: "NUMBER", description: "Жиры на 100 г" },
-    carbs_100: { type: "NUMBER", description: "Углеводы на 100 г" },
+    name: { type: "STRING", description: "Product or dish name, short, in the requested language" },
+    grams: { type: "NUMBER", description: "Approximate portion weight in grams" },
+    kcal_100: { type: "NUMBER", description: "Calories per 100 g" },
+    protein_100: { type: "NUMBER", description: "Protein per 100 g" },
+    fat_100: { type: "NUMBER", description: "Fat per 100 g" },
+    carbs_100: { type: "NUMBER", description: "Carbs per 100 g" },
   },
   required: ["name", "grams", "kcal_100", "protein_100", "fat_100", "carbs_100"],
 };
@@ -484,12 +505,12 @@ const PHOTO_SCHEMA = {
   type: "OBJECT",
   properties: {
     is_food: { type: "BOOLEAN" },
-    title: { type: "STRING", description: "Короткое название приёма пищи, например «Гречка с курицей»" },
+    title: { type: "STRING", description: "Short name of the meal, for example “Buckwheat with chicken”, in the requested language" },
     items: { type: "ARRAY", items: ITEM_SCHEMA },
-    comment: { type: "STRING", description: "Одна короткая полезная заметка о блюде, по-русски" },
-    is_package: { type: "BOOLEAN", description: "На фото упаковка продукта из магазина" },
-    label_found: { type: "BOOLEAN", description: "На фото читается таблица пищевой ценности (КБЖУ) с упаковки" },
-    barcode: { type: "STRING", description: "Цифры штрихкода, если они видны под штрихкодом, иначе пустая строка" },
+    comment: { type: "STRING", description: "One short useful note about the dish, in the requested language" },
+    is_package: { type: "BOOLEAN", description: "The photo shows a store-bought product package" },
+    label_found: { type: "BOOLEAN", description: "A nutrition facts table is readable on the package" },
+    barcode: { type: "STRING", description: "Barcode digits if visible under the barcode, otherwise an empty string" },
   },
   required: ["is_food", "title", "items", "comment", "is_package", "label_found", "barcode"],
 };
@@ -505,29 +526,29 @@ const TEXT_SCHEMA = {
   required: ["intent", "answer", "title", "items"],
 };
 
-const PHOTO_PROMPT = `Ты нутрициолог-ассистент приложения FITTER. Посмотри на фото.
-Если на фото нет еды или напитков — верни is_food=false и пустой items.
-Если еда есть — перечисли каждый отдельный продукт или блюдо на фото.
-Для каждого оцени вес порции в граммах по размеру тарелки, приборов и упаковки,
-и укажи типичные калории, белки, жиры и углеводы НА 100 ГРАММ.
-Не дроби блюдо слишком мелко: суп, салат, бутерброд — одна позиция.
-Если на фото упаковка продукта (йогурт, батончик, пачка, бутылка): is_package=true, одна позиция с названием продукта и брендом.
-Если видна таблица пищевой ценности — перепиши КБЖУ на 100 г точно с этикетки (label_found=true).
-Если на этикетке значения на порцию, а не на 100 г — пересчитай на 100 г.
-Вес grams — масса нетто с упаковки; если не видна — типичная масса такой упаковки.
-Если под штрихкодом видны цифры — перепиши их в barcode без пробелов, иначе barcode пустой.
-Названия пиши по-русски, коротко. Будь реалистичен, не занижай и не завышай.`;
+const photoPrompt = (u) => `You are a nutritionist assistant in the FITTER app. Look at the photo.
+If there is no food or drink in the photo, return is_food=false and an empty items.
+If there is food, list every separate product or dish in the photo.
+For each one estimate the portion weight in grams from the size of the plate, cutlery and packaging,
+and give typical calories, protein, fat and carbs PER 100 GRAMS.
+Don't split a dish too finely: soup, salad, a sandwich are one item.
+If the photo shows a product package (yogurt, bar, pack, bottle): is_package=true, one item with the product name and brand.
+If a nutrition facts table is visible, copy the per-100 g values exactly from the label (label_found=true).
+If the label shows values per serving rather than per 100 g, convert them to 100 g.
+grams is the net weight from the package; if it is not visible, the typical weight of such a package.
+If digits are visible under a barcode, copy them into barcode without spaces, otherwise leave barcode empty.
+Write names and comments in ${aiLang(u)}, short. Be realistic, neither under- nor overestimate.`;
 
-const TEXT_PROMPT = `Ты дружелюбный нутрициолог-ассистент Telegram-бота FITTER. Пиши по-русски.
-Определи, что прислал пользователь:
-• food_log — он сообщает, что съел или выпил (например «съел 2 яйца и тост», «выпил латте 300 мл»).
-  Тогда заполни items: продукты, вес в граммах (оцени, если не указан), КБЖУ на 100 г; title — короткое название;
-  answer — одна короткая фраза.
-• question — вопрос про питание, калории, продукты, спорт, здоровый образ жизни.
-  Тогда ответь в answer понятно и коротко (до 700 символов), без markdown-разметки, можно с эмодзи.
-  Учитывай данные пользователя ниже, если это уместно. Не ставь диагнозов, при проблемах со здоровьем советуй врача.
-• other — всё остальное. В answer вежливо напомни, что ты помогаешь с питанием и можно прислать фото еды.
-Для question и other верни пустой items и пустой title.`;
+const textPrompt = (u) => `You are a friendly nutritionist assistant in the FITTER Telegram bot. Write in ${aiLang(u)}.
+Decide what the user sent:
+• food_log — they say what they ate or drank (for example “ate 2 eggs and toast”, “drank a 300 ml latte”).
+  Then fill items: products, weight in grams (estimate if not given), calories/protein/fat/carbs per 100 g; title is a short name;
+  answer is one short phrase.
+• question — a question about nutrition, calories, food, sports, a healthy lifestyle.
+  Then answer clearly and briefly in answer (up to 700 characters), without markdown, emoji are fine.
+  Take the user's data below into account where appropriate. Do not diagnose; for health problems advise seeing a doctor.
+• other — everything else. In answer politely remind that you help with nutrition and they can send a photo of food.
+For question and other return empty items and an empty title.`;
 
 let lastModelUsed = null;
 let workingModel = null; // модель, которая ответила в прошлый раз (чтобы не тратить время на недоступные)
@@ -635,45 +656,47 @@ function toBase64(buf) {
 
 const esc = (s) => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 
-function mealText(meal) {
+function mealText(meal, u) {
   const t = sumItems(meal.items);
-  const lines = meal.items.map((it) => `• ${esc(it.name)} — ${it.grams} г · <b>${round(itemTotals(it).kcal)}</b> ккал`);
+  const kcalU = L(u, "ккал", "kcal"), gU = L(u, "г", "g");
+  const lines = meal.items.map((it) => `• ${esc(it.name)} — ${it.grams} ${gU} · <b>${round(itemTotals(it).kcal)}</b> ${kcalU}`);
   return (
     `🍽 <b>${esc(meal.title)}</b> · ${meal.time}\n` +
     `\n${lines.join("\n")}\n\n` +
-    `🔥 <b>${round(t.kcal)} ккал</b>   🥩 ${round(t.p)} г   🧈 ${round(t.f)} г   🍞 ${round(t.c)} г`
+    `🔥 <b>${round(t.kcal)} ${kcalU}</b>   🥩 ${round(t.p)} ${gU}   🧈 ${round(t.f)} ${gU}   🍞 ${round(t.c)} ${gU}`
   );
 }
 
 function remainingText(u, day, date) {
   const t = dayTotals(day);
   const left = u.targets.kcal - t.kcal;
-  const label = date === today(u) ? "За сегодня" : `За ${humanDate(date)}`;
+  const label = date === today(u) ? L(u, "За сегодня", "Today") : L(u, `За ${humanDate(date, u)}`, humanDate(date, u));
   return (
-    `📊 ${label}  <b>${round(t.kcal)}</b> / ${u.targets.kcal} ккал\n${squares(t.kcal, u.targets.kcal)}\n` +
-    (left >= 0 ? `<i>Осталось ${round(left)} ккал</i>` : `<i>Больше нормы на ${round(-left)} ккал</i>`)
+    `📊 ${label}  <b>${round(t.kcal)}</b> / ${u.targets.kcal} ${L(u, "ккал", "kcal")}\n${squares(t.kcal, u.targets.kcal)}\n` +
+    (left >= 0 ? `<i>${L(u, `Осталось ${round(left)} ккал`, `${round(left)} kcal left`)}</i>` : `<i>${L(u, `Больше нормы на ${round(-left)} ккал`, `${round(-left)} kcal over your goal`)}</i>`)
   );
 }
 
 function mealCard(u, meal, day, date, comment) {
-  return mealText(meal) + (comment ? `\n\n${/^📦/.test(comment) ? "" : "💡 "}${esc(comment)}` : "") + "\n\n" + remainingText(u, day, date);
+  return mealText(meal, u) + (comment ? `\n\n${/^📦/.test(comment) ? "" : "💡 "}${esc(comment)}` : "") + "\n\n" + remainingText(u, day, date);
 }
 
-function mealKeyboard(env, date, meal) {
+function mealKeyboard(env, u, date, meal) {
   const rows = [];
   let row = [];
   meal.items.forEach((it, i) => {
     const name = it.name.length > 14 ? it.name.slice(0, 13) + "…" : it.name;
-    row.push({ text: `✏️ ${name} ${it.grams}г`, callback_data: `e|${date}|${meal.id}|${i}` });
+    row.push({ text: `✏️ ${name} ${it.grams}${L(u, "г", "g")}`, callback_data: `e|${date}|${meal.id}|${i}` });
     if (row.length === 2) { rows.push(row); row = []; }
   });
   if (row.length) rows.push(row);
-  rows.push([{ text: "🗑 Удалить", callback_data: `x|${date}|${meal.id}` }, appButton(env, "📱 Дневник")]);
+  rows.push([{ text: L(u, "🗑 Удалить", "🗑 Delete"), callback_data: `x|${date}|${meal.id}` }, appButton(env, u, "📱 Дневник", "📱 Diary")]);
   return { inline_keyboard: rows };
 }
 
 // Цитаты — без иконок внутри: так Telegram принимает сообщение с первой попытки
-const HELP = `🍏 <b>FITTER</b>
+const HELP_TEXT = {
+  ru: `🍏 <b>FITTER</b>
 <blockquote><i>Считаю калории по фото — быстро, весело и без кухонных весов</i></blockquote>
 
 
@@ -713,11 +736,61 @@ const HELP = `🍏 <b>FITTER</b>
 👤 /profile — профиль и норма
 📱 /app — дневник
 ⏰ /remind — напоминания
+🌐 /lang — язык
 🔄 /reset — пройти анкету заново
 🗑 /delete — удалить мои данные
 
 
-<blockquote><i>FITTER считает примерно и не заменяет врача или диетолога</i></blockquote>`;
+<blockquote><i>FITTER считает примерно и не заменяет врача или диетолога</i></blockquote>`,
+  en: `🍏 <b>FITTER</b>
+<blockquote><i>I count calories from photos — fast, fun and no kitchen scale</i></blockquote>
+
+
+📸 <b>How it works</b>
+
+1️⃣ <b>Snap</b> your food and send it to me
+2️⃣ I recognize the dishes and count the <b>macros</b>
+3️⃣ Something off? Tap ✏️ — <u>I'll fix it</u>
+4️⃣ Everything goes into your <b>diary</b> 📱
+
+
+✨ <b>Also</b> — <i>just type</i>
+
+📝 <code>ate 2 eggs and toast</code> — I'll log it without a photo
+💬 <code>how much protein is in cottage cheese?</code> — I'll answer
+💧 <code>water 300</code> — I'll log your water
+⚖️ <code>/weight 72.5</code> — log your weight and update your goal
+📦 A photo of a <b>label</b> or <b>barcode</b> — I'll find the nutrition values
+
+💡 <b>Pro tip:</b> <tg-spoiler>type “+500” — I'll instantly log half a liter of water</tg-spoiler>
+
+
+⌨️ <b>Commands</b>
+
+<u>Every day</u>
+📊 /today — today's summary
+🥗 /advice — what to eat
+💧 /water — water
+💊 /pills — pills
+
+<u>Summaries</u>
+📅 /week — week
+🧠 /analysis — weekly review
+🏆 /awards — achievements
+
+<u>Profile</u>
+👤 /profile — profile and goal
+📱 /app — diary
+⏰ /remind — reminders
+🌐 /lang — language
+🔄 /reset — redo the questionnaire
+🗑 /delete — delete my data
+
+
+<blockquote><i>FITTER's numbers are approximate and don't replace a doctor or dietitian</i></blockquote>`,
+};
+const HELP = HELP_TEXT.ru;
+const helpText = (u) => HELP_TEXT[langOf(u)];
 
 // ───────────────────────────── Обработка сообщений ─────────────────────────────
 
@@ -727,7 +800,7 @@ async function handleUpdate(update, env) {
 }
 
 function newUser(from) {
-  return { id: from.id, name: from.first_name || "", tz: DEFAULT_TZ, created: Date.now(), state: null };
+  return { id: from.id, name: from.first_name || "", tz: DEFAULT_TZ, created: Date.now(), state: null, lang: guessLang(from) };
 }
 
 // Метка источника из /start: только латиница, цифры, _ и -, до 32 символов
@@ -869,7 +942,7 @@ async function onMessage(msg, env) {
 
   // Служебные команды для своих иконок — только владельцу бота (ADMIN_ID)
   const admin = isAdmin(env, msg.from);
-  if (/^\/(emojipack|emojiid|makeemoji|emojierr)\b/.test(text) && !admin) return send(env, chatId, "Эта команда только для владельца бота");
+  if (/^\/(emojipack|emojiid|makeemoji|emojierr)\b/.test(text) && !admin) return send(env, chatId, L(u, "Эта команда только для владельца бота", "This command is for the bot owner only"));
   if (admin && (msg.entities || msg.caption_entities || []).some((e) => e.type === "custom_emoji")) return sendEmojiIds(env, chatId, msg);
   if (text.startsWith("/emojipack")) return sendEmojiPack(env, chatId, text.split(/\s+/)[1]);
   if (text === "/emojiid") return send(env, chatId, "Отправь мне иконки из набора, и я пришлю их номера 🔢");
@@ -879,22 +952,35 @@ async function onMessage(msg, env) {
     return tgRaw(env, "sendMessage", { chat_id: chatId, text: e ? `Последняя ошибка иконок (${e.at}, ${e.method}):\n${e.error}` : "Ошибок с иконками не было ✅" });
   }
 
+  // Язык: /lang — выбор кнопками, /lang en и /lang ru — сразу
+  if (text === "/lang" || text.startsWith("/lang ")) {
+    const arg = text.split(/\s+/)[1]?.toLowerCase();
+    if (arg !== "en" && arg !== "ru") return sendLang(env, u, chatId);
+    u.lang = arg;
+    await saveUser(env, u);
+    return send(env, chatId, L(u, "🌐 Язык: <b>Русский</b>", "🌐 Language: <b>English</b>"), u.targets ? { reply_markup: mainKb(u) } : {});
+  }
+
   const linkCode = text.match(/^\/start link_([0-9a-z]{20})$/);
   if (linkCode && u.targets) return askLinkConfirm(env, u, chatId, linkCode[1]);
   if (text === "/start" || text.startsWith("/start ")) {
     if (u.targets) {
       u.state = null;
       await saveUser(env, u);
-      return send(env, chatId, `С возвращением, ${esc(u.name || "друг")}! 👋\nОтправь фото еды — я посчитаю калории.`, { reply_markup: MAIN_KEYBOARD });
+      return send(env, chatId, L(u,
+        `С возвращением, ${esc(u.name || "друг")}! 👋\nОтправь фото еды — я посчитаю калории.`,
+        `Welcome back, ${esc(u.name || "friend")}! 👋\nSend a photo of your food and I'll count the calories.`), { reply_markup: mainKb(u) });
     }
     return startOnboarding(env, u, chatId);
   }
   if (text === "/reset") return startOnboarding(env, u, chatId);
   if (text === "/delete") {
-    if (!known) return send(env, chatId, "У меня нет твоих данных 🤷");
+    if (!known) return send(env, chatId, L(u, "У меня нет твоих данных 🤷", "I don't have any of your data 🤷"));
     return send(env, chatId,
-      "🗑 <b>Удалить все твои данные?</b>\n\nАнкета, дневник питания, вода, вес, таблетки и напоминания будут стёрты навсегда. Восстановить их не получится.",
-      { reply_markup: { inline_keyboard: [[{ text: "Да, удалить всё", callback_data: "delall" }, { text: "Отмена", callback_data: "delno" }]] } });
+      L(u,
+        "🗑 <b>Удалить все твои данные?</b>\n\nАнкета, дневник питания, вода, вес, таблетки и напоминания будут стёрты навсегда. Восстановить их не получится.",
+        "🗑 <b>Delete all your data?</b>\n\nYour profile, food diary, water, weight, pills and reminders will be erased permanently. This can't be undone."),
+      { reply_markup: { inline_keyboard: [[{ text: L(u, "Да, удалить всё", "Yes, delete everything"), callback_data: "delall" }, { text: L(u, "Отмена", "Cancel"), callback_data: "delno" }]] } });
   }
 
   // Анкета
@@ -911,7 +997,7 @@ async function onMessage(msg, env) {
   if (u.state && u.state.type === "edit") {
     if (text && !text.startsWith("/") && !isMenu(text)) {
       const fix = parseFix(text);
-      if (!fix) return send(env, chatId, "Напиши вес (<b>150</b>), название (<b>форель</b>) или всё вместе (<b>форель 200 г</b>)");
+      if (!fix) return send(env, chatId, L(u, "Напиши вес (<b>150</b>), название (<b>форель</b>) или всё вместе (<b>форель 200 г</b>)", "Send a weight (<b>150</b>), a name (<b>trout</b>) or both (<b>trout 200 g</b>)"));
       return applyEdit(env, u, chatId, fix);
     }
     u.state = null;
@@ -922,7 +1008,7 @@ async function onMessage(msg, env) {
   if (u.state && u.state.type === "pilladd") {
     if (text && !text.startsWith("/") && !isMenu(text)) {
       const p = parsePill(text);
-      if (!p) return send(env, chatId, "Напиши название и время приёма, например: <b>Витамин D, 1 капсула, 9:00</b>");
+      if (!p) return send(env, chatId, L(u, "Напиши название и время приёма, например: <b>Витамин D, 1 капсула, 9:00</b>", "Send the name and time, for example: <b>Vitamin D, 1 capsule, 9:00</b>"));
       u.state = null;
       return addPill(env, u, chatId, p);
     }
@@ -934,7 +1020,7 @@ async function onMessage(msg, env) {
   if (u.state && u.state.type === "weight") {
     const kg = parseNum(text);
     if (text && !text.startsWith("/") && !isMenu(text)) {
-      if (!(kg >= 30 && kg <= 300)) return send(env, chatId, "Напиши вес числом в килограммах, например <b>72.5</b>");
+      if (!(kg >= 30 && kg <= 300)) return send(env, chatId, L(u, "Напиши вес числом в килограммах, например <b>72.5</b>", "Send your weight as a number in kilograms, for example <b>72.5</b>"));
       u.state = null;
       return logWeight(env, u, chatId, kg);
     }
@@ -953,10 +1039,12 @@ async function onMessage(msg, env) {
   if (/^\d{8,14}$/.test(digits)) {
     const code = cleanBarcode(digits);
     if (code) return onBarcodeText(env, u, chatId, code);
-    return send(env, chatId, "📦 Похоже на штрихкод, но цифры не сходятся. Проверь и пришли ещё раз, или сфотографируй этикетку 📸");
+    return send(env, chatId, L(u,
+      "📦 Похоже на штрихкод, но цифры не сходятся. Проверь и пришли ещё раз, или сфотографируй этикетку 📸",
+      "📦 This looks like a barcode, but the digits don't add up. Check and send it again, or photograph the label 📸"));
   }
   if (msg.document && /^image\//.test(msg.document.mime_type || "")) {
-    if ((msg.document.file_size || 0) > MAX_IMAGE_BYTES) return send(env, chatId, "📷 Файл слишком большой. Пришли картинку до 5 МБ или просто фото");
+    if ((msg.document.file_size || 0) > MAX_IMAGE_BYTES) return send(env, chatId, L(u, "📷 Файл слишком большой. Пришли картинку до 5 МБ или просто фото", "📷 The file is too big. Send an image under 5 MB or just a regular photo"));
     return onPhoto(env, u, chatId, msg);
   }
 
@@ -971,25 +1059,35 @@ async function onMessage(msg, env) {
     case "/advice": return sendAdvice(env, u, chatId);
     case "/water": return sendWater(env, u, chatId);
     case "/pills": return sendPills(env, u, chatId);
-    case "/help": return send(env, chatId, HELP, { reply_markup: MAIN_KEYBOARD });
+    case "/help": return send(env, chatId, helpText(u), { reply_markup: mainKb(u) });
     case "/app":
-      return send(env, chatId, "Твой дневник питания по дням 👇", { reply_markup: { inline_keyboard: [[appButton(env)]] } });
+      return send(env, chatId, L(u, "Твой дневник питания по дням 👇", "Your food diary, day by day 👇"), { reply_markup: { inline_keyboard: [[appButton(env, u)]] } });
     case "/weight": {
       const kg = text.startsWith("/weight") ? parseNum(text.slice(7)) : NaN;
       if (kg >= 30 && kg <= 300) return logWeight(env, u, chatId, kg);
       u.state = { type: "weight" };
       await saveUser(env, u);
-      return send(env, chatId, `Сколько ты сейчас весишь? Напиши в кг, например <b>${u.weight || 70}</b>`);
+      return send(env, chatId, L(u, `Сколько ты сейчас весишь? Напиши в кг, например <b>${u.weight || 70}</b>`, `How much do you weigh now? Send it in kg, for example <b>${u.weight || 70}</b>`));
     }
   }
-  if (text.startsWith("/")) return send(env, chatId, "Не знаю такой команды 🤔\n\n" + HELP, { reply_markup: MAIN_KEYBOARD });
+  if (text.startsWith("/")) return send(env, chatId, L(u, "Не знаю такой команды 🤔\n\n", "I don't know that command 🤔\n\n") + helpText(u), { reply_markup: mainKb(u) });
   if (text) return onText(env, u, chatId, text);
-  return send(env, chatId, "Пришли фото еды 📸 или напиши, что съел ✍️");
+  return send(env, chatId, L(u, "Пришли фото еды 📸 или напиши, что съел ✍️", "Send a photo of your food 📸 or type what you ate ✍️"));
+}
+
+// Выбор языка бота и приложения: один на аккаунт
+function sendLang(env, u, chatId) {
+  return send(env, chatId, "🌐 <b>Language / Язык</b>\n\n" + L(u, "Выбери язык бота и приложения", "Choose the language of the bot and the app"), {
+    reply_markup: { inline_keyboard: [[{ text: "🇬🇧 English", callback_data: "lang|en" }, { text: "🇷🇺 Русский", callback_data: "lang|ru" }]] },
+  });
 }
 
 // Кнопки меню: с иконкой Telegram присылает текст без эмодзи, поэтому смотрим только на слово
 // «Вес» остаётся для тех, у кого ещё старая клавиатура
-const MENU = { "Сегодня": "/today", "Неделя": "/week", "Вода": "/water", "Таблетки": "/pills", "Вес": "/weight", "Профиль": "/profile", "Помощь": "/help" };
+const MENU = {
+  "Сегодня": "/today", "Неделя": "/week", "Вода": "/water", "Таблетки": "/pills", "Вес": "/weight", "Профиль": "/profile", "Помощь": "/help",
+  "Today": "/today", "Week": "/week", "Water": "/water", "Pills": "/pills", "Weight": "/weight", "Profile": "/profile", "Help": "/help",
+};
 const menuLabel = (t) => String(t).replace(/^[^A-Za-zА-Яа-яЁё]+/, "").trim();
 const isMenu = (t) => !!MENU[menuLabel(t)];
 
@@ -1000,13 +1098,22 @@ async function startOnboarding(env, u, chatId) {
   await saveUser(env, u);
   await send(
     env, chatId,
-    `Привет${u.name ? ", " + esc(u.name) : ""}! 👋 Я 🍏 <b>FITTER</b> — твой счётчик калорий 🥦\n\n` +
-      `Отправляешь фото еды — я определяю продукты, считаю калории, белки, жиры и углеводы и веду твой дневник питания.\n\n` +
-      `Сначала короткая анкета, чтобы посчитать твою дневную норму. Это 6 вопросов ⏱`,
+    L(u,
+      `Привет${u.name ? ", " + esc(u.name) : ""}! 👋 Я 🍏 <b>FITTER</b> — твой счётчик калорий 🥦\n\n` +
+        `Отправляешь фото еды — я определяю продукты, считаю калории, белки, жиры и углеводы и веду твой дневник питания.\n\n` +
+        `Сначала короткая анкета, чтобы посчитать твою дневную норму. Это 6 вопросов ⏱`,
+      `Hi${u.name ? ", " + esc(u.name) : ""}! 👋 I'm 🍏 <b>FITTER</b> — your calorie counter 🥦\n\n` +
+        `Send a photo of your food and I'll recognize the dishes, count calories, protein, fat and carbs, and keep your food diary.\n\n` +
+        `First, a short questionnaire to work out your daily goal. It's 6 questions ⏱`),
     { reply_markup: { remove_keyboard: true } }
   );
-  return send(env, chatId, "<b>1/6.</b> Твой пол?", {
-    reply_markup: { inline_keyboard: [[{ text: "👨 Мужской", callback_data: "sex|m" }, { text: "👩 Женский", callback_data: "sex|f" }]] },
+  return send(env, chatId, L(u, "<b>1/6.</b> Твой пол?", "<b>1/6.</b> Your sex?"), {
+    reply_markup: {
+      inline_keyboard: [
+        [{ text: L(u, "👨 Мужской", "👨 Male"), callback_data: "sex|m" }, { text: L(u, "👩 Женский", "👩 Female"), callback_data: "sex|f" }],
+        [{ text: u.lang === "en" ? "🌐 Русский" : "🌐 English", callback_data: u.lang === "en" ? "lang|ru" : "lang|en" }],
+      ],
+    },
   });
 }
 
@@ -1014,49 +1121,47 @@ async function onboardingText(env, u, chatId, text) {
   const n = parseNum(text);
   const step = u.state.step;
   if (step === "age") {
-    if (!(n >= 10 && n <= 100)) return send(env, chatId, "Напиши возраст числом, например <b>16</b>");
+    if (!(n >= 10 && n <= 100)) return send(env, chatId, L(u, "Напиши возраст числом, например <b>16</b>", "Send your age as a number, for example <b>16</b>"));
     u.age = round(n);
     u.state = { step: "height" };
     await saveUser(env, u);
-    return send(env, chatId, "<b>3/6.</b> Твой рост в сантиметрах? Например <b>175</b>");
+    return send(env, chatId, L(u, "<b>3/6.</b> Твой рост в сантиметрах? Например <b>175</b>", "<b>3/6.</b> Your height in centimeters? For example <b>175</b>"));
   }
   if (step === "height") {
-    if (!(n >= 100 && n <= 250)) return send(env, chatId, "Напиши рост в сантиметрах, например <b>175</b>");
+    if (!(n >= 100 && n <= 250)) return send(env, chatId, L(u, "Напиши рост в сантиметрах, например <b>175</b>", "Send your height in centimeters, for example <b>175</b>"));
     u.height = round(n);
     u.state = { step: "weight" };
     await saveUser(env, u);
-    return send(env, chatId, "<b>4/6.</b> Твой вес в килограммах? Например <b>68.5</b>");
+    return send(env, chatId, L(u, "<b>4/6.</b> Твой вес в килограммах? Например <b>68.5</b>", "<b>4/6.</b> Your weight in kilograms? For example <b>68.5</b>"));
   }
   if (step === "weight") {
-    if (!(n >= 30 && n <= 300)) return send(env, chatId, "Напиши вес в килограммах, например <b>68.5</b>");
+    if (!(n >= 30 && n <= 300)) return send(env, chatId, L(u, "Напиши вес в килограммах, например <b>68.5</b>", "Send your weight in kilograms, for example <b>68.5</b>"));
     u.weight = r1(n);
     u.state = { step: "activity" };
     await saveUser(env, u);
-    return askActivity(env, chatId);
+    return askActivity(env, u, chatId);
   }
-  if (step === "sex") return send(env, chatId, "Нажми кнопку выше: 👨 Мужской или 👩 Женский");
-  if (step === "activity") return askActivity(env, chatId);
-  if (step === "goal") return askGoal(env, chatId);
+  if (step === "sex") return send(env, chatId, L(u, "Нажми кнопку выше: 👨 Мужской или 👩 Женский", "Tap a button above: 👨 Male or 👩 Female"));
+  if (step === "activity") return askActivity(env, u, chatId);
+  if (step === "goal") return askGoal(env, u, chatId);
 }
 
-function askActivity(env, chatId) {
-  return send(env, chatId, "<b>5/6.</b> Насколько ты активен?", {
-    reply_markup: { inline_keyboard: Object.entries(ACTIVITY).map(([k, v]) => [{ text: v, callback_data: `act|${k}` }]) },
+function askActivity(env, u, chatId) {
+  return send(env, chatId, L(u, "<b>5/6.</b> Насколько ты активен?", "<b>5/6.</b> How active are you?"), {
+    reply_markup: { inline_keyboard: Object.keys(ACTIVITY).map((k) => [{ text: activityText(u, k), callback_data: `act|${k}` }]) },
   });
 }
-function askGoal(env, chatId) {
-  return send(env, chatId, "<b>6/6.</b> Какая у тебя цель?", {
-    reply_markup: { inline_keyboard: Object.entries(GOALS).map(([k, v]) => [{ text: v, callback_data: `goal|${k}` }]) },
+function askGoal(env, u, chatId) {
+  return send(env, chatId, L(u, "<b>6/6.</b> Какая у тебя цель?", "<b>6/6.</b> What is your goal?"), {
+    reply_markup: { inline_keyboard: Object.keys(GOALS).map((k) => [{ text: goalText(u, k), callback_data: `goal|${k}` }]) },
   });
 }
 
 function targetsText(u) {
   const t = u.targets;
-  return (
-    `🎯 <b>Твоя дневная норма</b>\n` +
-    `🔥 Калории: <b>${t.kcal} ккал</b>\n` +
-    `🥩 Белки: ${t.p} г\n🧈 Жиры: ${t.f} г\n🍞 Углеводы: ${t.c} г`
-  );
+  return L(u,
+    `🎯 <b>Твоя дневная норма</b>\n🔥 Калории: <b>${t.kcal} ккал</b>\n🥩 Белки: ${t.p} г\n🧈 Жиры: ${t.f} г\n🍞 Углеводы: ${t.c} г`,
+    `🎯 <b>Your daily goal</b>\n🔥 Calories: <b>${t.kcal} kcal</b>\n🥩 Protein: ${t.p} g\n🧈 Fat: ${t.f} g\n🍞 Carbs: ${t.c} g`);
 }
 
 async function finishOnboarding(env, u, chatId) {
@@ -1068,12 +1173,16 @@ async function finishOnboarding(env, u, chatId) {
   if (!weights.length) await env.DB.put(`w:${u.id}`, JSON.stringify([{ date: today(u), kg: u.weight }]));
   await send(
     env, chatId,
-    `${first ? "Готово! ✅" : "Анкета обновлена ✅"}\n\n${targetsText(u)}\n\n` +
-      `Теперь просто <b>отправь фото своей еды</b> 📸 — я всё посчитаю и запишу в дневник.\n` +
-      `Ещё можно написать текстом, например «съел банан и йогурт».`,
-    { reply_markup: MAIN_KEYBOARD }
+    L(u,
+      `${first ? "Готово! ✅" : "Анкета обновлена ✅"}\n\n${targetsText(u)}\n\n` +
+        `Теперь просто <b>отправь фото своей еды</b> 📸 — я всё посчитаю и запишу в дневник.\n` +
+        `Ещё можно написать текстом, например «съел банан и йогурт».`,
+      `${first ? "All set! ✅" : "Profile updated ✅"}\n\n${targetsText(u)}\n\n` +
+        `Now just <b>send a photo of your food</b> 📸 — I'll count everything and log it in your diary.\n` +
+        `You can also type it, for example “ate a banana and yogurt”.`),
+    { reply_markup: mainKb(u) }
   );
-  return send(env, chatId, "Дневник по дням всегда здесь 👇", { reply_markup: { inline_keyboard: [[appButton(env)]] } });
+  return send(env, chatId, L(u, "Дневник по дням всегда здесь 👇", "Your day-by-day diary is always here 👇"), { reply_markup: { inline_keyboard: [[appButton(env, u)]] } });
 }
 
 // ── Кнопки ──
@@ -1084,40 +1193,54 @@ async function onCallback(q, env) {
   const msgId = q.message?.message_id;
   const u = await getUser(env, q.from.id);
   const answer = (text) => tg(env, "answerCallbackQuery", { callback_query_id: q.id, text });
-  if (!u || !chatId) return answer("Напиши /start");
+  if (!u || !chatId) return answer(L({ lang: guessLang(q.from) }, "Напиши /start", "Send /start"));
   const [kind, a, b, c] = data.split("|");
   if (kind === "lnk" && u.targets) return onLinkCallback(env, u, chatId, msgId, a === "y", b || "", answer);
+
+  if (kind === "lang") {
+    if (a === "en" || a === "ru") {
+      u.lang = a;
+      await saveUser(env, u);
+      await answer(L(u, "Язык: Русский", "Language: English"));
+      // Во время анкеты просто начинаем её заново на выбранном языке
+      if (!u.targets) return startOnboarding(env, u, chatId);
+      await edit(env, chatId, msgId, L(u, "🌐 Язык: <b>Русский</b>", "🌐 Language: <b>English</b>"));
+      return send(env, chatId, L(u, "Готово! Меню обновлено 👇", "Done! The menu is updated 👇"), { reply_markup: mainKb(u) });
+    }
+    await answer();
+    return sendLang(env, u, chatId);
+  }
 
   if (kind === "sex" && u.state?.step === "sex") {
     u.sex = a === "f" ? "f" : "m";
     u.state = { step: "age" };
     await saveUser(env, u);
     await answer();
-    await edit(env, chatId, msgId, `<b>1/6.</b> Пол: ${u.sex === "m" ? "👨 Мужской" : "👩 Женский"}`);
-    return send(env, chatId, "<b>2/6.</b> Сколько тебе лет?");
+    await edit(env, chatId, msgId, `<b>1/6.</b> ${L(u, "Пол", "Sex")}: ${u.sex === "m" ? L(u, "👨 Мужской", "👨 Male") : L(u, "👩 Женский", "👩 Female")}`);
+    return send(env, chatId, L(u, "<b>2/6.</b> Сколько тебе лет?", "<b>2/6.</b> How old are you?"));
   }
   if (kind === "act" && u.state?.step === "activity" && ACTIVITY[a]) {
     u.activity = a;
     u.state = { step: "goal" };
     await saveUser(env, u);
     await answer();
-    await edit(env, chatId, msgId, `<b>5/6.</b> Активность: ${ACTIVITY[a]}`);
-    return askGoal(env, chatId);
+    await edit(env, chatId, msgId, `<b>5/6.</b> ${L(u, "Активность", "Activity")}: ${activityText(u, a)}`);
+    return askGoal(env, u, chatId);
   }
   if (kind === "goal" && u.state?.step === "goal" && GOALS[a]) {
     u.goal = a;
     await answer();
-    await edit(env, chatId, msgId, `<b>6/6.</b> Цель: ${GOALS[a]}`);
+    await edit(env, chatId, msgId, `<b>6/6.</b> ${L(u, "Цель", "Goal")}: ${goalText(u, a)}`);
     return finishOnboarding(env, u, chatId);
   }
   if (kind === "delall") {
     await deleteUserData(env, u.id);
-    await answer("Данные удалены");
-    return edit(env, chatId, msgId, "🗑 Все твои данные удалены. Чтобы начать заново, напиши /start");
+    await answer(L(u, "Данные удалены", "Data deleted"));
+    return edit(env, chatId, msgId, L(u, "🗑 Все твои данные удалены. Чтобы начать заново, напиши /start", "🗑 All your data has been deleted. To start over, send /start"));
   }
   if (kind === "delno") {
     await answer();
-    return edit(env, chatId, msgId, "Ничего не удалял 👌");
+    return edit(env, chatId, msgId, L(u, "Ничего не удалял 👌", "Nothing was deleted 👌"));
   }
   if (kind === "reset") {
     await answer();
@@ -1135,35 +1258,42 @@ async function onCallback(q, env) {
     u.state = { type: "weight" };
     await saveUser(env, u);
     await answer();
-    return send(env, chatId, `Сколько ты сейчас весишь? Напиши в кг, например <b>${u.weight || 70}</b>`);
+    return send(env, chatId, L(u, `Сколько ты сейчас весишь? Напиши в кг, например <b>${u.weight || 70}</b>`, `How much do you weigh now? Send it in kg, for example <b>${u.weight || 70}</b>`));
   }
   if (kind === "e" && isDate(a)) {
     const day = await getDay(env, u.id, a);
     const meal = day.meals.find((m) => m.id === b);
     const it = meal?.items[Number(c)];
-    if (!it) return answer("Эта запись уже удалена");
+    if (!it) return answer(L(u, "Эта запись уже удалена", "This entry has already been deleted"));
     u.state = { type: "edit", date: a, mealId: b, idx: Number(c), msgId };
     await saveUser(env, u);
     await answer();
     return send(
       env, chatId,
-      `✏️ Сейчас: «${esc(it.name)}» — <b>${it.grams} г</b>\n\n` +
-        `Напиши, что исправить:\n` +
-        `• только вес: <b>150</b>\n` +
-        `• только название: <b>форель</b>\n` +
-        `• всё вместе: <b>форель 200 г</b>\n\n` +
-        `Если поменяешь название, я заново посчитаю калории для нового продукта.`,
-      { reply_markup: { force_reply: true, input_field_placeholder: "Например: форель 200 г" } }
+      L(u,
+        `✏️ Сейчас: «${esc(it.name)}» — <b>${it.grams} г</b>\n\n` +
+          `Напиши, что исправить:\n` +
+          `• только вес: <b>150</b>\n` +
+          `• только название: <b>форель</b>\n` +
+          `• всё вместе: <b>форель 200 г</b>\n\n` +
+          `Если поменяешь название, я заново посчитаю калории для нового продукта.`,
+        `✏️ Currently: “${esc(it.name)}” — <b>${it.grams} g</b>\n\n` +
+          `Send what to fix:\n` +
+          `• weight only: <b>150</b>\n` +
+          `• name only: <b>trout</b>\n` +
+          `• both: <b>trout 200 g</b>\n\n` +
+          `If you change the name, I'll recalculate the calories for the new product.`),
+      { reply_markup: { force_reply: true, input_field_placeholder: L(u, "Например: форель 200 г", "For example: trout 200 g") } }
     );
   }
   if (kind === "w" && isDate(a)) {
     const delta = Number(b);
     if (![250, 500, -250].includes(delta)) return answer();
     const { day, reached, fresh } = await addWater(env, u, a, delta);
-    await answer(delta > 0 ? `💧 +${delta} мл` : "Убрал 250 мл");
-    await edit(env, chatId, msgId, waterText(u, day, a, delta), { reply_markup: waterKeyboard(a) });
-    if (reached && !fresh.length) await send(env, chatId, "🎉 Норма воды на сегодня выполнена! Так держать 💧", { message_effect_id: EFFECT_PARTY });
-    return announce(env, chatId, fresh);
+    await answer(delta > 0 ? `💧 +${delta} ${L(u, "мл", "ml")}` : L(u, "Убрал 250 мл", "Removed 250 ml"));
+    await edit(env, chatId, msgId, waterText(u, day, a, delta), { reply_markup: waterKeyboard(u, a) });
+    if (reached && !fresh.length) await send(env, chatId, L(u, "🎉 Норма воды на сегодня выполнена! Так держать 💧", "🎉 Water goal for today reached! Keep it up 💧"), { message_effect_id: EFFECT_PARTY });
+    return announce(env, chatId, fresh, u);
   }
   if (kind === "wr") {
     if (a === "menu") {
@@ -1182,15 +1312,15 @@ async function onCallback(q, env) {
     return onPillButton(env, u, chatId, msgId, act, date, id, t, answer);
   }
   if (kind === "advice") {
-    await answer("Подбираю варианты…");
+    await answer(L(u, "Подбираю варианты…", "Picking options…"));
     return sendAdvice(env, u, chatId);
   }
   if (kind === "adv") {
     const saved = await env.DB.get(`adv:${u.id}`, "json");
     const o = saved?.date === today(u) ? saved.options[Number(a)] : null;
-    if (!o) return answer("Варианты устарели, нажми «Что съесть» ещё раз");
+    if (!o) return answer(L(u, "Варианты устарели, нажми «Что съесть» ещё раз", "These options are out of date, tap “What to eat” again"));
     await env.DB.delete(`adv:${u.id}`);
-    await answer("Записываю ✅");
+    await answer(L(u, "Записываю ✅", "Logging ✅"));
     await tg(env, "editMessageReplyMarkup", { chat_id: chatId, message_id: msgId, reply_markup: { inline_keyboard: [] } });
     return saveMealAndReply(env, u, chatId, null, o.title, o.items, "advice", null);
   }
@@ -1205,20 +1335,20 @@ async function onCallback(q, env) {
   if (kind === "an_off" || kind === "an_on") {
     u.weekly = kind === "an_on";
     await saveUser(env, u);
-    await answer(u.weekly ? "Буду присылать разбор по воскресеньям" : "Больше не буду присылать разбор по воскресеньям");
+    await answer(u.weekly ? L(u, "Буду присылать разбор по воскресеньям", "I'll send the review on Sundays") : L(u, "Больше не буду присылать разбор по воскресеньям", "I won't send the Sunday review anymore"));
     return tg(env, "editMessageReplyMarkup", {
       chat_id: chatId, message_id: msgId,
-      reply_markup: { inline_keyboard: [[u.weekly ? { text: "🔕 Не присылать по воскресеньям", callback_data: "an_off" } : { text: "🔔 Снова присылать по воскресеньям", callback_data: "an_on" }]] },
+      reply_markup: { inline_keyboard: [[u.weekly ? { text: L(u, "🔕 Не присылать по воскресеньям", "🔕 Stop Sunday reviews"), callback_data: "an_off" } : { text: L(u, "🔔 Снова присылать по воскресеньям", "🔔 Resume Sunday reviews"), callback_data: "an_on" }]] },
     });
   }
   if (kind === "x" && isDate(a)) {
     const day = await getDay(env, u.id, a);
     const before = day.meals.length;
     day.meals = day.meals.filter((m) => m.id !== b);
-    if (day.meals.length === before) return answer("Уже удалено");
+    if (day.meals.length === before) return answer(L(u, "Уже удалено", "Already deleted"));
     await saveDay(env, u.id, a, day);
-    await answer("Удалено");
-    return edit(env, chatId, msgId, `🗑 Приём пищи удалён\n\n${remainingText(u, day, a)}`);
+    await answer(L(u, "Удалено", "Deleted"));
+    return edit(env, chatId, msgId, `${L(u, "🗑 Приём пищи удалён", "🗑 Meal deleted")}\n\n${remainingText(u, day, a)}`);
   }
   return answer();
 }
@@ -1238,11 +1368,11 @@ function pickPhoto(msg) {
 
 async function onPhoto(env, u, chatId, msg) {
   if (!checkAiLimit(env, u)) {
-    return send(env, chatId, "На сегодня лимит запросов к нейросети закончился 😔 Завтра снова можно! А пока можешь поправить записи в дневнике.");
+    return send(env, chatId, L(u, "На сегодня лимит запросов к нейросети закончился 😔 Завтра снова можно! А пока можешь поправить записи в дневнике.", "You've used up today's AI requests 😔 Try again tomorrow! Meanwhile you can edit your diary entries."));
   }
   await saveUser(env, u);
   tg(env, "sendChatAction", { chat_id: chatId, action: "typing" });
-  const wait = await send(env, chatId, "🔍 Смотрю на фото и считаю калории…");
+  const wait = await send(env, chatId, L(u, "🔍 Смотрю на фото и считаю калории…", "🔍 Looking at the photo and counting calories…"));
   const waitId = wait.result?.message_id;
   try {
     const f = await tg(env, "getFile", { file_id: pickPhoto(msg) });
@@ -1252,21 +1382,23 @@ async function onPhoto(env, u, chatId, msg) {
     if (!img.ok) throw new Error("download failed " + img.status);
     const b64 = toBase64(await img.arrayBuffer());
     const mime = /\.png$/i.test(path) ? "image/png" : /\.webp$/i.test(path) ? "image/webp" : "image/jpeg";
-    const r = await analyzePhoto(env, b64, mime, (msg.caption || "").trim().slice(0, 300));
+    const r = await analyzePhoto(env, b64, mime, (msg.caption || "").trim().slice(0, 300), u);
     if (!r) {
-      return edit(env, chatId, waitId, "🤔 Не вижу на фото еды. Попробуй сфотографировать тарелку сверху и поближе.\n\nИли напиши текстом, что ты съел.");
+      return edit(env, chatId, waitId, L(u,
+        "🤔 Не вижу на фото еды. Попробуй сфотографировать тарелку сверху и поближе.\n\nИли напиши текстом, что ты съел.",
+        "🤔 I can't see any food in the photo. Try shooting the plate from above and closer.\n\nOr just type what you ate."));
     }
     return saveMealAndReply(env, u, chatId, waitId, r.title, r.items, r.source, r.comment);
   } catch (e) {
     console.error("photo error:", e && e.stack ? e.stack : e);
-    return edit(env, chatId, waitId, "😔 Не получилось распознать фото. Попробуй ещё раз через минуту или напиши текстом, что ты съел.");
+    return edit(env, chatId, waitId, L(u, "😔 Не получилось распознать фото. Попробуй ещё раз через минуту или напиши текстом, что ты съел.", "😔 Couldn't recognize the photo. Try again in a minute or just type what you ate."));
   }
 }
 
 // Распознать еду на фото — общий шаг для бота и приложения. null — еды на фото нет
-async function analyzePhoto(env, b64, mime, caption) {
+async function analyzePhoto(env, b64, mime, caption, u) {
   const res = await gemini(env, [
-    { text: PHOTO_PROMPT + (caption ? `\n\nПодсказка от пользователя (учти её в первую очередь): ${caption}` : "") },
+    { text: photoPrompt(u) + (caption ? `\n\nHint from the user (take it into account first): ${caption}` : "") },
     { inline_data: { mime_type: mime, data: b64 } },
   ], PHOTO_SCHEMA);
   const items = cleanItems(res.items);
@@ -1278,17 +1410,17 @@ async function analyzePhoto(env, b64, mime, caption) {
     source = "package";
     const code = cleanBarcode(res.barcode);
     if (res.label_found) {
-      comment = "📦 КБЖУ взяты с этикетки. Если съел не всю упаковку — нажми ✏️ и впиши вес";
+      comment = L(u, "📦 КБЖУ взяты с этикетки. Если съел не всю упаковку — нажми ✏️ и впиши вес", "📦 Values taken from the label. If you didn't eat the whole pack, tap ✏️ and enter the weight");
     } else if (code) {
-      const p = await lookupBarcode(env, code);
+      const p = await lookupBarcode(env, code, u);
       if (p) {
         items.splice(0, 1, { ...p, grams: p.grams || items[0]?.grams || 100 });
-        comment = `📦 Нашёл по штрихкоду ${code} в базе Open Food Facts. Если съел не всю упаковку — нажми ✏️ и впиши вес`;
+        comment = L(u, `📦 Нашёл по штрихкоду ${code} в базе Open Food Facts. Если съел не всю упаковку — нажми ✏️ и впиши вес`, `📦 Found by barcode ${code} in the Open Food Facts database. If you didn't eat the whole pack, tap ✏️ and enter the weight`);
         source = "barcode";
       }
     }
     if (source === "package" && !res.label_found) {
-      comment = "📦 Это упаковка, но КБЖУ я оценил примерно. Для точности сфотографируй этикетку с пищевой ценностью или пришли цифры штрихкода";
+      comment = L(u, "📦 Это упаковка, но КБЖУ я оценил примерно. Для точности сфотографируй этикетку с пищевой ценностью или пришли цифры штрихкода", "📦 This is a package, but I only estimated the values. For accuracy, photograph the nutrition label or send the barcode digits");
     }
   }
   return { title: res.title, items, source, comment };
@@ -1308,8 +1440,9 @@ function cleanBarcode(s) {
 }
 
 // Бесплатная открытая база продуктов Open Food Facts, ответы кэшируем в KV
-async function lookupBarcode(env, code) {
-  const key = `bc:${code}`;
+async function lookupBarcode(env, code, u) {
+  // Название продукта зависит от языка, поэтому английский кэш лежит отдельно
+  const key = langOf(u) === "en" ? `bc:${code}:en` : `bc:${code}`;
   const cached = await env.DB.get(key, "json").catch(() => null);
   if (cached) return cached.miss ? null : cached;
   let product = null;
@@ -1317,7 +1450,7 @@ async function lookupBarcode(env, code) {
     const ctrl = new AbortController();
     const timer = setTimeout(() => ctrl.abort(), 5000);
     const r = await fetch(
-      `https://world.openfoodfacts.org/api/v2/product/${code}.json?fields=product_name,product_name_ru,generic_name,brands,product_quantity,nutriments`,
+      `https://world.openfoodfacts.org/api/v2/product/${code}.json?fields=product_name,product_name_ru,product_name_en,generic_name,brands,product_quantity,nutriments`,
       { headers: { "user-agent": "FITTER-bot/1.3 (github.com/sailxx/FITTER-AI)" }, signal: ctrl.signal }
     );
     clearTimeout(timer);
@@ -1328,7 +1461,7 @@ async function lookupBarcode(env, code) {
       const num = (x) => (Number.isFinite(Number(x)) ? Number(x) : null);
       let kcal = num(n["energy-kcal_100g"]);
       if (kcal === null && num(n.energy_100g) !== null) kcal = num(n.energy_100g) / 4.184;
-      const name = String(p?.product_name_ru || p?.product_name || p?.generic_name || "").trim();
+      const name = String(langOf(u) === "en" ? p?.product_name_en || p?.product_name || p?.generic_name || p?.product_name_ru || "" : p?.product_name_ru || p?.product_name || p?.generic_name || "").trim();
       if (p && kcal !== null && name) {
         const brand = String(p.brands || "").split(",")[0].trim();
         const [item] = cleanItems([{
@@ -1354,29 +1487,36 @@ async function lookupBarcode(env, code) {
 
 async function onBarcodeText(env, u, chatId, code) {
   tg(env, "sendChatAction", { chat_id: chatId, action: "typing" });
-  const p = await lookupBarcode(env, code);
+  const p = await lookupBarcode(env, code, u);
   if (!p) {
-    return send(env, chatId, `📦 Не нашёл штрихкод ${code} в базе продуктов 😔\n\nСфотографируй этикетку с пищевой ценностью, и я перепишу КБЖУ с неё 📸`);
+    return send(env, chatId, L(u,
+      `📦 Не нашёл штрихкод ${code} в базе продуктов 😔\n\nСфотографируй этикетку с пищевой ценностью, и я перепишу КБЖУ с неё 📸`,
+      `📦 I couldn't find barcode ${code} in the product database 😔\n\nTake a photo of the nutrition label and I'll copy the values from it 📸`));
   }
   return saveMealAndReply(env, u, chatId, null, p.name, [p], "barcode",
-    "📦 Нашёл по штрихкоду в базе Open Food Facts. Если съел не всю упаковку — нажми ✏️ и впиши вес");
+    L(u, "📦 Нашёл по штрихкоду в базе Open Food Facts. Если съел не всю упаковку — нажми ✏️ и впиши вес",
+      "📦 Found by barcode in the Open Food Facts database. If you didn't eat the whole pack, tap ✏️ and enter the weight"));
 }
 
 // ── Вода ──
 
 const waterGoal = (u) => Math.max(1500, Math.round(((u.weight || 70) * 30) / 50) * 50); // 30 мл на 1 кг веса
-const liters = (ml) => String(Math.round(ml / 10) / 100).replace(".", ",") + " л";
+const liters = (ml, u) => {
+  const n = String(Math.round(ml / 10) / 100);
+  return langOf(u) === "en" ? n + " L" : n.replace(".", ",") + " л";
+};
 
-// «вода 300», «+300», «300 мл воды», «выпил 0.5 л воды», «2 стакана воды»
+// «вода 300», «+300», «300 мл воды», «выпил 0.5 л воды», «2 стакана воды»; по-английски: «water 300», «drank 0.5 l of water», «2 glasses of water»
 function parseWater(text) {
   const t = String(text).toLowerCase().replace(",", ".").replace(/ё/g, "е").trim();
+  const drank = "(?:(?:выпил[а]?|drank|had)\\s+)?";
   let m;
   let ml = null;
   if ((m = t.match(/^\+\s*(\d{2,4})\s*(мл|ml)?$/))) ml = Number(m[1]);
-  else if ((m = t.match(/^(?:вода|воды|💧)\s*\+?\s*(\d{2,4})\s*(?:мл|ml)?$/))) ml = Number(m[1]);
-  else if ((m = t.match(/^(?:выпил[а]?\s+)?(\d{2,4})\s*(?:мл|ml)\s+воды$/))) ml = Number(m[1]);
-  else if ((m = t.match(/^(?:выпил[а]?\s+)?(\d(?:\.\d+)?)\s*(?:л|литр[а-я]*)\s+воды$/))) ml = Number(m[1]) * 1000;
-  else if ((m = t.match(/^(?:выпил[а]?\s+)?(\d{1,2})?\s*стакан(?:а|ов)?\s+воды$/))) ml = Number(m[1] || 1) * 250;
+  else if ((m = t.match(/^(?:вода|воды|water|💧)\s*\+?\s*(\d{2,4})\s*(?:мл|ml)?$/))) ml = Number(m[1]);
+  else if ((m = t.match(new RegExp("^" + drank + "(\\d{2,4})\\s*(?:мл|ml)\\s+(?:воды|of water|water)$")))) ml = Number(m[1]);
+  else if ((m = t.match(new RegExp("^" + drank + "(\\d(?:\\.\\d+)?)\\s*(?:л|литр[а-я]*|l|liters?|litres?)\\s+(?:воды|of water|water)$")))) ml = Number(m[1]) * 1000;
+  else if ((m = t.match(new RegExp("^" + drank + "(\\d{1,2}|a|one)?\\s*(?:стакан(?:а|ов)?\\s+воды|glass(?:es)?\\s+of\\s+water)$")))) ml = (/^\d/.test(m[1] || "") ? Number(m[1]) : 1) * 250;
   if (ml === null) return null;
   return ml >= 30 && ml <= 3000 ? Math.round(ml) : null;
 }
@@ -1386,19 +1526,20 @@ function waterText(u, day, date, added) {
   const goal = waterGoal(u);
   const left = goal - ml;
   return (
-    `💧 <b>Вода ${date === today(u) ? "за сегодня" : "за " + humanDate(date)}</b>` +
-    (added ? ` · ${added > 0 ? "+" : "−"}${Math.abs(added)} мл записал` : "") + `\n\n\n` +
-    `<b>${liters(ml)}</b> / ${liters(goal)}\n${squares(Math.min(ml, goal), goal, "🟦")}\n` +
-    (left > 0 ? `<i>Осталось ${left} мл · ${pctOf(ml, goal)}%</i>` : "<i>Норма воды выполнена</i> 🎉") +
-    `\n\n\n<i>Норма — 30 мл на кг веса. Можно написать «вода 300» или «+500»</i>`
+    `💧 <b>${L(u, "Вода " + (date === today(u) ? "за сегодня" : "за " + humanDate(date, u)), "Water " + (date === today(u) ? "today" : "on " + humanDate(date, u)))}</b>` +
+    (added ? L(u, ` · ${added > 0 ? "+" : "−"}${Math.abs(added)} мл записал`, ` · ${added > 0 ? "+" : "−"}${Math.abs(added)} ml logged`) : "") + `\n\n\n` +
+    `<b>${liters(ml, u)}</b> / ${liters(goal, u)}\n${squares(Math.min(ml, goal), goal, "🟦")}\n` +
+    (left > 0 ? `<i>${L(u, `Осталось ${left} мл`, `${left} ml left`)} · ${pctOf(ml, goal)}%</i>` : `<i>${L(u, "Норма воды выполнена", "Water goal reached")}</i> 🎉`) +
+    `\n\n\n<i>${L(u, "Норма — 30 мл на кг веса. Можно написать «вода 300» или «+500»", "Goal: 30 ml per kg of body weight. You can type “water 300” or “+500”")}</i>`
   );
 }
 
-function waterKeyboard(date) {
+function waterKeyboard(u, date) {
+  const ml = L(u, "мл", "ml");
   return {
     inline_keyboard: [
-      [{ text: "💧 +250 мл", callback_data: `w|${date}|250` }, { text: "💧 +500 мл", callback_data: `w|${date}|500` }],
-      [{ text: "↩️ −250 мл", callback_data: `w|${date}|-250` }, { text: "⏰ Напоминания", callback_data: "wr|menu" }],
+      [{ text: `💧 +250 ${ml}`, callback_data: `w|${date}|250` }, { text: `💧 +500 ${ml}`, callback_data: `w|${date}|500` }],
+      [{ text: `↩️ −250 ${ml}`, callback_data: `w|${date}|-250` }, { text: L(u, "⏰ Напоминания", "⏰ Reminders"), callback_data: "wr|menu" }],
     ],
   };
 }
@@ -1422,10 +1563,10 @@ async function addWater(env, u, date, delta) {
 async function sendWater(env, u, chatId, delta = 0) {
   const date = today(u);
   const { day, reached, fresh } = delta ? await addWater(env, u, date, delta) : { day: await getDay(env, u.id, date), reached: false, fresh: [] };
-  const extra = { reply_markup: waterKeyboard(date) };
+  const extra = { reply_markup: waterKeyboard(u, date) };
   if (reached) extra.message_effect_id = EFFECT_PARTY;
   const r = await send(env, chatId, waterText(u, day, date, delta), extra);
-  await announce(env, chatId, fresh);
+  await announce(env, chatId, fresh, u);
   return r;
 }
 
@@ -1442,25 +1583,25 @@ async function saveMealAndReply(env, u, chatId, waitId, title, items, source, co
   day.meals.push(meal);
   await saveDay(env, u.id, date, day);
   const text = mealCard(u, meal, day, date, comment);
-  const extra = { reply_markup: mealKeyboard(env, date, meal) };
+  const extra = { reply_markup: mealKeyboard(env, u, date, meal) };
   const r = waitId ? await edit(env, chatId, waitId, text, extra) : await send(env, chatId, text, extra);
   const fresh = await progress(env, u, "meal", date, {
     pack: source === "package" || source === "barcode",
     inNorm: inNorm(dayTotals(day).kcal, u.targets.kcal),
   });
-  await announce(env, chatId, fresh);
+  await announce(env, chatId, fresh, u);
   return r;
 }
 
 // Разбираем исправление: «150», «150 г», «форель», «форель 200 г», «200г форели»
 function parseFix(text) {
   const t = text.trim().replace(/\s+/g, " ");
-  if (/^\d+([.,]\d+)?\s*(г|гр|грамм[а-я]*|g)?\.?$/i.test(t)) {
+  if (/^\d+([.,]\d+)?\s*(г|гр|грамм[а-я]*|g|gr|grams?)?\.?$/i.test(t)) {
     const g = parseNum(t);
     return g > 0 && g <= 3000 ? { grams: g } : null;
   }
   let grams = null;
-  const m = t.match(/(\d+([.,]\d+)?)\s*(г|гр|грамм[а-я]*|g)\.?(?=\s|$)/i);
+  const m = t.match(/(\d+([.,]\d+)?)\s*(г|гр|грамм[а-я]*|g|gr|grams?)\.?(?=\s|$)/i);
   let name = t;
   if (m) {
     grams = parseNum(m[1]);
@@ -1475,28 +1616,28 @@ function parseFix(text) {
 const FIX_SCHEMA = {
   type: "OBJECT",
   properties: {
-    name: { type: "STRING", description: "Название продукта по-русски, коротко, с большой буквы" },
+    name: { type: "STRING", description: "Product name, short, capitalized, in the requested language" },
     kcal_100: { type: "NUMBER" },
     protein_100: { type: "NUMBER" },
     fat_100: { type: "NUMBER" },
     carbs_100: { type: "NUMBER" },
-    meal_title: { type: "STRING", description: "Новое короткое название всего приёма пищи" },
+    meal_title: { type: "STRING", description: "New short name of the whole meal" },
   },
   required: ["name", "kcal_100", "protein_100", "fat_100", "carbs_100", "meal_title"],
 };
 
 // Нейросеть пересчитывает КБЖУ продукта под новое название
-async function recalcItem(env, meal, idx, name, grams) {
+async function recalcItem(env, meal, idx, name, grams, u) {
   const it = meal.items[idx];
   const others = meal.items.filter((_, i) => i !== idx).map((x) => x.name).join(", ");
   const res = await gemini(env, [{
     text:
-      `Ты нутрициолог. Пользователь исправил продукт в приёме пищи.\n` +
-      `Было: «${it.name}». Стало: «${name}».\n` +
-      `Остальные продукты в тарелке: ${others || "нет"}.\n` +
-      `Дай типичные калории, белки, жиры и углеводы НА 100 ГРАММ для «${name}» в том виде, как его обычно едят ` +
-      `(если в старом названии было указано приготовление, соус или гарнир — учти это).\n` +
-      `В name верни аккуратное название продукта. В meal_title — новое короткое название всего приёма пищи.`,
+      `You are a nutritionist. The user corrected a product in a meal. Write all text in ${aiLang(u)}.\n` +
+      `Was: “${it.name}”. Now: “${name}”.\n` +
+      `Other products on the plate: ${others || "none"}.\n` +
+      `Give typical calories, protein, fat and carbs PER 100 GRAMS for “${name}” the way it is usually eaten ` +
+      `(if the old name mentioned cooking method, sauce or side dish, take that into account).\n` +
+      `In name return a tidy product name. In meal_title return the new short name of the whole meal.`,
   }], FIX_SCHEMA);
   const clean = cleanItems([{ ...res, grams: grams || it.grams }])[0];
   if (!clean) throw new Error("пустой ответ");
@@ -1511,7 +1652,7 @@ async function applyEdit(env, u, chatId, fix) {
   const meal = day.meals.find((m) => m.id === mealId);
   if (!meal || !meal.items[idx]) {
     await saveUser(env, u);
-    return send(env, chatId, "Эта запись уже удалена 🤷");
+    return send(env, chatId, L(u, "Эта запись уже удалена 🤷", "This entry has already been deleted 🤷"));
   }
   const it = meal.items[idx];
   const before = { name: it.name, grams: it.grams, kcal: round(itemTotals(it).kcal) };
@@ -1520,16 +1661,16 @@ async function applyEdit(env, u, chatId, fix) {
   if (fix.name) {
     if (!checkAiLimit(env, u)) {
       await saveUser(env, u);
-      return send(env, chatId, "На сегодня лимит запросов к нейросети закончился 😔 Вес можно поправить, а название — завтра.");
+      return send(env, chatId, L(u, "На сегодня лимит запросов к нейросети закончился 😔 Вес можно поправить, а название — завтра.", "You've used up today's AI requests 😔 You can still fix the weight; the name can wait until tomorrow."));
     }
     await saveUser(env, u);
-    const wait = await send(env, chatId, "🔄 Пересчитываю для нового продукта…");
+    const wait = await send(env, chatId, L(u, "🔄 Пересчитываю для нового продукта…", "🔄 Recalculating for the new product…"));
     waitId = wait.result?.message_id;
     try {
-      await recalcItem(env, meal, idx, fix.name, fix.grams);
+      await recalcItem(env, meal, idx, fix.name, fix.grams, u);
     } catch (e) {
       console.error("fix error:", e && e.stack ? e.stack : e);
-      return edit(env, chatId, waitId, "😔 Не получилось пересчитать. Попробуй ещё раз: нажми ✏️ у продукта.");
+      return edit(env, chatId, waitId, L(u, "😔 Не получилось пересчитать. Попробуй ещё раз: нажми ✏️ у продукта.", "😔 Couldn't recalculate. Try again: tap ✏️ next to the product."));
     }
   } else {
     await saveUser(env, u);
@@ -1538,16 +1679,17 @@ async function applyEdit(env, u, chatId, fix) {
 
   await saveDay(env, u.id, date, day);
   const text = mealCard(u, meal, day, date);
-  const extra = { reply_markup: mealKeyboard(env, date, meal) };
+  const extra = { reply_markup: mealKeyboard(env, u, date, meal) };
   if (msgId) await edit(env, chatId, msgId, text, extra);
   const after = round(itemTotals(it).kcal);
+  const gU = L(u, "г", "g");
   const what =
     before.name !== it.name
-      ? `«${esc(before.name)}» ${before.grams} г → <b>«${esc(it.name)}» ${it.grams} г</b>`
-      : `«${esc(it.name)}»: ${before.grams} г → <b>${it.grams} г</b>`;
-  const summary = `✅ ${what}\n${before.kcal} → <b>${after} ккал</b>. Пересчитал!\n\n${remainingText(u, day, date)}`;
+      ? `«${esc(before.name)}» ${before.grams} ${gU} → <b>«${esc(it.name)}» ${it.grams} ${gU}</b>`
+      : `«${esc(it.name)}»: ${before.grams} ${gU} → <b>${it.grams} ${gU}</b>`;
+  const summary = `✅ ${what}\n${before.kcal} → <b>${after} ${L(u, "ккал", "kcal")}</b>. ${L(u, "Пересчитал!", "Recalculated!")}\n\n${remainingText(u, day, date)}`;
   if (waitId) return edit(env, chatId, waitId, summary);
-  return send(env, chatId, summary, { reply_markup: MAIN_KEYBOARD });
+  return send(env, chatId, summary, { reply_markup: mainKb(u) });
 }
 
 // ── Текст: записать еду или ответить на вопрос ──
@@ -1556,15 +1698,15 @@ async function applyEdit(env, u, chatId, fix) {
 async function askText(env, u, text, date) {
   const t = dayTotals(await getDay(env, u.id, date));
   const ctx =
-    `Данные пользователя: пол ${u.sex === "m" ? "мужской" : "женский"}, ${u.age} лет, рост ${u.height} см, вес ${u.weight} кг, ` +
-    `цель: ${GOALS[u.goal]}. Норма: ${u.targets.kcal} ккал, Б ${u.targets.p} г, Ж ${u.targets.f} г, У ${u.targets.c} г. ` +
-    `Уже съедено ${date === today(u) ? "сегодня" : "за " + humanDate(date)}: ${round(t.kcal)} ккал, Б ${round(t.p)}, Ж ${round(t.f)}, У ${round(t.c)}.`;
-  return gemini(env, [{ text: `${TEXT_PROMPT}\n\n${ctx}\n\nСообщение пользователя: ${String(text).slice(0, 1500)}` }], TEXT_SCHEMA, 0.4);
+    `User data: ${u.sex === "m" ? "male" : "female"}, ${u.age} years old, height ${u.height} cm, weight ${u.weight} kg, ` +
+    `goal: ${GOALS[u.goal][1]}. Daily target: ${u.targets.kcal} kcal, protein ${u.targets.p} g, fat ${u.targets.f} g, carbs ${u.targets.c} g. ` +
+    `Already eaten ${date === today(u) ? "today" : "on " + date}: ${round(t.kcal)} kcal, protein ${round(t.p)}, fat ${round(t.f)}, carbs ${round(t.c)}.`;
+  return gemini(env, [{ text: `${textPrompt(u)}\n\n${ctx}\n\nUser message: ${String(text).slice(0, 1500)}` }], TEXT_SCHEMA, 0.4);
 }
 
 async function onText(env, u, chatId, text) {
   if (!checkAiLimit(env, u)) {
-    return send(env, chatId, "На сегодня лимит запросов к нейросети закончился 😔 Завтра снова можно!");
+    return send(env, chatId, L(u, "На сегодня лимит запросов к нейросети закончился 😔 Завтра снова можно!", "You've used up today's AI requests 😔 Try again tomorrow!"));
   }
   await saveUser(env, u);
   tg(env, "sendChatAction", { chat_id: chatId, action: "typing" });
@@ -1574,10 +1716,10 @@ async function onText(env, u, chatId, text) {
     if (res.intent === "food_log" && items.length) {
       return saveMealAndReply(env, u, chatId, null, res.title, items, "text", null);
     }
-    return send(env, chatId, esc(res.answer || "Пришли фото еды 📸 — я посчитаю калории."), { reply_markup: MAIN_KEYBOARD });
+    return send(env, chatId, esc(res.answer || L(u, "Пришли фото еды 📸 — я посчитаю калории.", "Send a photo of your food 📸 and I'll count the calories.")), { reply_markup: mainKb(u) });
   } catch (e) {
     console.error("text error:", e && e.stack ? e.stack : e);
-    return send(env, chatId, "😔 Нейросеть сейчас не отвечает. Попробуй ещё раз через минуту.");
+    return send(env, chatId, L(u, "😔 Нейросеть сейчас не отвечает. Попробуй ещё раз через минуту.", "😔 The AI isn't responding right now. Please try again in a minute."));
   }
 }
 
@@ -1600,35 +1742,38 @@ async function sendDay(env, u, chatId, date) {
   const left = g.kcal - t.kcal;
   const water = day.water || 0;
   const wGoal = waterGoal(u);
+  const kcalU = L(u, "ккал", "kcal"), gU = L(u, "г", "g");
 
   let text =
-    `📊 <b>${isToday ? "Сегодня" : WEEKDAYS[new Date(date + "T00:00:00Z").getUTCDay()]}</b> · ${humanDate(date)}\n\n\n` +
-    `🔥 <b>${round(t.kcal)}</b> / ${g.kcal} ккал\n` +
+    `📊 <b>${isToday ? L(u, "Сегодня", "Today") : wdOf(date, u)}</b> · ${humanDate(date, u)}\n\n\n` +
+    `🔥 <b>${round(t.kcal)}</b> / ${g.kcal} ${kcalU}\n` +
     `${squares(t.kcal, g.kcal)}\n` +
-    (left >= 0 ? `<i>Осталось ${round(left)} ккал · ${pctOf(t.kcal, g.kcal)}%</i>` : `<i>Больше нормы на ${round(-left)} ккал</i>`) +
-    (isToday && streakNow(u) >= 2 ? `\n🔥 Серия: <b>${streakNow(u)}</b> ${plural(streakNow(u), "день", "дня", "дней")} подряд` : "") + `\n\n` +
-    `\n🥩 Белки  <b>${round(t.p)}</b> / ${g.p} г\n` +
-    `🧈 Жиры  <b>${round(t.f)}</b> / ${g.f} г\n` +
-    `🍞 Углеводы  <b>${round(t.c)}</b> / ${g.c} г\n` +
-    `💧 Вода  <b>${liters(water)}</b> / ${liters(wGoal)}${water >= wGoal ? " ✓" : ""}\n\n\n`;
+    (left >= 0 ? `<i>${L(u, `Осталось ${round(left)} ккал`, `${round(left)} kcal left`)} · ${pctOf(t.kcal, g.kcal)}%</i>` : `<i>${L(u, `Больше нормы на ${round(-left)} ккал`, `${round(-left)} kcal over your goal`)}</i>`) +
+    (isToday && streakNow(u) >= 2 ? `\n🔥 ${L(u, "Серия", "Streak")}: <b>${streakNow(u)}</b> ${dayWord(u, streakNow(u))}${L(u, " подряд", " in a row")}` : "") + `\n\n` +
+    `\n🥩 ${L(u, "Белки", "Protein")}  <b>${round(t.p)}</b> / ${g.p} ${gU}\n` +
+    `🧈 ${L(u, "Жиры", "Fat")}  <b>${round(t.f)}</b> / ${g.f} ${gU}\n` +
+    `🍞 ${L(u, "Углеводы", "Carbs")}  <b>${round(t.c)}</b> / ${g.c} ${gU}\n` +
+    `💧 ${L(u, "Вода", "Water")}  <b>${liters(water, u)}</b> / ${liters(wGoal, u)}${water >= wGoal ? " ✓" : ""}\n\n\n`;
 
   if (day.meals.length) {
-    text += `🍽 <b>Приёмы пищи</b>\n\n` +
+    text += `🍽 <b>${L(u, "Приёмы пищи", "Meals")}</b>\n\n` +
       day.meals.map((m) => `${m.time}  ${esc(m.title)}  <b>${round(sumItems(m.items).kcal)}</b>`).join("\n");
     // Подсказка по белку во второй половине дня
     if (isToday && nowTime(u) >= "15:00" && t.p < g.p * 0.5 && left > 0) {
-      text += `\n\n\n💡 <i>Белка пока мало. Добавь творог, яйца, курицу или рыбу</i>`;
+      text += L(u, `\n\n\n💡 <i>Белка пока мало. Добавь творог, яйца, курицу или рыбу</i>`, `\n\n\n💡 <i>Protein is low so far. Add cottage cheese, eggs, chicken or fish</i>`);
     } else if (left < 0) {
-      text += `\n\n\n💡 <i>Норма набрана. Если хочется есть, выбирай овощи и белок</i>`;
+      text += L(u, `\n\n\n💡 <i>Норма набрана. Если хочется есть, выбирай овощи и белок</i>`, `\n\n\n💡 <i>Goal reached. If you're still hungry, go for vegetables and protein</i>`);
     }
   } else {
-    text += isToday ? "📸 <i>Отправь фото еды — я всё посчитаю</i>" : "<i>За этот день записей нет</i>";
+    text += isToday
+      ? L(u, "📸 <i>Отправь фото еды — я всё посчитаю</i>", "📸 <i>Send a photo of your food and I'll count everything</i>")
+      : L(u, "<i>За этот день записей нет</i>", "<i>No entries for this day</i>");
   }
   return send(env, chatId, text, {
     reply_markup: {
       inline_keyboard: [
-        [{ text: "🥗 Что съесть", callback_data: "advice" }, { text: "💧 +250 мл воды", callback_data: `w|${date}|250` }],
-        [{ text: "📅 Неделя", callback_data: "week" }, appButton(env, "📱 Дневник")],
+        [{ text: L(u, "🥗 Что съесть", "🥗 What to eat"), callback_data: "advice" }, { text: L(u, "💧 +250 мл воды", "💧 +250 ml water"), callback_data: `w|${date}|250` }],
+        [{ text: L(u, "📅 Неделя", "📅 Week"), callback_data: "week" }, appButton(env, u, "📱 Дневник", "📱 Diary")],
       ],
     },
   });
@@ -1646,9 +1791,15 @@ const plural = (n, one, few, many) => {
   return m10 === 1 && m100 !== 11 ? one : m10 >= 2 && m10 <= 4 && (m100 < 12 || m100 > 14) ? few : many;
 };
 
-const MON_SHORT = ["янв", "фев", "мар", "апр", "мая", "июн", "июл", "авг", "сен", "окт", "ноя", "дек"];
-const shortDate = (d) => `${Number(d.slice(8))} ${MON_SHORT[Number(d.slice(5, 7)) - 1]}`;
-const wdOf = (d) => WEEKDAYS[new Date(d + "T00:00:00Z").getUTCDay()];
+const MON_SHORT = {
+  ru: ["янв", "фев", "мар", "апр", "мая", "июн", "июл", "авг", "сен", "окт", "ноя", "дек"],
+  en: ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"],
+};
+const shortDate = (d, u) => {
+  const m = Number(d.slice(5, 7)) - 1, n = Number(d.slice(8));
+  return L(u, `${n} ${MON_SHORT.ru[m]}`, `${MON_SHORT.en[m]} ${n}`);
+};
+const wdOf = (d, u) => WEEKDAYS[langOf(u)][new Date(d + "T00:00:00Z").getUTCDay()];
 
 async function sendWeek(env, u, chatId) {
   const end = today(u);
@@ -1659,11 +1810,11 @@ async function sendWeek(env, u, chatId) {
   const rows = dates.map((d, i) => {
     const has = days[i].meals.length > 0;
     const k = round(dayTotals(days[i]).kcal);
-    const label = `${wdOf(d)} ${d.slice(8)}`;
+    const label = `${wdOf(d, u)} ${d.slice(8)}`;
     const isToday = d === end;
-    if (!has) return { d, has, k: 0, line: `${isToday ? "<b>" + label + "</b>" : label}  ${isToday ? "<i>сегодня пусто</i>" : "·"}` };
+    if (!has) return { d, has, k: 0, line: `${isToday ? "<b>" + label + "</b>" : label}  ${isToday ? L(u, "<i>сегодня пусто</i>", "<i>empty today</i>") : "·"}` };
     const pct = k / norm;
-    return { d, has, k, pct, line: `${isToday ? "<b>" + label + "</b>" : label}  ${weekBar(pct)}  <b>${k}</b>${isToday ? " · <i>сегодня</i>" : ""}` };
+    return { d, has, k, pct, line: `${isToday ? "<b>" + label + "</b>" : label}  ${weekBar(pct)}  <b>${k}</b>${isToday ? ` · <i>${L(u, "сегодня", "today")}</i>` : ""}` };
   });
 
   // Среднее считаем по законченным дням: сегодняшний ещё не завершён
@@ -1677,32 +1828,32 @@ async function sendWeek(env, u, chatId) {
   const avgWater = water.length ? water.reduce((a, b) => a + b, 0) / water.length : 0;
 
   let text =
-    `📅 <b>Неделя</b> · ${shortDate(dates[0])} — ${shortDate(end)}\n\n\n` +
+    `📅 <b>${L(u, "Неделя", "Week")}</b> · ${shortDate(dates[0], u)} — ${shortDate(end, u)}\n\n\n` +
     `${rows.map((r) => r.line).join("\n")}\n\n` +
-    `<i>🟩 норма   🟦 меньше   🟥 больше\nЦель ${norm} ккал</i>\n\n\n`;
+    L(u, `<i>🟩 норма   🟦 меньше   🟥 больше\nЦель ${norm} ккал</i>\n\n\n`, `<i>🟩 on goal   🟦 under   🟥 over\nGoal ${norm} kcal</i>\n\n\n`);
 
   if (!recorded) {
-    text += "📸 <i>За неделю пока нет записей. Отправь фото еды, и я начну считать</i>";
+    text += L(u, "📸 <i>За неделю пока нет записей. Отправь фото еды, и я начну считать</i>", "📸 <i>No entries this week yet. Send a photo of your food and I'll start counting</i>");
   } else {
     const stats = [
-      `🔥 В среднем <b>${avg}</b> из ${norm} ккал${done.length ? "" : " (пока только сегодня)"}`,
-      `🎯 В норме <b>${inNormDays} из ${recorded}</b> ${plural(recorded, "дня", "дней", "дней")}`,
+      L(u, `🔥 В среднем <b>${avg}</b> из ${norm} ккал${done.length ? "" : " (пока только сегодня)"}`, `🔥 Average <b>${avg}</b> of ${norm} kcal${done.length ? "" : " (today only so far)"}`),
+      L(u, `🎯 В норме <b>${inNormDays} из ${recorded}</b> ${plural(recorded, "дня", "дней", "дней")}`, `🎯 On goal <b>${inNormDays} of ${recorded}</b> ${dayWord(u, recorded)}`),
     ];
-    if (best) stats.push(`🏆 Лучший день — ${wdOf(best.d).toLowerCase()}, ${shortDate(best.d)} · <b>${best.k}</b> ккал`);
-    if (avgWater) stats.push(`💧 Вода в среднем <b>${liters(avgWater)}</b> из ${liters(waterGoal(u))}`);
+    if (best) stats.push(L(u, `🏆 Лучший день — ${wdOf(best.d, u).toLowerCase()}, ${shortDate(best.d, u)} · <b>${best.k}</b> ккал`, `🏆 Best day — ${wdOf(best.d, u)}, ${shortDate(best.d, u)} · <b>${best.k}</b> kcal`));
+    if (avgWater) stats.push(L(u, `💧 Вода в среднем <b>${liters(avgWater, u)}</b> из ${liters(waterGoal(u), u)}`, `💧 Average water <b>${liters(avgWater, u)}</b> of ${liters(waterGoal(u), u)}`));
     const wk = weights.filter((w) => w.date >= dates[0]);
     if (wk.length > 1) {
       const diff = r1(wk[wk.length - 1].kg - wk[0].kg);
-      stats.push(`⚖️ Вес <b>${wk[wk.length - 1].kg} кг</b> · ${diff > 0 ? "+" : ""}${diff} кг за неделю`);
+      stats.push(L(u, `⚖️ Вес <b>${wk[wk.length - 1].kg} кг</b> · ${diff > 0 ? "+" : ""}${diff} кг за неделю`, `⚖️ Weight <b>${wk[wk.length - 1].kg} kg</b> · ${diff > 0 ? "+" : ""}${diff} kg this week`));
     }
-    text += `📊 <b>Итоги</b>\n\n${stats.join("\n")}\n\n\n`;
+    text += `📊 <b>${L(u, "Итоги", "Summary")}</b>\n\n${stats.join("\n")}\n\n\n`;
     text += `💡 <i>${weekTip(u, avg, norm)}</i>`;
   }
   return send(env, chatId, text, {
     reply_markup: {
       inline_keyboard: [
-        [{ text: "🥗 Что съесть сегодня", callback_data: "advice" }, { text: "🧠 Разбор от ИИ", callback_data: "ai_week" }],
-        [{ text: "📊 Сегодня", callback_data: "today" }, appButton(env, "📱 Дневник")],
+        [{ text: L(u, "🥗 Что съесть сегодня", "🥗 What to eat today"), callback_data: "advice" }, { text: L(u, "🧠 Разбор от ИИ", "🧠 AI review"), callback_data: "ai_week" }],
+        [{ text: L(u, "📊 Сегодня", "📊 Today"), callback_data: "today" }, appButton(env, u, "📱 Дневник", "📱 Diary")],
       ],
     },
   });
@@ -1713,29 +1864,33 @@ function weekTip(u, avg, norm) {
   const pct = avg / norm;
   if (pct < 0.8) {
     return u.goal === "gain"
-      ? `Не хватает в среднем ${norm - avg} ккал в день. Для набора массы добавь 2 перекуса: творог, орехи, банан, кашу`
-      : `Ты ешь меньше нормы на ${norm - avg} ккал в день. Слишком большой дефицит мешает результату, держись хотя бы 80% нормы`;
+      ? L(u, `Не хватает в среднем ${norm - avg} ккал в день. Для набора массы добавь 2 перекуса: творог, орехи, банан, кашу`,
+             `You're short by ${norm - avg} kcal a day on average. To gain mass, add 2 snacks: cottage cheese, nuts, a banana, oatmeal`)
+      : L(u, `Ты ешь меньше нормы на ${norm - avg} ккал в день. Слишком большой дефицит мешает результату, держись хотя бы 80% нормы`,
+             `You're eating ${norm - avg} kcal a day below your goal. Too big a deficit hurts results — stay at 80% of your goal at least`);
   }
   if (pct > 1.1) {
     return u.goal === "lose"
-      ? `В среднем больше нормы на ${avg - norm} ккал. Замени сладкое и снеки на фрукты и белок`
-      : `В среднем больше нормы на ${avg - norm} ккал. Следи за порциями и вечерними перекусами`;
+      ? L(u, `В среднем больше нормы на ${avg - norm} ккал. Замени сладкое и снеки на фрукты и белок`,
+             `You're ${avg - norm} kcal a day over your goal on average. Swap sweets and snacks for fruit and protein`)
+      : L(u, `В среднем больше нормы на ${avg - norm} ккал. Следи за порциями и вечерними перекусами`,
+             `You're ${avg - norm} kcal a day over your goal on average. Watch portion sizes and evening snacks`);
   }
-  return "Ты держишься в норме, так держать 💪";
+  return L(u, "Ты держишься в норме, так держать 💪", "You're staying within your goal, keep it up 💪");
 }
 
 const ADVICE_SCHEMA = {
   type: "OBJECT",
   properties: {
-    intro: { type: "STRING", description: "Одно короткое предложение: на что сейчас стоит сделать упор" },
+    intro: { type: "STRING", description: "One short sentence: what to focus on right now" },
     options: {
       type: "ARRAY",
-      description: "Ровно 3 варианта приёма пищи",
+      description: "Exactly 3 meal options",
       items: {
         type: "OBJECT",
         properties: {
-          title: { type: "STRING", description: "Название блюда, коротко" },
-          why: { type: "STRING", description: "Чем подходит, 3–7 слов" },
+          title: { type: "STRING", description: "Dish name, short" },
+          why: { type: "STRING", description: "Why it fits, 3–7 words" },
           items: { type: "ARRAY", items: ITEM_SCHEMA },
         },
         required: ["title", "why", "items"],
@@ -1745,19 +1900,19 @@ const ADVICE_SCHEMA = {
   required: ["intro", "options"],
 };
 
-const ADVICE_PROMPT = `Ты нутрициолог-ассистент Telegram-бота FITTER. Пиши по-русски, просто и дружелюбно.
-Предложи 3 разных варианта следующего приёма пищи, которые помогут добрать или не превысить дневную норму.
-Правила:
-• Учитывай время суток: утром завтрак, днём обед, вечером лёгкий ужин, поздно вечером лёгкий перекус.
-• Учитывай остаток калорий и особенно белка. Если белка не хватает — делай на него упор.
-• Если калорий почти не осталось или норма превышена — предлагай лёгкие варианты до 200 ккал.
-• Блюда простые, из обычных продуктов в России, готовятся за 15 минут или покупаются в магазине.
-• Не повторяй то, что человек уже ел сегодня. Ориентируйся на его привычные продукты за неделю.
-• Для каждого варианта дай продукты с весом в граммах и КБЖУ на 100 г.`;
+const advicePrompt = (u) => `You are a nutritionist assistant in the FITTER Telegram bot. Write in ${aiLang(u)}, simply and in a friendly way.
+Suggest 3 different options for the next meal that help reach or not exceed the daily goal.
+Rules:
+• Consider the time of day: breakfast in the morning, lunch in the afternoon, a light dinner in the evening, a light snack late at night.
+• Consider the remaining calories and especially protein. If protein is short, focus on it.
+• If almost no calories are left or the goal is exceeded, suggest light options up to 200 kcal.
+• Dishes are simple, made from common ingredients available in regular supermarkets, ready in 15 minutes or bought in a shop.
+• Do not repeat what the person has already eaten today. Rely on the foods they usually eat during the week.
+• For each option give the products with weight in grams and calories/protein/fat/carbs per 100 g.`;
 
 // 🥗 Что съесть: 3 варианта под остаток нормы, любой можно сразу записать
 async function sendAdvice(env, u, chatId) {
-  if (!checkAiLimit(env, u)) return send(env, chatId, "На сегодня лимит запросов к нейросети закончился 😔 Завтра снова можно!");
+  if (!checkAiLimit(env, u)) return send(env, chatId, L(u, "На сегодня лимит запросов к нейросети закончился 😔 Завтра снова можно!", "You've used up today's AI requests 😔 Try again tomorrow!"));
   await saveUser(env, u);
   tg(env, "sendChatAction", { chat_id: chatId, action: "typing" });
   let a;
@@ -1765,10 +1920,10 @@ async function sendAdvice(env, u, chatId) {
     a = await makeAdvice(env, u);
   } catch (e) {
     console.error("advice error:", e && e.stack ? e.stack : e);
-    return send(env, chatId, "😔 Нейросеть сейчас не отвечает. Попробуй ещё раз через минуту.");
+    return send(env, chatId, L(u, "😔 Нейросеть сейчас не отвечает. Попробуй ещё раз через минуту.", "😔 The AI isn't responding right now. Please try again in a minute."));
   }
-  if (!a) return send(env, chatId, "Не получилось подобрать варианты, попробуй ещё раз 🙏");
-  return send(env, chatId, adviceText(u, a.left, a.intro, a.options), { reply_markup: adviceKeyboard(a.options) });
+  if (!a) return send(env, chatId, L(u, "Не получилось подобрать варианты, попробуй ещё раз 🙏", "Couldn't come up with options, please try again 🙏"));
+  return send(env, chatId, adviceText(u, a.left, a.intro, a.options), { reply_markup: adviceKeyboard(u, a.options) });
 }
 
 // Подобрать 3 варианта под остаток нормы и запомнить их на 6 часов. null — нейросеть ничего не предложила
@@ -1779,14 +1934,14 @@ async function makeAdvice(env, u, like = "") {
   const day = days.at(-1);
   const t = dayTotals(day), g = u.targets;
   const left = { kcal: round(g.kcal - t.kcal), p: round(g.p - t.p), f: round(g.f - t.f), c: round(g.c - t.c) };
-  const eaten = day.meals.map((m) => m.title).join(", ") || "пока ничего";
-  const usual = [...new Set(days.slice(0, -1).flatMap((d) => d.meals.map((m) => m.title)))].slice(-15).join(", ") || "нет данных";
+  const eaten = day.meals.map((m) => m.title).join(", ") || "nothing yet";
+  const usual = [...new Set(days.slice(0, -1).flatMap((d) => d.meals.map((m) => m.title)))].slice(-15).join(", ") || "no data";
   const ctx =
-    `Сейчас ${nowTime(u)}. Цель: ${GOALS[u.goal]}. Норма: ${g.kcal} ккал, Б ${g.p}, Ж ${g.f}, У ${g.c}.\n` +
-    `Съедено сегодня: ${round(t.kcal)} ккал, Б ${round(t.p)}, Ж ${round(t.f)}, У ${round(t.c)} (${eaten}).\n` +
-    `Осталось: ${left.kcal} ккал, Б ${left.p}, Ж ${left.f}, У ${left.c}.\nЕл за неделю: ${usual}.` +
-    (like ? `\nЧеловеку понравилось «${like}»: предложи 3 похожих по вкусу и составу блюда, но не само это блюдо.` : "");
-  const res = await gemini(env, [{ text: `${ADVICE_PROMPT}\n\n${ctx}` }], ADVICE_SCHEMA, 0.8);
+    `It is ${nowTime(u)} now. Goal: ${GOALS[u.goal][1]}. Daily target: ${g.kcal} kcal, protein ${g.p}, fat ${g.f}, carbs ${g.c}.\n` +
+    `Eaten today: ${round(t.kcal)} kcal, protein ${round(t.p)}, fat ${round(t.f)}, carbs ${round(t.c)} (${eaten}).\n` +
+    `Left: ${left.kcal} kcal, protein ${left.p}, fat ${left.f}, carbs ${left.c}.\nAte this week: ${usual}.` +
+    (like ? `\nThe person liked “${like}”: suggest 3 dishes similar in taste and composition, but not this dish itself.` : "");
+  const res = await gemini(env, [{ text: `${advicePrompt(u)}\n\n${ctx}` }], ADVICE_SCHEMA, 0.8);
   const options = (Array.isArray(res.options) ? res.options : [])
     .map((o) => ({ title: String(o.title || "").trim().slice(0, 60), why: String(o.why || "").trim().slice(0, 80), items: cleanItems(o.items) }))
     .filter((o) => o.title && o.items.length)
@@ -1800,10 +1955,10 @@ async function makeAdvice(env, u, like = "") {
 const RECIPE_SCHEMA = {
   type: "OBJECT",
   properties: {
-    time: { type: "STRING", description: "Время приготовления, например «10 минут»" },
-    ingredients: { type: "ARRAY", items: { type: "STRING" }, description: "Ингредиенты с количеством" },
-    steps: { type: "ARRAY", items: { type: "STRING" }, description: "Шаги приготовления, коротко" },
-    tip: { type: "STRING", description: "Один совет к блюду, можно пустую строку" },
+    time: { type: "STRING", description: "Cooking time, for example “10 minutes”" },
+    ingredients: { type: "ARRAY", items: { type: "STRING" }, description: "Ingredients with amounts" },
+    steps: { type: "ARRAY", items: { type: "STRING" }, description: "Cooking steps, short" },
+    tip: { type: "STRING", description: "One tip for the dish, may be an empty string" },
   },
   required: ["time", "ingredients", "steps"],
 };
@@ -1812,10 +1967,10 @@ const RECIPE_SCHEMA = {
 async function makeRecipe(env, u, saved, i) {
   const o = saved.options[i];
   if (saved.recipes?.[i]) return saved.recipes[i];
-  const list = o.items.map((it) => `${it.name} ${it.grams} г`).join(", ");
+  const list = o.items.map((it) => `${it.name} ${it.grams} g`).join(", ");
   const res = await gemini(env, [{ text:
-    `Ты повар-ассистент FITTER. Напиши по-русски простой рецепт блюда «${o.title}» из продуктов: ${list}. ` +
-    `Держи те же граммовки. Не больше 6 коротких шагов, без воды.` }], RECIPE_SCHEMA, 0.5);
+    `You are FITTER's cooking assistant. Write a simple recipe in ${aiLang(u)} for “${o.title}” made from: ${list}. ` +
+    `Keep the same weights. No more than 6 short steps, no filler.` }], RECIPE_SCHEMA, 0.5);
   const strs = (a, n, len) => (Array.isArray(a) ? a : []).map((x) => String(x || "").trim().slice(0, len)).filter(Boolean).slice(0, n);
   const recipe = {
     time: String(res.time || "").trim().slice(0, 40),
@@ -1844,56 +1999,61 @@ const NUMS = ["1️⃣", "2️⃣", "3️⃣"];
 
 function adviceText(u, left, intro, options) {
   const head = left.kcal > 0
-    ? `Осталось на сегодня <b>${left.kcal} ккал</b> · 🥩 ${Math.max(0, left.p)} г · 🧈 ${Math.max(0, left.f)} г · 🍞 ${Math.max(0, left.c)} г`
-    : `Норма на сегодня уже набрана${left.kcal < 0 ? `, сверху <b>${-left.kcal} ккал</b>` : ""}. Если хочется есть — вот лёгкие варианты`;
+    ? L(u,
+        `Осталось на сегодня <b>${left.kcal} ккал</b> · 🥩 ${Math.max(0, left.p)} г · 🧈 ${Math.max(0, left.f)} г · 🍞 ${Math.max(0, left.c)} г`,
+        `<b>${left.kcal} kcal</b> left today · 🥩 ${Math.max(0, left.p)} g · 🧈 ${Math.max(0, left.f)} g · 🍞 ${Math.max(0, left.c)} g`)
+    : L(u,
+        `Норма на сегодня уже набрана${left.kcal < 0 ? `, сверху <b>${-left.kcal} ккал</b>` : ""}. Если хочется есть — вот лёгкие варианты`,
+        `Today's goal is already reached${left.kcal < 0 ? `, <b>${-left.kcal} kcal</b> over` : ""}. If you're still hungry, here are some light options`);
   const list = options.map((o, i) => {
     const t = sumItems(o.items);
-    return `${NUMS[i]} <b>${esc(o.title)}</b> · ${round(t.kcal)} ккал\n` +
-      `${o.items.map((it) => `${esc(it.name)} ${it.grams} г`).join(", ")}\n` +
-      `<i>Б ${round(t.p)} · Ж ${round(t.f)} · У ${round(t.c)}${o.why ? " — " + esc(o.why) : ""}</i>`;
+    return `${NUMS[i]} <b>${esc(o.title)}</b> · ${round(t.kcal)} ${L(u, "ккал", "kcal")}\n` +
+      `${o.items.map((it) => `${esc(it.name)} ${it.grams} ${L(u, "г", "g")}`).join(", ")}\n` +
+      `<i>${L(u, "Б", "P")} ${round(t.p)} · ${L(u, "Ж", "F")} ${round(t.f)} · ${L(u, "У", "C")} ${round(t.c)}${o.why ? " — " + esc(o.why) : ""}</i>`;
   });
-  return `🥗 <b>Что съесть</b>\n\n${head}\n\n` +
+  return `🥗 <b>${L(u, "Что съесть", "What to eat")}</b>\n\n${head}\n\n` +
     (intro ? `💡 <i>${esc(String(intro).slice(0, 200))}</i>\n\n` : "") +
     `\n${list.join("\n\n")}\n\n\n` +
-    `<i>Съел вариант? Нажми его номер, и я запишу в дневник</i>`;
+    `<i>${L(u, "Съел вариант? Нажми его номер, и я запишу в дневник", "Ate one of these? Tap its number and I'll log it in your diary")}</i>`;
 }
 
-function adviceKeyboard(options) {
+function adviceKeyboard(u, options) {
   return {
     inline_keyboard: [
       options.map((_, i) => ({ text: `✅ ${NUMS[i]}`, callback_data: `adv|${i}` })),
-      [{ text: "🔄 Другие варианты", callback_data: "advice" }, { text: "📊 Сегодня", callback_data: "today" }],
+      [{ text: L(u, "🔄 Другие варианты", "🔄 Other options"), callback_data: "advice" }, { text: L(u, "📊 Сегодня", "📊 Today"), callback_data: "today" }],
     ],
   };
 }
 
 async function sendProfile(env, u, chatId) {
   const t = u.targets;
-  const yrs = `${u.age} ${plural(u.age, "год", "года", "лет")}`;
+  const yrs = L(u, `${u.age} ${plural(u.age, "год", "года", "лет")}`, `${u.age} years old`);
   // Доля калорий из белков, жиров и углеводов
   const share = (g, k) => `${Math.round((g * k * 100) / t.kcal)}%`;
   const glasses = Math.round(waterGoal(u) / 250);
   const text =
-    `👤 <b>${esc(u.name || "Профиль")}</b>\n<i>Твои данные и норма на день</i>\n\n\n` +
-    `${u.sex === "m" ? "👨 Мужчина" : "👩 Женщина"} · 🎂 ${yrs}\n` +
-    `📏 Рост  <b>${u.height}</b> см\n` +
-    `⚖️ Вес  <b>${u.weight}</b> кг\n` +
-    `${ACTIVITY[u.activity]}\n` +
-    `${GOALS[u.goal]}\n\n\n` +
-    `🎯 <b>Норма на день</b>\n\n` +
-    `🔥 <b>${t.kcal}</b> ккал\n` +
-    `🥩 Белки  <b>${t.p}</b> г · <i>${share(t.p, 4)}</i>\n` +
-    `🧈 Жиры  <b>${t.f}</b> г · <i>${share(t.f, 9)}</i>\n` +
-    `🍞 Углеводы  <b>${t.c}</b> г · <i>${share(t.c, 4)}</i>\n` +
-    `💧 Вода  <b>${liters(waterGoal(u))}</b> · <i>${glasses} ${plural(glasses, "стакан", "стакана", "стаканов")}</i>\n\n` +
+    `👤 <b>${esc(u.name || L(u, "Профиль", "Profile"))}</b>\n<i>${L(u, "Твои данные и норма на день", "Your details and daily goal")}</i>\n\n\n` +
+    `${u.sex === "m" ? L(u, "👨 Мужчина", "👨 Man") : L(u, "👩 Женщина", "👩 Woman")} · 🎂 ${yrs}\n` +
+    L(u, `📏 Рост  <b>${u.height}</b> см\n⚖️ Вес  <b>${u.weight}</b> кг\n`, `📏 Height  <b>${u.height}</b> cm\n⚖️ Weight  <b>${u.weight}</b> kg\n`) +
+    `${activityText(u, u.activity)}\n` +
+    `${goalText(u, u.goal)}\n\n\n` +
+    `🎯 <b>${L(u, "Норма на день", "Daily goal")}</b>\n\n` +
+    `🔥 <b>${t.kcal}</b> ${L(u, "ккал", "kcal")}\n` +
+    `🥩 ${L(u, "Белки", "Protein")}  <b>${t.p}</b> ${L(u, "г", "g")} · <i>${share(t.p, 4)}</i>\n` +
+    `🧈 ${L(u, "Жиры", "Fat")}  <b>${t.f}</b> ${L(u, "г", "g")} · <i>${share(t.f, 9)}</i>\n` +
+    `🍞 ${L(u, "Углеводы", "Carbs")}  <b>${t.c}</b> ${L(u, "г", "g")} · <i>${share(t.c, 4)}</i>\n` +
+    `💧 ${L(u, "Вода", "Water")}  <b>${liters(waterGoal(u), u)}</b> · <i>${glasses} ${L(u, plural(glasses, "стакан", "стакана", "стаканов"), glasses === 1 ? "glass" : "glasses")}</i>\n\n` +
     // Цитата без иконок: так Telegram принимает сообщение с первой попытки
-    `<blockquote>Считаю по формуле <b>Миффлина — Сан-Жеора</b> с учётом активности и цели.\n` +
-    `Норма пересчитается сама, когда запишешь новый вес</blockquote>`;
+    L(u,
+      `<blockquote>Считаю по формуле <b>Миффлина — Сан-Жеора</b> с учётом активности и цели.\nНорма пересчитается сама, когда запишешь новый вес</blockquote>`,
+      `<blockquote>Calculated with the <b>Mifflin–St Jeor</b> formula, based on your activity and goal.\nYour goal updates automatically when you log a new weight</blockquote>`);
   return send(env, chatId, text, {
     reply_markup: {
       inline_keyboard: [
-        [{ text: "⚖️ Записать вес", callback_data: "askw" }, { text: "🏆 Достижения", callback_data: "awards" }],
-        [{ text: "📅 Неделя", callback_data: "week" }, { text: "✏️ Изменить анкету", callback_data: "reset" }],
+        [{ text: L(u, "⚖️ Записать вес", "⚖️ Log weight"), callback_data: "askw" }, { text: L(u, "🏆 Достижения", "🏆 Achievements"), callback_data: "awards" }],
+        [{ text: L(u, "📅 Неделя", "📅 Week"), callback_data: "week" }, { text: L(u, "✏️ Изменить анкету", "✏️ Edit profile"), callback_data: "reset" }],
+        [{ text: L(u, "🌐 Язык: Русский", "🌐 Language: English"), callback_data: "lang" }],
       ],
     },
   });
@@ -1923,34 +2083,36 @@ async function logWeight(env, u, chatId, kg) {
   const total = r1(kg - first);
   const r = await send(
     env, chatId,
-    `⚖️ Записал: <b>${kg} кг</b>` +
-      (diff ? ` (${diff > 0 ? "+" : ""}${diff} кг с прошлого раза)` : "") +
-      (list.length && total ? `\nС начала: ${total > 0 ? "+" : ""}${total} кг` : "") +
-      `\n\nНорма пересчитана: <b>${u.targets.kcal} ккал</b> в день`,
-    { reply_markup: MAIN_KEYBOARD }
+    L(u, `⚖️ Записал: <b>${kg} кг</b>`, `⚖️ Logged: <b>${kg} kg</b>`) +
+      (diff ? L(u, ` (${diff > 0 ? "+" : ""}${diff} кг с прошлого раза)`, ` (${diff > 0 ? "+" : ""}${diff} kg since last time)`) : "") +
+      (list.length && total ? L(u, `\nС начала: ${total > 0 ? "+" : ""}${total} кг`, `\nSince the start: ${total > 0 ? "+" : ""}${total} kg`) : "") +
+      L(u, `\n\nНорма пересчитана: <b>${u.targets.kcal} ккал</b> в день`, `\n\nYour goal is recalculated: <b>${u.targets.kcal} kcal</b> a day`),
+    { reply_markup: mainKb(u) }
   );
-  await announce(env, chatId, fresh);
+  await announce(env, chatId, fresh, u);
   return r;
 }
 
 // ───────────────────────────── Серии и достижения ─────────────────────────────
 
-// [id, иконка, название, описание, какой счётчик смотреть, сколько нужно]
+// [id, иконка, название, описание, какой счётчик смотреть, сколько нужно, название (en), описание (en)]
 const ACHIEVEMENTS = [
-  ["first_meal", "🍽", "Первый шаг", "Записать первый приём пищи", "meals", 1],
-  ["meals_10", "📷", "Фотограф", "10 записей еды", "meals", 10],
-  ["meals_50", "📓", "Дневник в деле", "50 записей еды", "meals", 50],
-  ["meals_100", "💯", "Сотня", "100 записей еды", "meals", 100],
-  ["streak_3", "🔥", "Разгон", "3 дня подряд с записями", "best", 3],
-  ["streak_7", "🔥", "Неделя без пропусков", "7 дней подряд с записями", "best", 7],
-  ["streak_30", "🔥", "Железная привычка", "30 дней подряд с записями", "best", 30],
-  ["norm_1", "🎯", "Точно в цель", "Первый день в норме калорий", "normDays", 1],
-  ["norm_7", "🎯", "Снайпер", "7 дней в норме калорий", "normDays", 7],
-  ["water_1", "💧", "Водный баланс", "Выполнить норму воды", "waterDays", 1],
-  ["water_7", "💧", "Как рыба в воде", "7 дней с нормой воды", "waterDays", 7],
-  ["pack_1", "📦", "Сканер", "Добавить продукт по этикетке или штрихкоду", "packs", 1],
-  ["weigh_4", "⚖️", "На контроле", "Записать вес 4 раза", "weighs", 4],
+  ["first_meal", "🍽", "Первый шаг", "Записать первый приём пищи", "meals", 1, "First step", "Log your first meal"],
+  ["meals_10", "📷", "Фотограф", "10 записей еды", "meals", 10, "Photographer", "10 food entries"],
+  ["meals_50", "📓", "Дневник в деле", "50 записей еды", "meals", 50, "Diary in action", "50 food entries"],
+  ["meals_100", "💯", "Сотня", "100 записей еды", "meals", 100, "The hundred", "100 food entries"],
+  ["streak_3", "🔥", "Разгон", "3 дня подряд с записями", "best", 3, "Warming up", "3 days in a row with entries"],
+  ["streak_7", "🔥", "Неделя без пропусков", "7 дней подряд с записями", "best", 7, "A week without gaps", "7 days in a row with entries"],
+  ["streak_30", "🔥", "Железная привычка", "30 дней подряд с записями", "best", 30, "Iron habit", "30 days in a row with entries"],
+  ["norm_1", "🎯", "Точно в цель", "Первый день в норме калорий", "normDays", 1, "Bullseye", "First day within your calorie goal"],
+  ["norm_7", "🎯", "Снайпер", "7 дней в норме калорий", "normDays", 7, "Sharpshooter", "7 days within your calorie goal"],
+  ["water_1", "💧", "Водный баланс", "Выполнить норму воды", "waterDays", 1, "Water balance", "Reach your water goal"],
+  ["water_7", "💧", "Как рыба в воде", "7 дней с нормой воды", "waterDays", 7, "Like a fish in water", "7 days of reaching your water goal"],
+  ["pack_1", "📦", "Сканер", "Добавить продукт по этикетке или штрихкоду", "packs", 1, "Scanner", "Add a product from a label or barcode"],
+  ["weigh_4", "⚖️", "На контроле", "Записать вес 4 раза", "weighs", 4, "Keeping track", "Log your weight 4 times"],
 ];
+const achName = (u, a) => L(u, a[2], a[6]);
+const achDesc = (u, a) => L(u, a[3], a[7]);
 
 const inNorm = (kcal, norm) => kcal >= norm * 0.9 && kcal <= norm * 1.1;
 
@@ -2012,12 +2174,12 @@ async function progress(env, u, event, date, extra = {}) {
   return fresh;
 }
 
-async function announce(env, chatId, fresh) {
+async function announce(env, chatId, fresh, u) {
   if (!fresh.length) return;
-  const list = fresh.map((a) => `${a[1]} <b>${a[2]}</b>\n<i>${a[3]}</i>`).join("\n\n");
-  return send(env, chatId, `🏆 <b>${fresh.length > 1 ? "Новые достижения!" : "Новое достижение!"}</b>\n\n${list}`, {
+  const list = fresh.map((a) => `${a[1]} <b>${achName(u, a)}</b>\n<i>${achDesc(u, a)}</i>`).join("\n\n");
+  return send(env, chatId, `🏆 <b>${fresh.length > 1 ? L(u, "Новые достижения!", "New achievements!") : L(u, "Новое достижение!", "New achievement!")}</b>\n\n${list}`, {
     message_effect_id: EFFECT_PARTY,
-    reply_markup: { inline_keyboard: [[{ text: "🏆 Все достижения", callback_data: "awards" }]] },
+    reply_markup: { inline_keyboard: [[{ text: L(u, "🏆 Все достижения", "🏆 All achievements"), callback_data: "awards" }]] },
   });
 }
 
@@ -2036,21 +2198,21 @@ async function sendAwards(env, u, chatId) {
   const left = ACHIEVEMENTS.filter((a) => !u.ach[a[0]]);
   const n = streakNow(u);
   let text =
-    `🏆 <b>Достижения</b> · ${got.length} из ${ACHIEVEMENTS.length}\n\n` +
-    `🔥 Серия: <b>${n}</b> ${plural(n, "день", "дня", "дней")} подряд · рекорд ${u.streak?.best || 0}\n\n\n`;
+    L(u, `🏆 <b>Достижения</b> · ${got.length} из ${ACHIEVEMENTS.length}\n\n`, `🏆 <b>Achievements</b> · ${got.length} of ${ACHIEVEMENTS.length}\n\n`) +
+    L(u, `🔥 Серия: <b>${n}</b> ${dayWord(u, n)} подряд · рекорд ${u.streak?.best || 0}\n\n\n`, `🔥 Streak: <b>${n}</b> ${dayWord(u, n)} in a row · best ${u.streak?.best || 0}\n\n\n`);
   if (got.length) {
-    text += `<b>Получено</b>\n\n${got.map((a) => `${a[1]} <b>${a[2]}</b> · ${a[3]}`).join("\n")}\n\n\n`;
+    text += `<b>${L(u, "Получено", "Earned")}</b>\n\n${got.map((a) => `${a[1]} <b>${achName(u, a)}</b> · ${achDesc(u, a)}`).join("\n")}\n\n\n`;
   }
   if (left.length) {
     // Ближайшие награды — те, к которым ты ближе всего
     const near = [...left].sort((x, y) => statValue(u, y[4]) / y[5] - statValue(u, x[4]) / x[5]);
     const show = near.slice(0, 4);
-    text += `<b>Ближайшие</b>\n\n${show.map((a) => `🔒 ${a[2]} · ${a[3]} · <i>${Math.min(statValue(u, a[4]), a[5])}/${a[5]}</i>`).join("\n")}` +
-      (near.length > show.length ? `\n\n<i>И ещё ${near.length - show.length} впереди</i>` : "");
+    text += `<b>${L(u, "Ближайшие", "Up next")}</b>\n\n${show.map((a) => `🔒 ${achName(u, a)} · ${achDesc(u, a)} · <i>${Math.min(statValue(u, a[4]), a[5])}/${a[5]}</i>`).join("\n")}` +
+      (near.length > show.length ? L(u, `\n\n<i>И ещё ${near.length - show.length} впереди</i>`, `\n\n<i>${near.length - show.length} more ahead</i>`) : "");
   } else {
-    text += "Ты собрал все награды! 🎉";
+    text += L(u, "Ты собрал все награды! 🎉", "You've earned every award! 🎉");
   }
-  return send(env, chatId, text.trim(), { reply_markup: { inline_keyboard: [[{ text: "👤 Профиль", callback_data: "profile" }, appButton(env, "📱 Дневник")]] } });
+  return send(env, chatId, text.trim(), { reply_markup: { inline_keyboard: [[{ text: L(u, "👤 Профиль", "👤 Profile"), callback_data: "profile" }, appButton(env, u, "📱 Дневник", "📱 Diary")]] } });
 }
 
 // ───────────────────────────── ИИ-разбор недели ─────────────────────────────
@@ -2058,20 +2220,20 @@ async function sendAwards(env, u, chatId) {
 const ANALYSIS_SCHEMA = {
   type: "OBJECT",
   properties: {
-    score: { type: "INTEGER", description: "Оценка питания за неделю от 1 до 10" },
-    summary: { type: "STRING", description: "2–3 предложения: общий итог недели" },
-    good: { type: "ARRAY", items: { type: "STRING" }, description: "2–3 конкретные вещи, которые получились" },
-    improve: { type: "ARRAY", items: { type: "STRING" }, description: "1–3 конкретные вещи, которые стоит улучшить" },
-    tips: { type: "ARRAY", items: { type: "STRING" }, description: "Ровно 3 простых практических совета на следующую неделю" },
+    score: { type: "INTEGER", description: "Nutrition score for the week from 1 to 10" },
+    summary: { type: "STRING", description: "2–3 sentences: overall result of the week" },
+    good: { type: "ARRAY", items: { type: "STRING" }, description: "2–3 specific things that went well" },
+    improve: { type: "ARRAY", items: { type: "STRING" }, description: "1–3 specific things worth improving" },
+    tips: { type: "ARRAY", items: { type: "STRING" }, description: "Exactly 3 simple practical tips for next week" },
   },
   required: ["score", "summary", "good", "improve", "tips"],
 };
 
-const ANALYSIS_PROMPT = `Ты дружелюбный нутрициолог приложения FITTER. Разбери питание пользователя за последние 7 дней.
-Опирайся только на данные ниже: калории, белки, жиры, углеводы, воду, блюда и цель.
-Пиши по-русски, коротко, конкретно и по-доброму, без markdown. Каждый пункт — одно предложение до 120 символов.
-Хвали за реальные успехи, а улучшения предлагай мягко и выполнимо. Не ставь диагнозов и не советуй жёсткие диеты.
-Если записей мало, учитывай, что часть еды могла быть не записана.`;
+const analysisPrompt = (u) => `You are a friendly nutritionist in the FITTER app. Review the user's nutrition for the last 7 days.
+Rely only on the data below: calories, protein, fat, carbs, water, meals and the goal.
+Write in ${aiLang(u)}, briefly, specifically and kindly, without markdown. Each item is one sentence up to 120 characters.
+Praise real successes and suggest improvements gently and realistically. Do not diagnose and do not recommend strict diets.
+If there are few entries, keep in mind that some food may not have been logged.`;
 
 async function weekData(env, u) {
   const end = today(u);
@@ -2085,28 +2247,29 @@ async function makeAnalysis(env, u) {
   if (recorded < 2) return { short: true, recorded };
   const key = `an:${u.id}:${end}`;
   const cached = await env.DB.get(key, "json").catch(() => null);
-  if (cached) return cached;
+  // Разбор в кэше написан на том языке, который был тогда: после смены языка считаем заново
+  if (cached && (cached.lang || "ru") === langOf(u)) return cached;
   if (!checkAiLimit(env, u)) return { limit: true };
   await saveUser(env, u);
   const g = u.targets;
   const lines = dates.map((d, i) => {
     const day = days[i];
-    if (!day.meals.length) return `${d}: нет записей` + (day.water ? `, вода ${day.water} мл` : "");
+    if (!day.meals.length) return `${d}: no entries` + (day.water ? `, water ${day.water} ml` : "");
     const t = dayTotals(day);
-    return `${d}: ${round(t.kcal)} ккал, Б ${round(t.p)}, Ж ${round(t.f)}, У ${round(t.c)}, вода ${day.water || 0} мл; блюда: ` +
+    return `${d}: ${round(t.kcal)} kcal, protein ${round(t.p)}, fat ${round(t.f)}, carbs ${round(t.c)}, water ${day.water || 0} ml; meals: ` +
       day.meals.map((m) => m.title).join("; ");
   });
   const wk = weights.filter((w) => w.date >= dates[0]);
   const ctx =
-    `Пользователь: ${u.sex === "m" ? "мужчина" : "женщина"}, ${u.age} лет, рост ${u.height} см, вес ${u.weight} кг, ` +
-    `активность: ${ACTIVITY[u.activity]}, цель: ${GOALS[u.goal]}.\n` +
-    `Норма в день: ${g.kcal} ккал, Б ${g.p} г, Ж ${g.f} г, У ${g.c} г, вода ${waterGoal(u)} мл.\n` +
-    (wk.length > 1 ? `Вес за неделю: ${wk[0].kg} → ${wk[wk.length - 1].kg} кг.\n` : "") +
-    `Дни:\n${lines.join("\n")}`;
-  const res = await gemini(env, [{ text: `${ANALYSIS_PROMPT}\n\n${ctx}` }], ANALYSIS_SCHEMA, 0.5);
+    `User: ${u.sex === "m" ? "man" : "woman"}, ${u.age} years old, height ${u.height} cm, weight ${u.weight} kg, ` +
+    `activity: ${ACTIVITY[u.activity][1]}, goal: ${GOALS[u.goal][1]}.\n` +
+    `Daily goal: ${g.kcal} kcal, protein ${g.p} g, fat ${g.f} g, carbs ${g.c} g, water ${waterGoal(u)} ml.\n` +
+    (wk.length > 1 ? `Weight this week: ${wk[0].kg} → ${wk[wk.length - 1].kg} kg.\n` : "") +
+    `Days:\n${lines.join("\n")}`;
+  const res = await gemini(env, [{ text: `${analysisPrompt(u)}\n\n${ctx}` }], ANALYSIS_SCHEMA, 0.5);
   const clean = (arr, n) => (Array.isArray(arr) ? arr : []).map((s) => String(s).trim()).filter(Boolean).slice(0, n);
   const out = {
-    end, from: dates[0], recorded,
+    end, from: dates[0], recorded, lang: langOf(u),
     score: Math.min(10, Math.max(1, Math.round(Number(res.score) || 5))),
     summary: String(res.summary || "").trim().slice(0, 500),
     good: clean(res.good, 3), improve: clean(res.improve, 3), tips: clean(res.tips, 3),
@@ -2115,33 +2278,38 @@ async function makeAnalysis(env, u) {
   return out;
 }
 
-function analysisText(a) {
+function analysisText(u, a) {
   const nums = ["1️⃣", "2️⃣", "3️⃣"];
   return (
-    `🧠 <b>Разбор недели</b>\n<i>${humanDate(a.from)} — ${humanDate(a.end)} · ${a.recorded} ${plural(a.recorded, "день", "дня", "дней")} с записями</i>\n\n` +
-    `🎯 Оценка: <b>${a.score}</b> из 10\n${squares(a.score, 10)}\n\n` +
+    L(u, `🧠 <b>Разбор недели</b>\n<i>${humanDate(a.from, u)} — ${humanDate(a.end, u)} · ${a.recorded} ${dayWord(u, a.recorded)} с записями</i>\n\n`,
+      `🧠 <b>Weekly review</b>\n<i>${humanDate(a.from, u)} — ${humanDate(a.end, u)} · ${a.recorded} ${dayWord(u, a.recorded)} with entries</i>\n\n`) +
+    L(u, `🎯 Оценка: <b>${a.score}</b> из 10\n`, `🎯 Score: <b>${a.score}</b> out of 10\n`) + `${squares(a.score, 10)}\n\n` +
     (a.summary ? `<i>${esc(a.summary)}</i>\n\n\n` : "") +
-    (a.good.length ? `✅ <b>Что получилось</b>\n\n${a.good.map((s) => `• ${esc(s)}`).join("\n")}\n\n\n` : "") +
-    (a.improve.length ? `🔍 <b>Что улучшить</b>\n\n${a.improve.map((s) => `• ${esc(s)}`).join("\n")}\n\n\n` : "") +
-    (a.tips.length ? `💡 <b>Советы на неделю</b>\n\n${a.tips.map((s, i) => `${nums[i]} ${esc(s)}`).join("\n")}\n\n\n` : "") +
-    `<i>FITTER считает примерно и не заменяет врача или диетолога</i>`
+    (a.good.length ? `✅ <b>${L(u, "Что получилось", "What went well")}</b>\n\n${a.good.map((s) => `• ${esc(s)}`).join("\n")}\n\n\n` : "") +
+    (a.improve.length ? `🔍 <b>${L(u, "Что улучшить", "What to improve")}</b>\n\n${a.improve.map((s) => `• ${esc(s)}`).join("\n")}\n\n\n` : "") +
+    (a.tips.length ? `💡 <b>${L(u, "Советы на неделю", "Tips for the week")}</b>\n\n${a.tips.map((s, i) => `${nums[i]} ${esc(s)}`).join("\n")}\n\n\n` : "") +
+    `<i>${L(u, "FITTER считает примерно и не заменяет врача или диетолога", "FITTER's numbers are approximate and don't replace a doctor or dietitian")}</i>`
   );
 }
 
 async function sendAnalysis(env, u, chatId, auto = false) {
-  const wait = auto ? null : await send(env, chatId, "🧠 Разбираю твою неделю…");
+  const wait = auto ? null : await send(env, chatId, L(u, "🧠 Разбираю твою неделю…", "🧠 Reviewing your week…"));
   const waitId = wait?.result?.message_id;
   const reply = (text, extra = {}) => (waitId ? edit(env, chatId, waitId, text, extra) : send(env, chatId, text, extra));
   try {
     const a = await makeAnalysis(env, u);
-    if (a.short) return auto ? null : reply(`🧠 Для разбора нужно хотя бы 2 дня с записями за неделю, а сейчас ${a.recorded}.\n\nЗаписывай еду каждый день, и в воскресенье я пришлю подробный разбор 📸`);
-    if (a.limit) return auto ? null : reply("На сегодня лимит запросов к нейросети закончился 😔 Попробуй завтра!");
-    const buttons = [[{ text: "📅 Неделя", callback_data: "week" }, appButton(env, "📱 Дневник")]];
-    if (auto) buttons.push([{ text: "🔕 Не присылать по воскресеньям", callback_data: "an_off" }]);
-    return reply(analysisText(a), { reply_markup: { inline_keyboard: buttons } });
+    if (a.short) {
+      return auto ? null : reply(L(u,
+        `🧠 Для разбора нужно хотя бы 2 дня с записями за неделю, а сейчас ${a.recorded}.\n\nЗаписывай еду каждый день, и в воскресенье я пришлю подробный разбор 📸`,
+        `🧠 A review needs at least 2 days with entries this week, and you have ${a.recorded}.\n\nLog your food every day and on Sunday I'll send a detailed review 📸`));
+    }
+    if (a.limit) return auto ? null : reply(L(u, "На сегодня лимит запросов к нейросети закончился 😔 Попробуй завтра!", "You've used up today's AI requests 😔 Try again tomorrow!"));
+    const buttons = [[{ text: L(u, "📅 Неделя", "📅 Week"), callback_data: "week" }, appButton(env, u, "📱 Дневник", "📱 Diary")]];
+    if (auto) buttons.push([{ text: L(u, "🔕 Не присылать по воскресеньям", "🔕 Stop Sunday reviews"), callback_data: "an_off" }]);
+    return reply(analysisText(u, a), { reply_markup: { inline_keyboard: buttons } });
   } catch (e) {
     console.error("analysis error:", e && e.stack ? e.stack : e);
-    return auto ? null : reply("😔 Нейросеть сейчас не отвечает. Попробуй ещё раз через минуту.");
+    return auto ? null : reply(L(u, "😔 Нейросеть сейчас не отвечает. Попробуй ещё раз через минуту.", "😔 The AI isn't responding right now. Please try again in a minute."));
   }
 }
 
@@ -2165,11 +2333,11 @@ async function weeklyRun(env) {
 
 // ───────────────────────────── Напоминания о воде ─────────────────────────────
 
-const WR_EVERY = [[30, "30 мин"], [60, "1 ч"], [90, "1,5 ч"], [120, "2 ч"]];
+const WR_EVERY = [30, 60, 90, 120];
 const WR_FROM = [6, 7, 8, 9, 10, 11];
 const WR_TO = [20, 21, 22, 23, 24];
 const hh = (h) => `${String(h % 24).padStart(2, "0")}:00`;
-const everyLabel = (m) => (WR_EVERY.find((x) => x[0] === m) || [0, `${m} мин`])[1];
+const everyLabel = (m, u) => ({ 30: L(u, "30 мин", "30 min"), 60: L(u, "1 ч", "1 h"), 90: L(u, "1,5 ч", "1.5 h"), 120: L(u, "2 ч", "2 h") })[m] || L(u, `${m} мин`, `${m} min`);
 
 // Список тех, у кого включены напоминания: чтобы не перебирать всех пользователей каждые 30 минут
 async function wrIndex(env, id, on) {
@@ -2185,23 +2353,28 @@ function remindText(u, note = "") {
   const on = w && w.every;
   return (
     (note ? `${note}\n\n` : "") +
-    `⏰ <b>Напоминания о воде</b>\n\n` +
+    L(u, `⏰ <b>Напоминания о воде</b>\n\n`, `⏰ <b>Water reminders</b>\n\n`) +
     (on
-      ? `🔔 Каждые <b>${everyLabel(w.every)}</b>\n🌅 С <b>${hh(w.from)}</b>\n🌙 До <b>${hh(w.to)}</b>\n\n` +
-        `<i>Ночью молчу. Когда норма воды выполнена, напоминания на сегодня заканчиваются</i>`
-      : `<i>Сейчас выключены. Выбери, как часто напоминать, и я буду писать днём, пока не наберётся норма</i>`)
+      ? L(u,
+          `🔔 Каждые <b>${everyLabel(w.every, u)}</b>\n🌅 С <b>${hh(w.from)}</b>\n🌙 До <b>${hh(w.to)}</b>\n\n` +
+            `<i>Ночью молчу. Когда норма воды выполнена, напоминания на сегодня заканчиваются</i>`,
+          `🔔 Every <b>${everyLabel(w.every, u)}</b>\n🌅 From <b>${hh(w.from)}</b>\n🌙 Until <b>${hh(w.to)}</b>\n\n` +
+            `<i>I stay quiet at night. Once your water goal is reached, reminders stop for the day</i>`)
+      : L(u,
+          `<i>Сейчас выключены. Выбери, как часто напоминать, и я буду писать днём, пока не наберётся норма</i>`,
+          `<i>Currently off. Choose how often to remind you and I'll message you during the day until you reach your goal</i>`))
   );
 }
 
 function remindKeyboard(u) {
   const w = u.wr || {};
-  const rows = [WR_EVERY.map(([m, label]) => ({ text: (w.every === m ? "✅ " : "") + label, callback_data: `wr|every|${m}` }))];
+  const rows = [WR_EVERY.map((m) => ({ text: (w.every === m ? "✅ " : "") + everyLabel(m, u), callback_data: `wr|every|${m}` }))];
   if (w.every) {
     rows.push([
-      { text: `🌅 С ${hh(w.from)}`, callback_data: "wr|pick|from" },
-      { text: `🌙 До ${hh(w.to)}`, callback_data: "wr|pick|to" },
+      { text: L(u, `🌅 С ${hh(w.from)}`, `🌅 From ${hh(w.from)}`), callback_data: "wr|pick|from" },
+      { text: L(u, `🌙 До ${hh(w.to)}`, `🌙 Until ${hh(w.to)}`), callback_data: "wr|pick|to" },
     ]);
-    rows.push([{ text: "🔕 Выключить", callback_data: "wr|off" }]);
+    rows.push([{ text: L(u, "🔕 Выключить", "🔕 Turn off"), callback_data: "wr|off" }]);
   }
   return { inline_keyboard: rows };
 }
@@ -2212,7 +2385,7 @@ function pickKeyboard(u, which) {
   return {
     inline_keyboard: [
       list.map((h) => ({ text: (cur === h ? "✅ " : "") + hh(h), callback_data: `wr|${which}|${h}` })),
-      [{ text: "↩️ Назад", callback_data: "wr|menu" }],
+      [{ text: L(u, "↩️ Назад", "↩️ Back"), callback_data: "wr|menu" }],
     ],
   };
 }
@@ -2225,25 +2398,28 @@ async function sendReminders(env, u, chatId) {
 async function onRemindButton(env, u, chatId, msgId, action, value, answer) {
   const w = u.wr || (u.wr = { every: 0, from: 8, to: 22, last: 0 });
   let note = "";
-  if (action === "every" && WR_EVERY.some((x) => x[0] === Number(value))) {
+  if (action === "every" && WR_EVERY.includes(Number(value))) {
     const was = w.every;
     w.every = Number(value);
     w.last = Date.now();
     await wrIndex(env, u.id, true);
-    note = was ? `✅ Теперь напоминаю каждые ${everyLabel(w.every)}` : `✅ Напоминания включены: каждые ${everyLabel(w.every)}`;
+    const lbl = everyLabel(w.every, u);
+    note = was ? L(u, `✅ Теперь напоминаю каждые ${lbl}`, `✅ Now reminding you every ${lbl}`) : L(u, `✅ Напоминания включены: каждые ${lbl}`, `✅ Reminders on: every ${lbl}`);
   } else if (action === "from" && WR_FROM.includes(Number(value))) {
     w.from = Number(value);
-    note = `🌅 Начало дня: ${hh(w.from)}`;
+    note = L(u, `🌅 Начало дня: ${hh(w.from)}`, `🌅 Day starts at ${hh(w.from)}`);
   } else if (action === "to" && WR_TO.includes(Number(value))) {
     w.to = Number(value);
-    note = `🌙 Конец дня: ${hh(w.to)}`;
+    note = L(u, `🌙 Конец дня: ${hh(w.to)}`, `🌙 Day ends at ${hh(w.to)}`);
   } else if (action === "off") {
     w.every = 0;
     await wrIndex(env, u.id, false);
-    note = "🔕 Напоминания о воде выключены";
+    note = L(u, "🔕 Напоминания о воде выключены", "🔕 Water reminders are off");
   } else if (action === "pick" && (value === "from" || value === "to")) {
     await answer();
-    const q = value === "from" ? "🌅 <b>Когда начинается твой день?</b>\nРаньше этого времени я не напоминаю." : "🌙 <b>Когда заканчивается твой день?</b>\nПосле этого времени я не напоминаю.";
+    const q = value === "from"
+      ? L(u, "🌅 <b>Когда начинается твой день?</b>\nРаньше этого времени я не напоминаю.", "🌅 <b>When does your day start?</b>\nI won't remind you before this time.")
+      : L(u, "🌙 <b>Когда заканчивается твой день?</b>\nПосле этого времени я не напоминаю.", "🌙 <b>When does your day end?</b>\nI won't remind you after this time.");
     return edit(env, chatId, msgId, q, { reply_markup: pickKeyboard(u, value) });
   }
   await saveUser(env, u);
@@ -2272,14 +2448,17 @@ async function waterTick(env, now = Date.now()) {
     await saveUser(env, u);
     const left = goal - ml;
     await send(env, u.id,
-      `💧 <b>Время попить воды!</b>\n\n<b>${liters(ml)}</b> из ${liters(goal)} · ${pctOf(ml, goal)}%\n${squares(ml, goal, "🟦")}\n` +
-      `Осталось ${left} мл, это примерно ${Math.ceil(left / 250)} стак.`,
+      L(u,
+        `💧 <b>Время попить воды!</b>\n\n<b>${liters(ml, u)}</b> из ${liters(goal, u)} · ${pctOf(ml, goal)}%\n${squares(ml, goal, "🟦")}\n` +
+          `Осталось ${left} мл, это примерно ${Math.ceil(left / 250)} стак.`,
+        `💧 <b>Time for some water!</b>\n\n<b>${liters(ml, u)}</b> of ${liters(goal, u)} · ${pctOf(ml, goal)}%\n${squares(ml, goal, "🟦")}\n` +
+          `${left} ml left, about ${Math.ceil(left / 250)} glasses.`),
       {
         disable_notification: false,
         reply_markup: {
           inline_keyboard: [
-            [{ text: "💧 +250 мл", callback_data: `w|${date}|250` }, { text: "💧 +500 мл", callback_data: `w|${date}|500` }],
-            [{ text: "⏰ Настроить напоминания", callback_data: "wr|menu" }],
+            [{ text: "💧 +250 " + L(u, "мл", "ml"), callback_data: `w|${date}|250` }, { text: "💧 +500 " + L(u, "мл", "ml"), callback_data: `w|${date}|500` }],
+            [{ text: L(u, "⏰ Настроить напоминания", "⏰ Set up reminders"), callback_data: "wr|menu" }],
           ],
         },
       });
@@ -2314,11 +2493,11 @@ function pillDoses(u, day) {
     .sort((a, b) => a.time.localeCompare(b.time) || a.name.localeCompare(b.name));
 }
 
-function pillReminderKeyboard(date, p, t) {
+function pillReminderKeyboard(u, date, p, t) {
   return {
     inline_keyboard: [
-      [{ text: "✅ Принял", callback_data: `p|t|${date}|${p.id}|${t}` }],
-      [{ text: "⏰ Через 30 мин", callback_data: `p|z|${date}|${p.id}|${t}` }, { text: "Пропустить", callback_data: `p|s|${date}|${p.id}|${t}` }],
+      [{ text: L(u, "✅ Принял", "✅ Taken"), callback_data: `p|t|${date}|${p.id}|${t}` }],
+      [{ text: L(u, "⏰ Через 30 мин", "⏰ In 30 min"), callback_data: `p|z|${date}|${p.id}|${t}` }, { text: L(u, "Пропустить", "Skip"), callback_data: `p|s|${date}|${p.id}|${t}` }],
     ],
   };
 }
@@ -2349,7 +2528,7 @@ async function pillTick(env, now = Date.now()) {
           if (!due) continue;
           day.pills[key] = { s: "sent", at: slot };
           changed = true;
-          await send(env, u.id, `💊 <b>Время принять</b>\n${pillLine(p)} · ${t}`, { reply_markup: pillReminderKeyboard(date, p, t) });
+          await send(env, u.id, L(u, `💊 <b>Время принять</b>\n${pillLine(p)} · ${t}`, `💊 <b>Time to take</b>\n${pillLine(p)} · ${t}`), { reply_markup: pillReminderKeyboard(u, date, p, t) });
           sent++;
         }
       }
@@ -2377,13 +2556,13 @@ async function onPillButton(env, u, chatId, msgId, action, date, id, t, answer) 
   if (!s || !isDate(date) || !isSlot(t)) return answer();
   const r = await markPill(env, u, date, id, t, s);
   if (!r) {
-    await answer("Этого препарата уже нет в списке");
+    await answer(L(u, "Этого препарата уже нет в списке", "This medication is no longer in the list"));
     return tg(env, "editMessageReplyMarkup", { chat_id: chatId, message_id: msgId, reply_markup: { inline_keyboard: [] } });
   }
   const head = `${pillLine(r.p)} · ${t}`;
-  const tail = s === "taken" ? `✅ Принято в ${r.rec.at}` : s === "skip" ? "⏭ Пропущено" : `⏰ Напомню в ${r.rec.at}`;
-  await answer(s === "taken" ? "Отмечено ✅" : s === "skip" ? "Пропущено" : `Напомню в ${r.rec.at}`);
-  return edit(env, chatId, msgId, `💊 ${head}\n${tail}`, s === "snooze" ? {} : { reply_markup: { inline_keyboard: [[appButton(env, "📱 Все таблетки в дневнике")]] } });
+  const tail = s === "taken" ? L(u, `✅ Принято в ${r.rec.at}`, `✅ Taken at ${r.rec.at}`) : s === "skip" ? L(u, "⏭ Пропущено", "⏭ Skipped") : L(u, `⏰ Напомню в ${r.rec.at}`, `⏰ I'll remind you at ${r.rec.at}`);
+  await answer(s === "taken" ? L(u, "Отмечено ✅", "Marked ✅") : s === "skip" ? L(u, "Пропущено", "Skipped") : L(u, `Напомню в ${r.rec.at}`, `I'll remind you at ${r.rec.at}`));
+  return edit(env, chatId, msgId, `💊 ${head}\n${tail}`, s === "snooze" ? {} : { reply_markup: { inline_keyboard: [[appButton(env, u, "📱 Все таблетки в дневнике", "📱 All pills in the diary")]] } });
 }
 
 // ── Таблетки в чате: список на сегодня, отметки, добавление и удаление ──
@@ -2395,7 +2574,7 @@ function parsePill(text) {
     times.push(slotOf(`${h.padStart(2, "0")}:${mm}`));
     return pre;
   });
-  rest = rest.replace(/(^|\s)(в|и|утром|вечером)(?=\s|,|$)/gi, " ").replace(/\s+/g, " ").replace(/[\s,;]+$/g, "").trim();
+  rest = rest.replace(/(^|\s)(в|и|утром|вечером|at|and|morning|evening)(?=\s|,|$)/gi, " ").replace(/\s+/g, " ").replace(/[\s,;]+$/g, "").trim();
   const uniq = [...new Set(times)].sort().slice(0, 6);
   if (!uniq.length) return null;
   let [name, ...more] = rest.split(",").map((x) => x.trim()).filter(Boolean);
@@ -2414,31 +2593,38 @@ function pillsView(env, u, day, date, mode) {
   const list = u.pills || [];
   if (!list.length) {
     return {
-      text: "💊 <b>Таблетки</b>\n\n<i>Добавь витамины или лекарства, и я напомню в чате, когда их принять</i> ⏰",
-      kb: [[{ text: "➕ Добавить препарат", callback_data: "pl|add" }], [appButton(env)]],
+      text: L(u, "💊 <b>Таблетки</b>\n\n<i>Добавь витамины или лекарства, и я напомню в чате, когда их принять</i> ⏰", "💊 <b>Pills</b>\n\n<i>Add vitamins or medications and I'll remind you in the chat when to take them</i> ⏰"),
+      kb: [[{ text: L(u, "➕ Добавить препарат", "➕ Add medication"), callback_data: "pl|add" }], [appButton(env, u)]],
     };
   }
   if (mode === "edit") {
     return {
-      text: "💊 <b>Мои препараты</b>\n\n\n" + list.map((p) => `${pillLine(p)}\n⏰ ${p.times.join(", ")}`).join("\n\n") + "\n\n\n<i>Нажми 🗑, чтобы удалить препарат и его напоминания</i>",
+      text: L(u, "💊 <b>Мои препараты</b>\n\n\n", "💊 <b>My medications</b>\n\n\n") + list.map((p) => `${pillLine(p)}\n⏰ ${p.times.join(", ")}`).join("\n\n") +
+        L(u, "\n\n\n<i>Нажми 🗑, чтобы удалить препарат и его напоминания</i>", "\n\n\n<i>Tap 🗑 to delete a medication and its reminders</i>"),
       kb: [
         ...list.map((p) => [{ text: `🗑 ${p.name}`.slice(0, 60), callback_data: `pl|x|${p.id}` }]),
-        list.length < PILL_MAX ? [{ text: "➕ Добавить", callback_data: "pl|add" }, { text: "↩️ Назад", callback_data: "pl|back" }] : [{ text: "↩️ Назад", callback_data: "pl|back" }],
+        list.length < PILL_MAX
+          ? [{ text: L(u, "➕ Добавить", "➕ Add"), callback_data: "pl|add" }, { text: L(u, "↩️ Назад", "↩️ Back"), callback_data: "pl|back" }]
+          : [{ text: L(u, "↩️ Назад", "↩️ Back"), callback_data: "pl|back" }],
       ],
     };
   }
   const doses = pillDoses(u, day);
   const taken = doses.filter((x) => x.s === "taken").length;
   const lines = doses.map((x) => {
-    const tail = x.s === "taken" && x.at ? ` — в ${x.at}` : x.s === "skip" ? " — пропущено" : x.s === "snooze" ? ` — напомню в ${x.at}` : "";
+    const tail = x.s === "taken" && x.at ? L(u, ` — в ${x.at}`, ` — at ${x.at}`)
+      : x.s === "skip" ? L(u, " — пропущено", " — skipped")
+      : x.s === "snooze" ? L(u, ` — напомню в ${x.at}`, ` — reminder at ${x.at}`) : "";
     return `${PILL_ICON[x.s] || "⬜"} ${x.time} <b>${esc(x.name)}</b>${x.dose ? " · " + esc(x.dose) : ""}${tail}`;
   });
   return {
-    text: `💊 <b>Таблетки на сегодня</b> · ${taken} из ${doses.length} принято\n\n\n${lines.join("\n")}\n\n\n<i>Нажми на приём, чтобы отметить. Напомню в нужное время</i>`,
+    text: L(u, `💊 <b>Таблетки на сегодня</b> · ${taken} из ${doses.length} принято`, `💊 <b>Pills today</b> · ${taken} of ${doses.length} taken`) +
+      `\n\n\n${lines.join("\n")}\n\n\n` +
+      L(u, "<i>Нажми на приём, чтобы отметить. Напомню в нужное время</i>", "<i>Tap a dose to mark it. I'll remind you at the right time</i>"),
     kb: [
       ...doses.map((x) => [{ text: `${x.s === "taken" ? "✅" : "⬜"} ${x.time} ${x.name}`.slice(0, 60), callback_data: `pl|m|${date}|${x.id}|${x.time}` }]),
-      [{ text: "➕ Добавить", callback_data: "pl|add" }, { text: "✏️ Изменить", callback_data: "pl|edit" }],
-      [appButton(env)],
+      [{ text: L(u, "➕ Добавить", "➕ Add"), callback_data: "pl|add" }, { text: L(u, "✏️ Изменить", "✏️ Edit"), callback_data: "pl|edit" }],
+      [appButton(env, u)],
     ],
   };
 }
@@ -2454,35 +2640,39 @@ async function addPill(env, u, chatId, p) {
   u.pills = u.pills || [];
   if (u.pills.length >= PILL_MAX) {
     await saveUser(env, u);
-    return send(env, chatId, `Можно добавить не больше ${PILL_MAX} препаратов. Удали лишний через «✏️ Изменить»`);
+    return send(env, chatId, L(u, `Можно добавить не больше ${PILL_MAX} препаратов. Удали лишний через «✏️ Изменить»`, `You can add up to ${PILL_MAX} medications. Remove one with “✏️ Edit”`));
   }
   u.pills.push({ id: crypto.randomUUID().slice(0, 6), ...p });
   await saveUser(env, u);
   await plIndex(env, u.id, true);
-  await send(env, chatId, `✅ Добавил: ${pillLine(p)}\n⏰ Напомню в ${p.times.join(", ")}`, { reply_markup: MAIN_KEYBOARD });
+  await send(env, chatId, L(u, `✅ Добавил: ${pillLine(p)}\n⏰ Напомню в ${p.times.join(", ")}`, `✅ Added: ${pillLine(p)}\n⏰ I'll remind you at ${p.times.join(", ")}`), { reply_markup: mainKb(u) });
   return sendPills(env, u, chatId);
 }
 
 async function onPillsButton(env, u, chatId, msgId, [, act, a, b, c], answer) {
   if (act === "add") {
-    if ((u.pills || []).length >= PILL_MAX) return answer(`Не больше ${PILL_MAX} препаратов`);
+    if ((u.pills || []).length >= PILL_MAX) return answer(L(u, `Не больше ${PILL_MAX} препаратов`, `No more than ${PILL_MAX} medications`));
     u.state = { type: "pilladd" };
     await saveUser(env, u);
     await answer();
     return send(
       env, chatId,
-      "💊 Напиши название, дозу и время приёма через запятую:\n\n" +
-        "<blockquote>Витамин D, 1 капсула, 9:00\nОмега-3, 2 капсулы, 9:00 21:00\nМагний 14:30</blockquote>\n" +
-        "<i>Время — с шагом 30 минут, можно несколько через пробел</i>",
-      { reply_markup: { force_reply: true, input_field_placeholder: "Витамин D, 1 капсула, 9:00" } }
+      L(u,
+        "💊 Напиши название, дозу и время приёма через запятую:\n\n" +
+          "<blockquote>Витамин D, 1 капсула, 9:00\nОмега-3, 2 капсулы, 9:00 21:00\nМагний 14:30</blockquote>\n" +
+          "<i>Время — с шагом 30 минут, можно несколько через пробел</i>",
+        "💊 Send the name, dose and time, separated by commas:\n\n" +
+          "<blockquote>Vitamin D, 1 capsule, 9:00\nOmega-3, 2 capsules, 9:00 21:00\nMagnesium 14:30</blockquote>\n" +
+          "<i>Time is in 30-minute steps; you can list several separated by spaces</i>"),
+      { reply_markup: { force_reply: true, input_field_placeholder: L(u, "Витамин D, 1 капсула, 9:00", "Vitamin D, 1 capsule, 9:00") } }
     );
   }
   if (act === "m" && isDate(a) && isSlot(c)) {
     const day = await getDay(env, u.id, a);
     const was = day.pills?.[pillKey(b, c)]?.s;
     const r = await markPill(env, u, a, b, c, was === "taken" ? "" : "taken");
-    if (!r) return answer("Этого препарата уже нет в списке");
-    await answer(was === "taken" ? "Отметка снята" : "Отмечено ✅");
+    if (!r) return answer(L(u, "Этого препарата уже нет в списке", "This medication is no longer in the list"));
+    await answer(was === "taken" ? L(u, "Отметка снята", "Mark removed") : L(u, "Отмечено ✅", "Marked ✅"));
     return sendPills(env, u, chatId, msgId);
   }
   if (act === "x") {
@@ -2490,7 +2680,7 @@ async function onPillsButton(env, u, chatId, msgId, [, act, a, b, c], answer) {
     u.pills = (u.pills || []).filter((x) => x.id !== a);
     await saveUser(env, u);
     await plIndex(env, u.id, u.pills.length > 0);
-    await answer(p ? `Удалил «${p.name}»` : "Уже удалено");
+    await answer(p ? L(u, `Удалил «${p.name}»`, `Deleted “${p.name}”`) : L(u, "Уже удалено", "Already deleted"));
     return sendPills(env, u, chatId, msgId, u.pills.length ? "edit" : "");
   }
   await answer();
@@ -2621,23 +2811,25 @@ async function linkApi(request, url, env) {
 
 // Бот: /start link_<code> → просим подтвердить вход, чтобы по чужой ссылке нельзя было увести дневник
 async function askLinkConfirm(env, u, chatId, code) {
-  if (!linkCodeAlive(code)) return send(env, chatId, "⌛ Ссылка для входа устарела. Нажми «Войти через Telegram» в приложении ещё раз.");
+  if (!linkCodeAlive(code)) return send(env, chatId, L(u, "⌛ Ссылка для входа устарела. Нажми «Войти через Telegram» в приложении ещё раз.", "⌛ The sign-in link has expired. Tap “Sign in with Telegram” in the app again."));
   return send(env, chatId,
-    "📱 <b>Войти в приложение Fitter?</b>\n\nПриложение получит доступ к твоему дневнику: еде, воде, весу и таблеткам.\n\n" +
-    "Подтверждай, только если ты сам сейчас нажал «Войти» в приложении Fitter на своём телефоне.",
-    { reply_markup: { inline_keyboard: [[{ text: "✅ Да, это я", callback_data: `lnk|y|${code}` }, { text: "Отмена", callback_data: `lnk|n|${code}` }]] } });
+    L(u, "📱 <b>Войти в приложение Fitter?</b>\n\nПриложение получит доступ к твоему дневнику: еде, воде, весу и таблеткам.\n\n" +
+      "Подтверждай, только если ты сам сейчас нажал «Войти» в приложении Fitter на своём телефоне.",
+      "📱 <b>Sign in to the Fitter app?</b>\n\nThe app will get access to your diary: food, water, weight and pills.\n\n" +
+      "Confirm only if you just tapped “Sign in” in the Fitter app on your phone."),
+    { reply_markup: { inline_keyboard: [[{ text: L(u, "✅ Да, это я", "✅ Yes, it's me"), callback_data: `lnk|y|${code}` }, { text: L(u, "Отмена", "Cancel"), callback_data: `lnk|n|${code}` }]] } });
 }
 
 // Бот: кнопки подтверждения входа
 async function onLinkCallback(env, u, chatId, msgId, yes, code, answer) {
   if (!linkCodeAlive(code)) {
-    await answer("Ссылка устарела");
-    return edit(env, chatId, msgId, "⌛ Ссылка для входа устарела. Нажми «Войти через Telegram» в приложении ещё раз.");
+    await answer(L(u, "Ссылка устарела", "Link expired"));
+    return edit(env, chatId, msgId, L(u, "⌛ Ссылка для входа устарела. Нажми «Войти через Telegram» в приложении ещё раз.", "⌛ The sign-in link has expired. Tap “Sign in with Telegram” in the app again."));
   }
   // Отказ тоже записываем: приложение сразу покажет, что вход отменён
   await env.DB.put(`lk:${code}`, JSON.stringify(yes ? { uid: u.id } : { denied: true }), { expirationTtl: LINK_TTL });
-  await answer(yes ? "Готово" : "Отменено");
-  return edit(env, chatId, msgId, yes ? "✅ Приложение Fitter подключено. Можно вернуться в него." : "Вход в приложение отменён.");
+  await answer(yes ? L(u, "Готово", "Done") : L(u, "Отменено", "Cancelled"));
+  return edit(env, chatId, msgId, yes ? L(u, "✅ Приложение Fitter подключено. Можно вернуться в него.", "✅ The Fitter app is connected. You can go back to it.") : L(u, "Вход в приложение отменён.", "Sign-in cancelled."));
 }
 
 // Кто делает запрос: телефон с токеном или дневник в Telegram с подписью initData
@@ -2665,7 +2857,7 @@ async function addAppMeal(env, u, date, title, items, source) {
   await saveDay(env, u.id, date, day);
   if (date === today(u)) {
     const fresh = await progress(env, u, "meal", date, { pack: false, inNorm: inNorm(dayTotals(day).kcal, u.targets.kcal) });
-    await announce(env, u.id, fresh);
+    await announce(env, u.id, fresh, u);
   } else {
     // Запись задним числом: серию и счётчики пересчитываем по истории
     delete u.st;
@@ -2695,6 +2887,7 @@ async function widgetPayload(env, u) {
     streak: streakNow(u),
     pills: { total: pills.length, taken: pills.filter((x) => x.s === "taken").length, next: pills.find((x) => !x.s && x.time >= nowTime(u))?.time || "" },
     name: u.name || "",
+    lang: langOf(u),
   };
 }
 
@@ -2720,6 +2913,7 @@ async function dayPayload(env, u, date) {
     pills: pillDoses(u, day),
     pillList: (u.pills || []).map((p) => ({ id: p.id, name: p.name, dose: p.dose || "", times: p.times })),
     name: u.name,
+    lang: langOf(u),
   };
 }
 
@@ -2868,6 +3062,13 @@ async function api(request, url, env) {
     // Фото приходит в теле запроса (base64), поэтому ограничиваем размер до чтения
     if (Number(request.headers.get("content-length") || 0) > MAX_IMAGE_BYTES * 1.4) return json({ error: "too big" }, 413);
     const body = await request.json().catch(() => ({}));
+    // Язык бота и приложения: один на аккаунт, общий для Telegram, дневника и Android
+    if (url.pathname === "/api/lang") {
+      if (body.lang !== "en" && body.lang !== "ru") return json({ error: "bad lang" }, 400);
+      u.lang = body.lang;
+      await saveUser(env, u);
+      return json({ ok: true, lang: u.lang });
+    }
     if (!isDate(body.date)) return json({ error: "bad date" }, 400);
     // Тренировка: новая или исправленная (тот же id)
     if (url.pathname === "/api/workout/save") {
@@ -2909,14 +3110,14 @@ async function api(request, url, env) {
       const delta = Number(body.delta);
       if (![250, -250].includes(delta)) return json({ error: "bad delta" }, 400);
       const { day: d, reached, fresh } = await addWater(env, u, body.date, delta);
-      await announce(env, u.id, fresh);
+      await announce(env, u.id, fresh, u);
       return json({ ok: true, water: d.water, reached });
     }
     if (url.pathname === "/api/weight") {
       const kg = Number(body.kg);
       if (!(kg >= 30 && kg <= 300)) return json({ error: "bad weight" }, 400);
       const { fresh } = await saveWeight(env, u, kg);
-      await announce(env, u.id, fresh);
+      await announce(env, u.id, fresh, u);
       return json({ ok: true, kg: u.weight, targets: u.targets });
     }
     if (url.pathname === "/api/pill/add") {
@@ -2973,7 +3174,7 @@ async function api(request, url, env) {
       await saveUser(env, u);
       let r;
       try {
-        r = await analyzePhoto(env, image, "image/jpeg", String(body.caption || "").trim().slice(0, 300));
+        r = await analyzePhoto(env, image, "image/jpeg", String(body.caption || "").trim().slice(0, 300), u);
       } catch (e) {
         console.error("app photo error:", e && e.stack ? e.stack : e);
         return json({ error: "ai" }, 502);
@@ -3123,31 +3324,34 @@ async function api(request, url, env) {
 // Секрет вводится в форме и уходит POST-запросом: в адресе, истории браузера и логах его нет.
 // Можно задать отдельный секрет SETUP_SECRET, иначе подходит WEBHOOK_SECRET
 async function setup(request, env) {
+  // Страница настройки — на языке браузера: русский для ru, иначе английский
+  const ruPage = /^\s*ru\b/i.test(request.headers.get("accept-language") || "");
+  const R = (ru, en) => (ruPage ? ru : en);
   const page = (rows, form = "", status = 200) =>
     new Response(
-      `<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">` +
-        `<title>FITTER — настройка</title><body style="font:16px/1.5 system-ui;max-width:640px;margin:32px auto;padding:0 16px">` +
-        `<h2>FITTER — настройка</h2>${rows.map(([ok, t]) => `<p>${ok ? "✅" : "❌"} ${t}</p>`).join("")}${form}</body>`,
+      `<!doctype html><html lang="${ruPage ? "ru" : "en"}"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">` +
+        `<title>${R("FITTER — настройка", "FITTER — setup")}</title><body style="font:16px/1.5 system-ui;max-width:640px;margin:32px auto;padding:0 16px">` +
+        `<h2>${R("FITTER — настройка", "FITTER — setup")}</h2>${rows.map(([ok, t]) => `<p>${ok ? "✅" : "❌"} ${t}</p>`).join("")}${form}</body>`,
       { status, headers: { "content-type": "text/html; charset=utf-8", "cache-control": "no-store", "referrer-policy": "no-referrer", "x-frame-options": "DENY" } }
     );
-  if (!env.WEBHOOK_SECRET) return page([[false, "Не задана переменная WEBHOOK_SECRET"]]);
+  if (!env.WEBHOOK_SECRET) return page([[false, R("Не задана переменная WEBHOOK_SECRET", "The WEBHOOK_SECRET variable is not set")]]);
   const form =
-    `<form method="post" action="/setup"><p><input type="password" name="secret" placeholder="Секрет" autocomplete="off" required ` +
-    `style="font:inherit;padding:8px;width:100%;box-sizing:border-box"></p><p><button style="font:inherit;padding:8px 16px">Настроить бота</button></p></form>`;
-  if (request.method !== "POST") return page([], `<p>Введи ${env.SETUP_SECRET ? "SETUP_SECRET" : "WEBHOOK_SECRET"}:</p>` + form);
+    `<form method="post" action="/setup"><p><input type="password" name="secret" placeholder="${R("Секрет", "Secret")}" autocomplete="off" required ` +
+    `style="font:inherit;padding:8px;width:100%;box-sizing:border-box"></p><p><button style="font:inherit;padding:8px 16px">${R("Настроить бота", "Set up the bot")}</button></p></form>`;
+  if (request.method !== "POST") return page([], `<p>${R("Введи", "Enter")} ${env.SETUP_SECRET ? "SETUP_SECRET" : "WEBHOOK_SECRET"}:</p>` + form);
   const fd = await request.formData().catch(() => null);
   if (!safeEqual(fd && fd.get("secret"), env.SETUP_SECRET || env.WEBHOOK_SECRET)) {
-    return page([[false, "Неверный секрет"]], form, 403);
+    return page([[false, R("Неверный секрет", "Wrong secret")]], form, 403);
   }
   const rows = [];
-  rows.push([!!env.BOT_TOKEN, "BOT_TOKEN задан"]);
-  rows.push([!!env.GEMINI_API_KEY, "GEMINI_API_KEY задан"]);
-  rows.push([!!env.DB, "База данных KV подключена (имя DB)"]);
-  rows.push([/^[A-Za-z0-9_-]{1,256}$/.test(env.WEBHOOK_SECRET), "WEBHOOK_SECRET состоит только из латинских букв, цифр, _ и -"]);
+  rows.push([!!env.BOT_TOKEN, R("BOT_TOKEN задан", "BOT_TOKEN is set")]);
+  rows.push([!!env.GEMINI_API_KEY, R("GEMINI_API_KEY задан", "GEMINI_API_KEY is set")]);
+  rows.push([!!env.DB, R("База данных KV подключена (имя DB)", "The KV database is connected (name DB)")]);
+  rows.push([/^[A-Za-z0-9_-]{1,256}$/.test(env.WEBHOOK_SECRET), R("WEBHOOK_SECRET состоит только из латинских букв, цифр, _ и -", "WEBHOOK_SECRET contains only Latin letters, digits, _ and -")]);
   if (!env.BOT_TOKEN) return page(rows);
 
   const me = await tg(env, "getMe", {});
-  rows.push([me.ok, me.ok ? `Бот найден: @${me.result.username}` : "Токен бота неверный — проверь BOT_TOKEN"]);
+  rows.push([me.ok, me.ok ? R(`Бот найден: @${me.result.username}`, `Bot found: @${me.result.username}`) : R("Токен бота неверный — проверь BOT_TOKEN", "The bot token is wrong — check BOT_TOKEN")]);
   if (!me.ok) return page(rows);
 
   const wh = await tg(env, "setWebhook", {
@@ -3156,58 +3360,68 @@ async function setup(request, env) {
     allowed_updates: ["message", "callback_query"],
     drop_pending_updates: true,
   });
-  rows.push([wh.ok, wh.ok ? "Webhook подключён — бот получает сообщения" : `Webhook: ${esc(wh.description || "ошибка")}`]);
+  rows.push([wh.ok, wh.ok ? R("Webhook подключён — бот получает сообщения", "Webhook connected — the bot receives messages") : `Webhook: ${esc(wh.description || R("ошибка", "error"))}`]);
 
-  const cmds = await tg(env, "setMyCommands", {
-    commands: [
-      { command: "today", description: "Итоги дня" },
-      { command: "week", description: "Последние 7 дней" },
-      { command: "water", description: "Вода за сегодня" },
-      { command: "remind", description: "Напоминания о воде" },
-      { command: "pills", description: "Таблетки и напоминания" },
-      { command: "weight", description: "Записать вес" },
-      { command: "profile", description: "Профиль и норма" },
-      { command: "awards", description: "Достижения и серия" },
-      { command: "advice", description: "Что съесть: советы от ИИ" },
-      { command: "analysis", description: "Разбор недели от ИИ" },
-      { command: "app", description: "Открыть дневник" },
-      { command: "help", description: "Как пользоваться" },
-      { command: "reset", description: "Пройти анкету заново" },
-      { command: "delete", description: "Удалить мои данные" },
-    ],
-  });
-  rows.push([cmds.ok, "Меню команд установлено"]);
+  // Меню команд и описание: английский по умолчанию, русский — для тех, у кого Telegram на русском
+  const COMMANDS = [
+    ["today", "Today's summary", "Итоги дня"],
+    ["week", "Last 7 days", "Последние 7 дней"],
+    ["water", "Water today", "Вода за сегодня"],
+    ["remind", "Water reminders", "Напоминания о воде"],
+    ["pills", "Pills and reminders", "Таблетки и напоминания"],
+    ["weight", "Log weight", "Записать вес"],
+    ["profile", "Profile and daily goal", "Профиль и норма"],
+    ["awards", "Achievements and streak", "Достижения и серия"],
+    ["advice", "What to eat: AI tips", "Что съесть: советы от ИИ"],
+    ["analysis", "AI weekly review", "Разбор недели от ИИ"],
+    ["app", "Open the diary", "Открыть дневник"],
+    ["lang", "Language: English / Русский", "Язык: English / Русский"],
+    ["help", "How to use", "Как пользоваться"],
+    ["reset", "Redo the questionnaire", "Пройти анкету заново"],
+    ["delete", "Delete my data", "Удалить мои данные"],
+  ];
+  const cmds = await tg(env, "setMyCommands", { commands: COMMANDS.map(([command, description]) => ({ command, description })) });
+  const cmdsRu = await tg(env, "setMyCommands", { language_code: "ru", commands: COMMANDS.map(([command, , description]) => ({ command, description })) });
+  rows.push([cmds.ok && cmdsRu.ok, R("Меню команд установлено (English + Русский)", "Command menu installed (English + Русский)")]);
 
   const menu = await tg(env, "setChatMenuButton", {
-    menu_button: { type: "web_app", text: "Дневник", web_app: { url: `${env.ORIGIN}/app` } },
+    menu_button: { type: "web_app", text: "Diary", web_app: { url: `${env.ORIGIN}/app` } },
   });
-  rows.push([menu.ok, "Кнопка «Дневник» (Mini App) добавлена"]);
+  rows.push([menu.ok, R("Кнопка «Diary» (Mini App) добавлена", "The “Diary” (Mini App) button is added")]);
 
   await tg(env, "setMyDescription", {
+    description: "FITTER — one photo, full control 📸\nSend a photo of your food and the AI counts calories, protein, fat and carbs and logs it all in your food diary.",
+  });
+  await tg(env, "setMyDescription", {
+    language_code: "ru",
     description: "FITTER — одно фото, полный контроль 📸\nОтправь фото еды, и нейросеть посчитает калории, белки, жиры и углеводы и запишет всё в дневник питания.",
   });
-  await tg(env, "setMyShortDescription", { short_description: "Считаю калории по фото еды 📸 Одно фото. Полный контроль." });
+  await tg(env, "setMyShortDescription", { short_description: "Counts calories from food photos 📸 One photo. Full control." });
+  await tg(env, "setMyShortDescription", { language_code: "ru", short_description: "Считаю калории по фото еды 📸 Одно фото. Полный контроль." });
 
   if (env.GEMINI_API_KEY) {
     try {
-      const r = await gemini(env, [{ text: "Ответь словом ok" }], { type: "OBJECT", properties: { ok: { type: "STRING" } }, required: ["ok"] });
-      rows.push([true, `Нейросеть Gemini отвечает (модель ${esc(lastModelUsed)})`]);
+      const r = await gemini(env, [{ text: "Reply with the word ok" }], { type: "OBJECT", properties: { ok: { type: "STRING" } }, required: ["ok"] });
+      rows.push([true, R(`Нейросеть Gemini отвечает (модель ${esc(lastModelUsed)})`, `The Gemini AI is responding (model ${esc(lastModelUsed)})`)]);
     } catch (e) {
-      rows.push([false, `Gemini не отвечает: ${esc(String(e.message || e).slice(0, 300))}`]);
+      rows.push([false, R("Gemini не отвечает: ", "Gemini is not responding: ") + esc(String(e.message || e).slice(0, 300))]);
     }
   }
-  if (rows.every(([ok]) => ok)) rows.push([true, `<b>Всё готово!</b> Открой бота: <a href="https://t.me/${me.result.username}">@${me.result.username}</a> и нажми «Старт»`]);
+  if (rows.every(([ok]) => ok)) {
+    const u = `<a href="https://t.me/${me.result.username}">@${me.result.username}</a>`;
+    rows.push([true, R(`<b>Всё готово!</b> Открой бота: ${u} и нажми «Старт»`, `<b>All set!</b> Open the bot: ${u} and tap “Start”`)]);
+  }
   return page(rows);
 }
 
 // ───────────────────────────── Mini App (дневник по дням) ─────────────────────────────
 
 const APP_HTML = `<!doctype html>
-<html lang="ru">
+<html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
-<title>FITTER — дневник</title>
+<title>FITTER — diary</title>
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
 <style>
   :root{
@@ -3256,6 +3470,7 @@ const APP_HTML = `<!doctype html>
   .nav{display:flex;align-items:center;gap:6px;flex:none}
   .nav button{width:36px;height:36px;border-radius:12px;background:var(--h-btn);color:var(--h-ink);display:flex;align-items:center;justify-content:center}
   .nav button svg{width:18px;height:18px}
+  .nav button#lang{font-size:12px;font-weight:800;letter-spacing:.02em}
   .week{position:relative;z-index:1;display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin:16px 0 8px}
   .wd{background:transparent;color:var(--h-ink);border-radius:14px;padding:7px 0;display:flex;flex-direction:column;align-items:center;gap:2px}
   .wd small{font-size:12px;font-weight:600;color:var(--h-sub)}
@@ -3460,10 +3675,10 @@ const APP_HTML = `<!doctype html>
 <svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs><symbol id="i-plate" viewBox="0 0 24 24"><defs><linearGradient id="pl" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFFFFF"/><stop offset="1" stop-color="#DCE3EA"/></linearGradient></defs> <ellipse cx="12" cy="13" rx="10" ry="9" fill="#AFBBC7"/> <ellipse cx="12" cy="12.4" rx="10" ry="9" fill="url(#pl)"/> <ellipse cx="12" cy="12.4" rx="6.6" ry="5.9" fill="#EEF2F6" stroke="#C9D3DD" stroke-width=".6"/> <path d="M8.2 13.6c-.6-2.6 1.2-4.6 3.4-4.4-1 1.4-1.6 2.9-1.5 4.6z" fill="#4CC38A"/> <path d="M10.1 13.8c0-2.6 2.2-4.2 4.3-3.4-1.4 1-2.4 2.2-2.6 3.6z" fill="#2FA36B"/> <circle cx="14.6" cy="13.4" r="1.9" fill="#FF6B4A"/> <circle cx="14.2" cy="12.8" r=".5" fill="#FFB4A3"/> <ellipse cx="11.6" cy="15.2" rx="2.4" ry="1.3" fill="#FFB547"/></symbol><symbol id="i-protein" viewBox="0 0 24 24"><defs><linearGradient id="pr" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#FFB15C"/><stop offset="1" stop-color="#D9662B"/></linearGradient></defs> <path d="M15.2 2.8c3.5 0 6 2.7 6 6 0 4.2-3.9 7.3-8 6.6L10 18.6l-3.2-3.2 3.2-3.2c-.6-4.6 1.6-9.4 5.2-9.4z" fill="url(#pr)"/> <path d="M17.6 5.6c1.2.6 1.9 1.8 1.9 3.1" stroke="#FFD9AE" stroke-width="1.2" stroke-linecap="round" fill="none"/> <path d="M10.6 15.5 7.3 18.8" stroke="#F3E9DA" stroke-width="2.6" stroke-linecap="round"/> <circle cx="5.6" cy="18.4" r="1.9" fill="#F3E9DA" stroke="#C9BBA6" stroke-width=".5"/> <circle cx="7.6" cy="20.4" r="1.9" fill="#F3E9DA" stroke="#C9BBA6" stroke-width=".5"/></symbol><symbol id="i-fat" viewBox="0 0 24 24"><defs><linearGradient id="ft" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFE27A"/><stop offset="1" stop-color="#F5A524"/></linearGradient></defs> <path d="M12 2.2c-1 1.8-7.2 8.7-7.2 13.1a7.2 7.2 0 0 0 14.4 0C19.2 10.9 13 4 12 2.2z" fill="url(#ft)"/> <path d="M12 2.2c-1 1.8-7.2 8.7-7.2 13.1a7.2 7.2 0 0 0 14.4 0C19.2 10.9 13 4 12 2.2z" fill="none" stroke="#D98A12" stroke-width=".6"/> <path d="M8.6 15.6a3.4 3.4 0 0 0 3 3.2" stroke="#FFF6CF" stroke-width="1.5" stroke-linecap="round" fill="none"/></symbol><symbol id="i-carbs" viewBox="0 0 24 24"><path d="M12 22.2V8.6" stroke="#C98A1F" stroke-width="2" stroke-linecap="round"/> <g fill="#F7C04A" stroke="#C98A1F" stroke-width=".6"> <path d="M11.6 12.6c-3.4.3-5.8-1.8-6-5 3.3-.2 5.7 1.8 6 5z"/> <path d="M12.4 12.6c3.4.3 5.8-1.8 6-5-3.3-.2-5.7 1.8-6 5z"/> <path d="M11.6 18c-3.4.3-5.8-1.8-6-5 3.3-.2 5.7 1.8 6 5z"/> <path d="M12.4 18c3.4.3 5.8-1.8 6-5-3.3-.2-5.7 1.8-6 5z"/> <path d="M12 9c-2-1.1-2-4.3 0-6.3 2 2 2 5.2 0 6.3z"/> </g> <g fill="#FFE6A3"><ellipse cx="8.4" cy="9.4" rx="1.2" ry=".6" transform="rotate(35 8.4 9.4)"/><ellipse cx="8.4" cy="14.8" rx="1.2" ry=".6" transform="rotate(35 8.4 14.8)"/></g></symbol><symbol id="i-kcal" viewBox="0 0 24 24"><defs><linearGradient id="fl" x1="0" y1="1" x2="0" y2="0"><stop offset="0" stop-color="#FF3D2E"/><stop offset=".6" stop-color="#FF8A1F"/><stop offset="1" stop-color="#FFC23D"/></linearGradient> <linearGradient id="fi" x1="0" y1="1" x2="0" y2="0"><stop offset="0" stop-color="#FFB02E"/><stop offset="1" stop-color="#FFF1A8"/></linearGradient></defs> <path d="M12.6 2c.6 3.4-1.3 5-3 6.8C7.8 10.7 6 12.6 6 15.6A6.2 6.2 0 0 0 12 22a6.4 6.4 0 0 0 6-6.6c0-2.6-1.2-4.3-2.3-5.6-.2 1.4-.9 2.4-1.9 2.8.6-4.6-.7-8.3-1.2-10.6z" fill="url(#fl)"/> <path d="M12.2 12.2c.2 1.9-1.3 2.6-2 3.7-.4.6-.6 1.2-.6 1.9A2.6 2.6 0 0 0 12.2 20.6a2.7 2.7 0 0 0 2.6-2.8c0-1.6-1.2-2.5-1.6-3.2-.5.5-.9.6-1.2.5.3-1 .3-2 .2-2.9z" fill="url(#fi)"/></symbol><symbol id="i-scales" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="3.5" width="17" height="17" rx="5"/> <path d="M8 9.2a5.6 5.6 0 0 1 8 0"/> <path d="M12 10.6l1.4-2"/> <circle cx="12" cy="10.8" r="0.4" fill="currentColor"/></g></symbol><symbol id="i-apple" viewBox="0 0 24 24"><g fill="none" stroke="#fff" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 8V6.5a3 3 0 0 1 3-3H8"/> <path d="M16 3.5h1.5a3 3 0 0 1 3 3V8"/> <path d="M20.5 16v1.5a3 3 0 0 1-3 3H16"/> <path d="M8 20.5H6.5a3 3 0 0 1-3-3V16"/> <path d="M12 9.3c-1.2-.9-3.9-1.1-4.4 1.9-.4 2.4 1.2 5.4 2.9 5.4.6 0 1-.3 1.5-.3s.9.3 1.5.3c1.7 0 3.3-3 2.9-5.4-.5-3-3.2-2.8-4.4-1.9z"/> <path d="M12 9.3c0-1.3.6-2.2 1.7-2.6"/></g></symbol></defs></svg>
 <div class="hero">
   <div class="top">
-    <div class="ttl"><b id="dl">Дневник</b><small id="ds">FITTER</small></div>
-    <div class="nav"><button id="prev" aria-label="Предыдущий день"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg></button><button id="next" aria-label="Следующий день"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5l7 7-7 7"/></svg></button><button id="theme" aria-label="Сменить тему"></button></div>
+    <div class="ttl"><b id="dl">Diary</b><small id="ds">FITTER</small></div>
+    <div class="nav"><button id="prev" aria-label="Previous day"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg></button><button id="next" aria-label="Next day"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5l7 7-7 7"/></svg></button><button id="lang" aria-label="Language">EN</button><button id="theme" aria-label="Switch theme"></button></div>
   </div>
-  <div id="hero"><div class="load">Загрузка…</div></div>
+  <div id="hero"><div class="load">Loading…</div></div>
 </div>
 <div class="wrap" id="root"></div>
 <script>
@@ -3500,20 +3715,59 @@ const APP_HTML = `<!doctype html>
   };
 
   var initData = tg ? tg.initData : "";
-  var MONTHS = ["января","февраля","марта","апреля","мая","июня","июля","августа","сентября","октября","ноября","декабря"];
-  var WD = ["Пн","Вт","Ср","Чт","Пт","Сб","Вс"];
-  var WDF = ["понедельник","вторник","среда","четверг","пятница","суббота","воскресенье"];
+  // Язык: сначала выбор на этом устройстве, иначе язык Telegram; когда придут данные, берём язык аккаунта
+  var LANG = "en";
+  try {
+    var savedLang = localStorage.getItem("fitter_lang");
+    if (savedLang !== "ru" && savedLang !== "en") throw 0;
+    LANG = savedLang;
+  } catch(e) {
+    var lc = (tg && tg.initDataUnsafe && tg.initDataUnsafe.user && tg.initDataUnsafe.user.language_code) || "";
+    LANG = /^(ru|be|kk)/i.test(lc) ? "ru" : "en";
+  }
+  var MONTHS = {
+    ru: ["января","февраля","марта","апреля","мая","июня","июля","августа","сентября","октября","ноября","декабря"],
+    en: ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"]
+  };
+  var WD = { ru: ["Пн","Вт","Ср","Чт","Пт","Сб","Вс"], en: ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"] };
+  var WDF = {
+    ru: ["понедельник","вторник","среда","четверг","пятница","суббота","воскресенье"],
+    en: ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"]
+  };
   var state = { date: null, data: null };
   var root = document.getElementById("root"), hero = document.getElementById("hero");
 
   function esc(s){ return String(s).replace(/[&<>"]/g, function(c){ return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]; }); }
   function r(x){ return Math.round(x); }
+  function T(ru, en){ return LANG === "en" ? en : ru; }
+  function KC(){ return T("ккал", "kcal"); }
+  // Б · Ж · У у блюда
+  function pfc(t){ return T("Б ", "P ") + r(t.p) + T(" · Ж ", " · F ") + r(t.f) + T(" · У ", " · C ") + r(t.c); }
   // Число с разрядами: 2 100
-  function n(x){ return Math.round(x).toLocaleString("ru-RU"); }
-  function kg(x){ return String(x).replace(".", ","); }
+  function n(x){ return Math.round(x).toLocaleString(LANG === "en" ? "en-US" : "ru-RU"); }
+  function kg(x){ return LANG === "en" ? String(x) : String(x).replace(".", ","); }
   function shift(date, n){ var d = new Date(date + "T00:00:00Z"); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0,10); }
-  function human(date){ var d = new Date(date + "T00:00:00Z"); return d.getUTCDate() + " " + MONTHS[d.getUTCMonth()]; }
-  function L(ml){ return String(Math.round(ml / 10) / 100).replace(".", ",") + " л"; }
+  function human(date){ var d = new Date(date + "T00:00:00Z"); return LANG === "en" ? MONTHS.en[d.getUTCMonth()] + " " + d.getUTCDate() : d.getUTCDate() + " " + MONTHS.ru[d.getUTCMonth()]; }
+  function L(ml){ var s = String(Math.round(ml / 10) / 100); return LANG === "en" ? s + " L" : s.replace(".", ",") + " л"; }
+  // Всё, что лежит в разметке: подписи кнопок, заголовок страницы
+  function applyStatic(){
+    document.documentElement.lang = LANG;
+    document.title = T("FITTER — дневник", "FITTER — diary");
+    document.getElementById("prev").setAttribute("aria-label", T("Предыдущий день", "Previous day"));
+    document.getElementById("next").setAttribute("aria-label", T("Следующий день", "Next day"));
+    document.getElementById("theme").setAttribute("aria-label", T("Сменить тему", "Switch theme"));
+    var lb = document.getElementById("lang"); lb.textContent = LANG === "en" ? "EN" : "RU"; lb.setAttribute("aria-label", "Language / Язык");
+    if (!state.data) {
+      document.getElementById("dl").textContent = T("Дневник", "Diary");
+      var ld = hero.querySelector(".load"); if (ld) ld.textContent = T("Загрузка…", "Loading…");
+    }
+  }
+  function setLang(l, save){
+    LANG = l;
+    if (save) try { localStorage.setItem("fitter_lang", l); } catch(e){}
+    applyStatic();
+    if (state.data) render();
+  }
   function icon(name, style){ return '<svg class="ic"' + (style ? ' style="' + style + '"' : '') + '><use href="#i-' + name + '"/></svg>'; }
   function plural(x, a, b, c){ var m = x % 10, h = x % 100; return m === 1 && h !== 11 ? a : m >= 2 && m <= 4 && (h < 12 || h > 14) ? b : c; }
 
@@ -3521,7 +3775,7 @@ const APP_HTML = `<!doctype html>
   var CUP = 250;
   function cupsOf(ml){ return Math.floor(ml / CUP); }
   function cupsGoal(ml){ return Math.max(1, Math.ceil(ml / CUP)); }
-  function cupWord(x){ return plural(x, "стакан", "стакана", "стаканов"); }
+  function cupWord(x){ return LANG === "en" ? (x === 1 ? "glass" : "glasses") : plural(x, "стакан", "стакана", "стаканов"); }
   function cupCells(wv, wg, cls){
     var all = cupsGoal(wg), on = cupsOf(wv), h = '<div class="' + cls + '" style="--n:' + all + '">';
     for (var i = 0; i < all; i++) h += '<i class="' + (i < on ? "on" : "") + '"></i>';
@@ -3580,11 +3834,12 @@ const APP_HTML = `<!doctype html>
 
   function load(date){
     call("GET", "/api/day" + (date ? "?date=" + date : "")).then(function(d){
+      if (d.lang && d.lang !== LANG) { LANG = d.lang; try { localStorage.setItem("fitter_lang", LANG); } catch(e){} applyStatic(); }
       if (state.date !== d.date) state.pillMode = null;
       state.date = d.date; state.data = d; render();
     }).catch(function(e){
-      var msg = e && e.error === "no_profile" ? "Сначала пройди анкету в боте: нажми /start" :
-                e && e.error === "unauthorized" ? "Открой дневник через кнопку в боте FITTER" : "Не получилось загрузить дневник. Попробуй ещё раз.";
+      var msg = e && e.error === "no_profile" ? T("Сначала пройди анкету в боте: нажми /start", "First complete the questionnaire in the bot: send /start") :
+                e && e.error === "unauthorized" ? T("Открой дневник через кнопку в боте FITTER", "Open the diary with the button in the FITTER bot") : T("Не получилось загрузить дневник. Попробуй ещё раз.", "Couldn't load the diary. Please try again.");
       hero.innerHTML = ""; root.innerHTML = '<div class="err">' + msg + '</div>';
     });
   }
@@ -3599,22 +3854,28 @@ const APP_HTML = `<!doctype html>
       '<circle class="trk" cx="102" cy="102" r="' + R + '" fill="none" stroke-width="14"/>' +
       '<circle class="arc" cx="102" cy="102" r="' + R + '" fill="none" stroke="url(#rg)" stroke-width="14" stroke-linecap="round" stroke-dasharray="' + C + '" stroke-dashoffset="' + C + '" data-off="' + (C * (1 - pct)) + '"/>' +
       (pct > 0.02 ? '<g class="knob" data-rot="' + (pct * 360) + '"><circle cx="' + (102 + R) + '" cy="102" r="8"/></g>' : '') + '</svg>' +
-      '<div class="in">' + icon("kcal") + '<b data-to="' + r(val) + '">0</b><small>из ' + n(max) + ' ккал</small><em>' + share + '%</em></div></div>';
+      '<div class="in">' + icon("kcal") + '<b data-to="' + r(val) + '">0</b><small>' + T('из ' + n(max) + ' ккал', 'of ' + n(max) + ' kcal') + '</small><em>' + share + '%</em></div></div>';
   }
 
   function macro(cls, ic, label, val, max){
     var pct = max ? Math.min(100, val / max * 100) : 0;
     var left = max - val, ok = max && val >= max * 0.9 && val <= max * 1.1;
-    var st = !max ? '' : ok ? '<span class="ok">в норме</span>' : left > 0 ? 'ещё ' + r(left) + ' г' : '<span class="ov">+' + r(-left) + ' г</span>';
+    var st = !max ? '' : ok ? '<span class="ok">' + T("в норме", "on goal") + '</span>' : left > 0 ? T('ещё ' + r(left) + ' г', r(left) + ' g to go') : '<span class="ov">+' + r(-left) + ' ' + T("г", "g") + '</span>';
     return '<div class="mc ' + cls + ' rise"><div class="ib">' + icon(ic) + '</div><div class="lb">' + label + '</div>' +
-      '<div class="vl">' + r(val) + '<small> / ' + max + ' г</small></div><div class="bar"><div data-pct="' + pct + '"></div></div><div class="st">' + st + '</div></div>';
+      '<div class="vl">' + r(val) + '<small> / ' + max + ' ' + T("г", "g") + '</small></div><div class="bar"><div data-pct="' + pct + '"></div></div><div class="st">' + st + '</div></div>';
   }
 
   // Подсказка под БЖУ: чего не хватает сильнее всего и чего уже много
-  var FOODS = { p: "творог 200 г или куриная грудка 150 г", f: "горсть орехов или ложка масла в салат", c: "порция каши, хлеб или фрукт" };
-  var NAMES = { p: "белка", f: "жиров", c: "углеводов" };
+  var FOODS = {
+    ru: { p: "творог 200 г или куриная грудка 150 г", f: "горсть орехов или ложка масла в салат", c: "порция каши, хлеб или фрукт" },
+    en: { p: "200 g of cottage cheese or 150 g of chicken breast", f: "a handful of nuts or a spoon of oil in a salad", c: "a serving of oatmeal, bread or a piece of fruit" }
+  };
+  var NAMES = {
+    ru: { p: "белка", f: "жиров", c: "углеводов" },
+    en: { p: "protein", f: "fat", c: "carbs" }
+  };
   function macroHint(d){
-    var t = d.totals, g = d.targets;
+    var t = d.totals, g = d.targets, NM = NAMES[LANG];
     if (!d.meals.length || d.date > d.today) return "";
     var keys = ["p", "f", "c"], over = null, need = null;
     keys.forEach(function(k){
@@ -3624,10 +3885,12 @@ const APP_HTML = `<!doctype html>
       if (k1 < 0.9 && (!need || k1 < t[need] / g[need])) need = k;
     });
     var txt, cls = "";
-    if (over) { txt = "<b>" + NAMES[over].charAt(0).toUpperCase() + NAMES[over].slice(1) + " уже больше нормы на " + r(t[over] - g[over]) + " г.</b> " + (need ? "А вот " + NAMES[need] + " не хватает " + r(g[need] - t[need]) + " г." : "Остальное в порядке."); cls = " warn"; }
-    else if (need && d.date === d.today) txt = "Сильнее всего не хватает " + NAMES[need] + ": <b>добери " + r(g[need] - t[need]) + "&nbsp;г</b>&nbsp;— например, " + FOODS[need] + ".";
-    else if (need) txt = "В этот день не хватило " + NAMES[need] + ": " + r(t[need]) + " из " + g[need] + " г.";
-    else { txt = "<b>БЖУ в балансе.</b> Белки, жиры и углеводы — все в пределах нормы."; cls = " good"; }
+    if (over) { txt = T("<b>" + NM[over].charAt(0).toUpperCase() + NM[over].slice(1) + " уже больше нормы на " + r(t[over] - g[over]) + " г.</b> " + (need ? "А вот " + NM[need] + " не хватает " + r(g[need] - t[need]) + " г." : "Остальное в порядке."),
+                        "<b>" + NM[over].charAt(0).toUpperCase() + NM[over].slice(1) + " is already " + r(t[over] - g[over]) + " g over your goal.</b> " + (need ? "But you're " + r(g[need] - t[need]) + " g short on " + NM[need] + "." : "Everything else is fine.")); cls = " warn"; }
+    else if (need && d.date === d.today) txt = T("Сильнее всего не хватает " + NM[need] + ": <b>добери " + r(g[need] - t[need]) + "&nbsp;г</b>&nbsp;— например, " + FOODS.ru[need] + ".",
+                                                "Biggest gap is " + NM[need] + ": <b>add " + r(g[need] - t[need]) + "&nbsp;g</b>&nbsp;— for example, " + FOODS.en[need] + ".");
+    else if (need) txt = T("В этот день не хватило " + NM[need] + ": " + r(t[need]) + " из " + g[need] + " г.", "Short on " + NM[need] + " that day: " + r(t[need]) + " of " + g[need] + " g.");
+    else { txt = T("<b>БЖУ в балансе.</b> Белки, жиры и углеводы — все в пределах нормы.", "<b>Macros are balanced.</b> Protein, fat and carbs are all within your goal."); cls = " good"; }
     return '<div class="hint rise' + cls + '">' + txt + '</div>';
   }
 
@@ -3642,10 +3905,10 @@ const APP_HTML = `<!doctype html>
       var h = w.meals ? Math.max(4, w.kcal / top * 100) : 0;
       var c = !w.meals ? "" : w.kcal > g * 1.1 ? " ov" : w.kcal >= g * 0.9 ? " ok" : " lo";
       return '<button class="wb' + (w.date === d.date ? " sel" : "") + '" data-date="' + w.date + '"' + (w.date > d.today ? " disabled" : "") + '>' +
-        '<span class="col"><i class="' + c + '" data-h="' + h + '"></i></span><small>' + WD[i] + '</small><em>' + (w.meals ? n(w.kcal) : "—") + '</em></button>';
+        '<span class="col"><i class="' + c + '" data-h="' + h + '"></i></span><small>' + WD[LANG][i] + '</small><em>' + (w.meals ? n(w.kcal) : "—") + '</em></button>';
     }).join("");
-    return '<h3>Неделя <small>в среднем ' + n(sum / days.length) + ' ккал</small></h3><div class="wkc rise"><div class="bars"><div class="plot"><div class="nl" style="bottom:' + (g / top * 100) + '%"><span>норма ' + n(g) + '</span></div></div>' + bars + '</div>' +
-      '<div class="wsum"><span>В норме <b>' + inN + ' из ' + days.length + '</b> ' + (days.length === 1 ? 'дня' : 'дней') + '</span><span class="lg"><i class="ok"></i>норма <i class="lo"></i>меньше <i class="ov"></i>больше</span></div></div>';
+    return '<h3>' + T("Неделя", "Week") + ' <small>' + T("в среднем ", "average ") + n(sum / days.length) + ' ' + KC() + '</small></h3><div class="wkc rise"><div class="bars"><div class="plot"><div class="nl" style="bottom:' + (g / top * 100) + '%"><span>' + T("норма ", "goal ") + n(g) + '</span></div></div>' + bars + '</div>' +
+      '<div class="wsum"><span>' + T("В норме ", "On goal ") + '<b>' + inN + T(" из ", " of ") + days.length + '</b> ' + T(days.length === 1 ? 'дня' : 'дней', days.length === 1 ? 'day' : 'days') + '</span><span class="lg"><i class="ok"></i>' + T("норма ", "on goal ") + '<i class="lo"></i>' + T("меньше ", "under ") + '<i class="ov"></i>' + T("больше", "over") + '</span></div></div>';
   }
 
   // Вода в стакане — многоугольник по форме стакана: без clip-path, который на Android рисовался чёрным
@@ -3665,33 +3928,33 @@ const APP_HTML = `<!doctype html>
   // ── Таблетки ──
   var SLOTS = [];
   for (var hh = 0; hh < 24; hh++) { SLOTS.push((hh < 10 ? "0" : "") + hh + ":00"); SLOTS.push((hh < 10 ? "0" : "") + hh + ":30"); }
-  function slotSelect(cls){ return '<select class="' + cls + '"><option value="">+ время</option>' + SLOTS.map(function(t){ return '<option>' + t + '</option>'; }).join("") + '</select>'; }
+  function slotSelect(cls){ return '<select class="' + cls + '"><option value="">' + T("+ время", "+ time") + '</option>' + SLOTS.map(function(t){ return '<option>' + t + '</option>'; }).join("") + '</select>'; }
 
   function pillsBlock(d){
     var doses = d.pills || [], list = d.pillList || [], mode = state.pillMode;
     var taken = doses.filter(function(x){ return x.s === "taken"; }).length;
     var future = d.date > d.today;
-    var sub = !list.length ? "Напомню вовремя" : doses.length ? taken + " из " + doses.length + " принято" : "Нет приёмов";
-    var btn = mode ? '<button class="pbtn" data-pmode="">Готово</button>' :
-      (list.length ? '<button class="pbtn" data-pmode="edit">Изменить</button>' : '<button class="pbtn" data-pmode="add">+ Добавить</button>');
-    var h = '<div class="pills rise"><div class="ph"><div class="ib">💊</div><div class="t">Таблетки<small>' + sub + '</small></div>' + btn + '</div>';
+    var sub = !list.length ? T("Напомню вовремя", "I'll remind you on time") : doses.length ? taken + T(" из ", " of ") + doses.length + T(" принято", " taken") : T("Нет приёмов", "No doses");
+    var btn = mode ? '<button class="pbtn" data-pmode="">' + T("Готово", "Done") + '</button>' :
+      (list.length ? '<button class="pbtn" data-pmode="edit">' + T("Изменить", "Edit") + '</button>' : '<button class="pbtn" data-pmode="add">' + T("+ Добавить", "+ Add") + '</button>');
+    var h = '<div class="pills rise"><div class="ph"><div class="ib">💊</div><div class="t">' + T("Таблетки", "Pills") + '<small>' + sub + '</small></div>' + btn + '</div>';
     if (mode === "add") {
       var tm = state.ptimes || [];
-      h += '<div class="pform"><input id="pname" maxlength="40" placeholder="Название, например: Витамин D"><input id="pdose" maxlength="30" placeholder="Доза, например: 1 таблетка (необязательно)">' +
+      h += '<div class="pform"><input id="pname" maxlength="40" placeholder="' + T("Название, например: Витамин D", "Name, for example: Vitamin D") + '"><input id="pdose" maxlength="30" placeholder="' + T("Доза, например: 1 таблетка (необязательно)", "Dose, for example: 1 tablet (optional)") + '">' +
         '<div class="ptimes">' + tm.map(function(t, i){ return '<span class="chip">' + t + '<b data-prm="' + i + '">×</b></span>'; }).join("") + slotSelect("pslot") + '</div>' +
-        '<button class="psave" data-psave="1">Сохранить</button></div>';
+        '<button class="psave" data-psave="1">' + T("Сохранить", "Save") + '</button></div>';
     } else if (mode === "edit") {
       h += '<div class="plist">' + list.map(function(p){
-        return '<div class="row"><div>' + esc(p.name) + '<small>' + (p.dose ? esc(p.dose) + ' · ' : '') + p.times.join(", ") + '</small></div><button class="x" data-pdel="' + p.id + '">Удалить</button></div>';
-      }).join("") + '</div>' + (list.length < 10 ? '<button class="pbtn" style="width:100%;margin-top:8px" data-pmode="add">+ Добавить препарат</button>' : '');
+        return '<div class="row"><div>' + esc(p.name) + '<small>' + (p.dose ? esc(p.dose) + ' · ' : '') + p.times.join(", ") + '</small></div><button class="x" data-pdel="' + p.id + '">' + T("Удалить", "Delete") + '</button></div>';
+      }).join("") + '</div>' + (list.length < 10 ? '<button class="pbtn" style="width:100%;margin-top:8px" data-pmode="add">' + T("+ Добавить препарат", "+ Add medication") + '</button>' : '');
     } else if (!list.length) {
-      h += '<div class="phint">Добавь витамины или лекарства, и я напомню в чате, когда их принять.</div>';
+      h += '<div class="phint">' + T("Добавь витамины или лекарства, и я напомню в чате, когда их принять.", "Add vitamins or medications and I'll remind you in the chat when to take them.") + '</div>';
     } else if (!doses.length) {
-      h += '<div class="phint">На этот день приёмов нет.</div>';
+      h += '<div class="phint">' + T("На этот день приёмов нет.", "No doses for this day.") + '</div>';
     } else {
       h += '<div class="pbar"><i data-pct="' + Math.round(taken / doses.length * 100) + '"></i></div>' + doses.map(function(x){
         return '<button class="dose ' + x.s + '"' + (future ? ' disabled' : '') + ' data-pmark="' + x.id + '|' + x.time + '|' + x.s + '"><span class="tm">' + x.time + '</span><span class="nm"><span class="pn">' + esc(x.name) + '</span>' +
-          '<small>' + (x.dose ? esc(x.dose) : '') + (x.s === "taken" && x.at ? (x.dose ? ' · ' : '') + 'принято в ' + x.at : x.s === "skip" ? (x.dose ? ' · ' : '') + 'пропущено' : '') + '</small></span><span class="ck">' + (x.s === "taken" ? "✓" : "") + '</span></button>';
+          '<small>' + (x.dose ? esc(x.dose) : '') + (x.s === "taken" && x.at ? (x.dose ? ' · ' : '') + T('принято в ', 'taken at ') + x.at : x.s === "skip" ? (x.dose ? ' · ' : '') + T('пропущено', 'skipped') : '') + '</small></span><span class="ck">' + (x.s === "taken" ? "✓" : "") + '</span></button>';
       }).join("");
     }
     return h + '</div>';
@@ -3725,11 +3988,11 @@ const APP_HTML = `<!doctype html>
     var name = (document.getElementById("pname").value || "").trim();
     var dose = (document.getElementById("pdose").value || "").trim();
     var times = state.ptimes || [];
-    var msg = !name ? "Напиши название препарата" : !times.length ? "Выбери хотя бы одно время приёма" : "";
+    var msg = !name ? T("Напиши название препарата", "Enter the medication name") : !times.length ? T("Выбери хотя бы одно время приёма", "Pick at least one time") : "";
     if (msg) { haptic("rigid"); if (tg && tg.showAlert) tg.showAlert(msg); else alert(msg); return; }
     call("POST", "/api/pill/add", { date: state.date, name: name, dose: dose, times: times })
       .then(function(){ notify("success"); state.pillMode = null; state.ptimes = []; load(state.date); })
-      .catch(function(){ notify("error"); var m = "Не получилось сохранить, попробуй ещё раз"; if (tg && tg.showAlert) tg.showAlert(m); else alert(m); });
+      .catch(function(){ notify("error"); var m = T("Не получилось сохранить, попробуй ещё раз", "Couldn't save, please try again"); if (tg && tg.showAlert) tg.showAlert(m); else alert(m); });
   }
 
   function pillClick(e){
@@ -3744,7 +4007,7 @@ const APP_HTML = `<!doctype html>
     if (b.dataset.pdel) {
       var id = b.dataset.pdel; haptic("rigid");
       var go = function(){ call("POST", "/api/pill/delete", { date: state.date, id: id }).then(function(){ notify("warning"); load(state.date); }); };
-      if (tg && tg.showConfirm) tg.showConfirm("Удалить препарат и его напоминания?", function(ok){ if (ok) go(); }); else if (confirm("Удалить?")) go();
+      if (tg && tg.showConfirm) tg.showConfirm(T("Удалить препарат и его напоминания?", "Delete this medication and its reminders?"), function(ok){ if (ok) go(); }); else if (confirm(T("Удалить?", "Delete?"))) go();
       return true;
     }
     return false;
@@ -3766,9 +4029,9 @@ const APP_HTML = `<!doctype html>
         '<polygon points="0,' + H + ' ' + pts.join(" ") + ' ' + W + ',' + H + '" fill="url(#wg)"/>' +
         '<polyline points="' + pts.join(" ") + '" fill="none" stroke="#16b86a" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/></svg>';
     }
-    return '<h3>Вес</h3><div class="wcard rise"><div class="ib">' + icon("scales") + '</div><div class="v"><b>' + kg(last.kg) + ' кг</b><small>' +
-      (ws.length > 1 ? (diff > 0 ? "+" : diff < 0 ? "−" : "") + kg(Math.abs(diff)) + " кг с " + human(first.date) : "записан " + human(last.date)) +
-      '</small></div>' + spark + '<button class="wed" data-wedit="1" aria-label="Изменить вес">✏️</button></div>';
+    return '<h3>' + T("Вес", "Weight") + '</h3><div class="wcard rise"><div class="ib">' + icon("scales") + '</div><div class="v"><b>' + kg(last.kg) + ' ' + T("кг", "kg") + '</b><small>' +
+      (ws.length > 1 ? (diff > 0 ? "+" : diff < 0 ? "−" : "") + kg(Math.abs(diff)) + T(" кг с ", " kg since ") + human(first.date) : T("записан ", "logged ") + human(last.date)) +
+      '</small></div>' + spark + '<button class="wed" data-wedit="1" aria-label="' + T("Изменить вес", "Edit weight") + '">✏️</button></div>';
   }
 
   // Карандаш у веса: меняем вес за сегодня прямо в дневнике
@@ -3784,11 +4047,11 @@ const APP_HTML = `<!doctype html>
       if (done) return; done = true;
       var kg = Number(String(inp.value).replace(",", "."));
       if (!save || !kg || kg === old) { render(); return; }
-      if (!(kg >= 30 && kg <= 300)) { haptic("rigid"); var m = "Вес — от 30 до 300 кг"; if (tg && tg.showAlert) tg.showAlert(m); else alert(m); render(); return; }
+      if (!(kg >= 30 && kg <= 300)) { haptic("rigid"); var m = T("Вес — от 30 до 300 кг", "Weight must be between 30 and 300 kg"); if (tg && tg.showAlert) tg.showAlert(m); else alert(m); render(); return; }
       inp.disabled = true;
       call("POST", "/api/weight", { date: state.date, kg: kg })
         .then(function(){ notify("success"); load(state.date); })
-        .catch(function(){ notify("error"); var m2 = "Не получилось сохранить вес, попробуй ещё раз"; if (tg && tg.showAlert) tg.showAlert(m2); else alert(m2); render(); });
+        .catch(function(){ notify("error"); var m2 = T("Не получилось сохранить вес, попробуй ещё раз", "Couldn't save your weight, please try again"); if (tg && tg.showAlert) tg.showAlert(m2); else alert(m2); render(); });
     }
     inp.addEventListener("keydown", function(e){ if (e.key === "Enter") finish(true); if (e.key === "Escape") finish(false); });
     inp.addEventListener("blur", function(){ finish(true); });
@@ -3806,43 +4069,43 @@ const APP_HTML = `<!doctype html>
   function render(){
     var d = state.data, t = d.totals, g = d.targets;
     var wdi = (new Date(d.date + "T00:00:00Z").getUTCDay() + 6) % 7;
-    document.getElementById("dl").textContent = d.date === d.today ? "Сегодня" : d.date === shift(d.today, -1) ? "Вчера" : human(d.date);
-    document.getElementById("ds").textContent = d.date === d.today ? WDF[wdi] + ", " + human(d.date) : WDF[wdi];
+    document.getElementById("dl").textContent = d.date === d.today ? T("Сегодня", "Today") : d.date === shift(d.today, -1) ? T("Вчера", "Yesterday") : human(d.date);
+    document.getElementById("ds").textContent = d.date === d.today ? WDF[LANG][wdi] + ", " + human(d.date) : WDF[LANG][wdi];
     document.getElementById("next").style.visibility = d.date >= d.today ? "hidden" : "visible";
 
     var week = '<div class="week">' + d.week.map(function(w, i){
       var dot = !w.meals ? "" : w.kcal > g.kcal * 1.1 ? "ov" : w.kcal >= g.kcal * 0.8 ? "ok" : "lo";
       var cls = "wd" + (w.date === d.date ? " sel" : "") + (w.date === d.today ? " today" : "");
       var dis = w.date > d.today ? " disabled" : "";
-      return '<button class="' + cls + '" data-date="' + w.date + '"' + dis + '><small>' + WD[i] + '</small><b>' + Number(w.date.slice(8)) + '</b><i class="' + dot + '"></i></button>';
+      return '<button class="' + cls + '" data-date="' + w.date + '"' + dis + '><small>' + WD[LANG][i] + '</small><b>' + Number(w.date.slice(8)) + '</b><i class="' + dot + '"></i></button>';
     }).join("") + '</div>';
 
     var left = g.kcal - t.kcal;
-    var days = d.date === d.today && d.streak >= 2 ? d.streak + ' ' + plural(d.streak, 'день', 'дня', 'дней') : '';
-    var streak = days ? '<div class="chip">🔥 ' + days + ' подряд</div>' : '';
+    var days = d.date === d.today && d.streak >= 2 ? d.streak + ' ' + T(plural(d.streak, 'день', 'дня', 'дней'), 'days') : '';
+    var streak = days ? '<div class="chip">🔥 ' + days + T(' подряд', ' in a row') + '</div>' : '';
     hero.innerHTML = week + '<div class="main">' + ring(t.kcal, g.kcal) +
-      '<div class="chips"><div class="chip' + (left < 0 ? ' over' : '') + '">' + (left >= 0 ? 'Осталось ' + n(left) + ' ккал' : 'Больше нормы на ' + n(-left) + ' ккал') + '</div>' + streak + '</div></div>';
+      '<div class="chips"><div class="chip' + (left < 0 ? ' over' : '') + '">' + (left >= 0 ? T('Осталось ' + n(left) + ' ккал', n(left) + ' kcal left') : T('Больше нормы на ' + n(-left) + ' ккал', n(-left) + ' kcal over your goal')) + '</div>' + streak + '</div></div>';
 
-    var macros = '<div class="macros">' + macro("p", "protein", "Белки", t.p, g.p) + macro("f", "fat", "Жиры", t.f, g.f) + macro("c", "carbs", "Углеводы", t.c, g.c) + '</div>';
+    var macros = '<div class="macros">' + macro("p", "protein", T("Белки", "Protein"), t.p, g.p) + macro("f", "fat", T("Жиры", "Fat"), t.f, g.f) + macro("c", "carbs", T("Углеводы", "Carbs"), t.c, g.c) + '</div>';
 
     var wg = d.waterGoal || 2000, wv = d.water || 0;
     var water =
       '<div class="water rise' + (wv >= wg ? ' done' : '') + '">' + glass(wv / wg) +
-      '<div class="wt"><div class="lb">Вода</div><b class="wv">' + cupsOf(wv) + ' из ' + cupsGoal(wg) + '</b> <small class="wc">' + cupWord(cupsGoal(wg)) + '</small><br><small class="wl">' + L(wv) + ' из ' + L(wg) + '</small><small class="wn">' + (wv >= wg ? ' · норма ✓' : '') + '</small>' +
+      '<div class="wt"><div class="lb">' + T("Вода", "Water") + '</div><b class="wv">' + cupsOf(wv) + T(' из ', ' of ') + cupsGoal(wg) + '</b> <small class="wc">' + cupWord(cupsGoal(wg)) + '</small><br><small class="wl">' + L(wv) + T(' из ', ' of ') + L(wg) + '</small><small class="wn">' + (wv >= wg ? T(' · норма ✓', ' · goal reached ✓') : '') + '</small>' +
         cupCells(wv, wg, "cups") + '</div>' +
-      '<div class="wbtn"><button class="add" data-w="250">+ стакан</button><button data-w="-250">− стакан</button></div></div>';
+      '<div class="wbtn"><button class="add" data-w="250">' + T("+ стакан", "+ glass") + '</button><button data-w="-250">' + T("− стакан", "− glass") + '</button></div></div>';
 
     var total = d.meals.reduce(function(a, m){ return a + m.totals.kcal; }, 0);
-    var add = d.date <= d.today ? '<div class="addm rise"><textarea id="addt" rows="1" maxlength="500" enterkeyhint="send" placeholder="Что съел? Например: 2 яйца и тост"></textarea><button class="addb" id="addb" aria-label="Добавить еду">+</button></div>' +
-      '<div class="addh">ИИ посчитает калории и БЖУ' + (d.date !== d.today ? ' · запишу на ' + human(d.date) : '') + '</div>' : '';
-    var meals = (d.meals.length ? '<h3>Приёмы пищи <small>' + d.meals.length + ' · ' + n(total) + ' ккал</small></h3>' : '<h3>Приёмы пищи</h3>') + add + (d.meals.length ? d.meals.map(function(m, mi){
-      return '<div class="meal rise" data-id="' + m.id + '" style="animation-delay:' + (0.05 * mi + 0.1) + 's"><div class="hd"><div class="ib">' + icon("plate") + '</div><div class="t">' + esc(m.title) + '<small>' + esc(m.time) + (total ? ' · ' + r(m.totals.kcal / total * 100) + '% дня' : '') + ' · Б ' + r(m.totals.p) + ' · Ж ' + r(m.totals.f) + ' · У ' + r(m.totals.c) + '</small></div><div class="k">' + r(m.totals.kcal) + ' ккал</div></div>' + mbar(m.totals) +
+    var add = d.date <= d.today ? '<div class="addm rise"><textarea id="addt" rows="1" maxlength="500" enterkeyhint="send" placeholder="' + T("Что съел? Например: 2 яйца и тост", "What did you eat? For example: 2 eggs and toast") + '"></textarea><button class="addb" id="addb" aria-label="' + T("Добавить еду", "Add food") + '">+</button></div>' +
+      '<div class="addh">' + T('ИИ посчитает калории и БЖУ', 'AI will count calories and macros') + (d.date !== d.today ? T(' · запишу на ' + human(d.date), ' · will be logged for ' + human(d.date)) : '') + '</div>' : '';
+    var meals = (d.meals.length ? '<h3>' + T("Приёмы пищи", "Meals") + ' <small>' + d.meals.length + ' · ' + n(total) + ' ' + KC() + '</small></h3>' : '<h3>' + T("Приёмы пищи", "Meals") + '</h3>') + add + (d.meals.length ? d.meals.map(function(m, mi){
+      return '<div class="meal rise" data-id="' + m.id + '" style="animation-delay:' + (0.05 * mi + 0.1) + 's"><div class="hd"><div class="ib">' + icon("plate") + '</div><div class="t">' + esc(m.title) + '<small>' + esc(m.time) + (total ? ' · ' + r(m.totals.kcal / total * 100) + T('% дня', '% of day') : '') + ' · ' + pfc(m.totals) + '</small></div><div class="k">' + r(m.totals.kcal) + ' ' + KC() + '</div></div>' + mbar(m.totals) +
         m.items.map(function(it, i){
-          return '<div class="it"><i class="dot" style="background:' + DOTS[i % DOTS.length] + '"></i><div class="n"><div class="nm" data-meal="' + m.id + '" data-idx="' + i + '">' + esc(it.name) + '</div><small>' + r(it.totals.kcal) + ' ккал' + (' · Б ' + r(it.totals.p) + ' · Ж ' + r(it.totals.f) + ' · У ' + r(it.totals.c)) + '</small></div>' +
-            '<div class="gr"><input type="number" inputmode="numeric" min="1" max="3000" value="' + it.grams + '" data-meal="' + m.id + '" data-idx="' + i + '"><span class="g">г</span></div></div>';
+          return '<div class="it"><i class="dot" style="background:' + DOTS[i % DOTS.length] + '"></i><div class="n"><div class="nm" data-meal="' + m.id + '" data-idx="' + i + '">' + esc(it.name) + '</div><small>' + r(it.totals.kcal) + ' ' + KC() + ' · ' + pfc(it.totals) + '</small></div>' +
+            '<div class="gr"><input type="number" inputmode="numeric" min="1" max="3000" value="' + it.grams + '" data-meal="' + m.id + '" data-idx="' + i + '"><span class="g">' + T("г", "g") + '</span></div></div>';
         }).join("") +
-        '<button class="del" data-del="' + m.id + '">Удалить приём пищи</button></div>';
-    }).join("") : '<div class="empty rise"><div class="ib">' + icon("plate") + '</div><b>Здесь пока пусто</b>' + (add ? 'Напиши выше, что ты съел, или отправь боту фото еды 📸' : 'Отправь боту фото еды, и оно появится в дневнике 📸') + '</div>');
+        '<button class="del" data-del="' + m.id + '">' + T("Удалить приём пищи", "Delete meal") + '</button></div>';
+    }).join("") : '<div class="empty rise"><div class="ib">' + icon("plate") + '</div><b>' + T("Здесь пока пусто", "Nothing here yet") + '</b>' + (add ? T('Напиши выше, что ты съел, или отправь боту фото еды 📸', 'Type above what you ate, or send the bot a photo of your food 📸') : T('Отправь боту фото еды, и оно появится в дневнике 📸', 'Send the bot a photo of your food and it will show up in the diary 📸')) + '</div>');
 
     root.innerHTML = macros + macroHint(d) + water + pillsBlock(d) + meals + weekBlock(d) + weightBlock(d.weights);
     animateIn();
@@ -3884,9 +4147,9 @@ const APP_HTML = `<!doctype html>
     var d = state.data, wg = d.waterGoal || 2000, wv = d.water || 0, card = root.querySelector(".water");
     if (!card) return;
     var c = cupsOf(wv), lvl = card.querySelector(".lvl");
-    card.querySelector(".wv").textContent = c + " из " + cupsGoal(wg);
-    card.querySelector(".wl").textContent = L(wv) + " из " + L(wg);
-    card.querySelector(".wn").textContent = wv >= wg ? " · норма ✓" : "";
+    card.querySelector(".wv").textContent = c + T(" из ", " of ") + cupsGoal(wg);
+    card.querySelector(".wl").textContent = L(wv) + T(" из ", " of ") + L(wg);
+    card.querySelector(".wn").textContent = wv >= wg ? T(" · норма ✓", " · goal reached ✓") : "";
     card.querySelectorAll(".cups i").forEach(function(el, i){ el.className = i < c ? "on" : ""; });
     if (lvl) moveLevel(lvl, 74 - 66 * Math.min(1, wv / wg));
     card.classList.toggle("done", wv >= wg);
@@ -3917,9 +4180,9 @@ const APP_HTML = `<!doctype html>
       .then(function(j){ notify("success"); state.flash = j.id; load(state.date); })
       .catch(function(err){
         box.classList.remove("busy"); ta.disabled = false; btn.disabled = false; notify("error");
-        var msg = err && err.error === "limit" ? "На сегодня лимит запросов к нейросети закончился" :
-                  err && err.error === "not_food" ? (err.answer ? String(err.answer).slice(0, 220) : "Не похоже на еду. Напиши, что ты съел, например: гречка 150 г и котлета") :
-                  "Не получилось посчитать, попробуй ещё раз";
+        var msg = err && err.error === "limit" ? T("На сегодня лимит запросов к нейросети закончился", "You've used up today's AI requests") :
+                  err && err.error === "not_food" ? (err.answer ? String(err.answer).slice(0, 220) : T("Не похоже на еду. Напиши, что ты съел, например: гречка 150 г и котлета", "That doesn't look like food. Type what you ate, for example: buckwheat 150 g and a cutlet")) :
+                  T("Не получилось посчитать, попробуй ещё раз", "Couldn't calculate, please try again");
         if (tg && tg.showAlert) tg.showAlert(msg); else alert(msg);
       });
   }
@@ -3928,18 +4191,18 @@ const APP_HTML = `<!doctype html>
   function rename(el){
     var old = el.textContent, mealId = el.dataset.meal, idx = Number(el.dataset.idx);
     var inp = document.createElement("input");
-    inp.className = "ren"; inp.value = old; inp.placeholder = "Например: форель";
+    inp.className = "ren"; inp.value = old; inp.placeholder = T("Например: форель", "For example: trout");
     el.replaceWith(inp); inp.focus(); inp.select();
     var done = false;
     function finish(save){
       if (done) return; done = true;
       var v = inp.value.trim();
       if (!save || !v || v === old) { load(state.date); return; }
-      inp.disabled = true; inp.value = "Пересчитываю…";
+      inp.disabled = true; inp.value = T("Пересчитываю…", "Recalculating…");
       call("POST", "/api/item/rename", { date: state.date, mealId: mealId, idx: idx, name: v })
         .then(function(){ notify("success"); load(state.date); })
         .catch(function(err){
-          var msg = err && err.error === "limit" ? "На сегодня лимит запросов к нейросети закончился" : "Не получилось пересчитать, попробуй ещё раз";
+          var msg = err && err.error === "limit" ? T("На сегодня лимит запросов к нейросети закончился", "You've used up today's AI requests") : T("Не получилось пересчитать, попробуй ещё раз", "Couldn't recalculate, please try again");
           if (tg && tg.showAlert) tg.showAlert(msg); else alert(msg);
           load(state.date);
         });
@@ -3962,7 +4225,7 @@ const APP_HTML = `<!doctype html>
       var id = b.dataset.del;
       haptic("rigid");
       var go = function(){ call("POST", "/api/meal/delete", { date: state.date, mealId: id }).then(function(){ notify("warning"); load(state.date); }); };
-      if (tg && tg.showConfirm) tg.showConfirm("Удалить этот приём пищи?", function(ok){ if (ok) go(); }); else if (confirm("Удалить?")) go();
+      if (tg && tg.showConfirm) tg.showConfirm(T("Удалить этот приём пищи?", "Delete this meal?"), function(ok){ if (ok) go(); }); else if (confirm(T("Удалить?", "Delete?"))) go();
     }
   }
   root.addEventListener("click", onClick);
@@ -3992,6 +4255,7 @@ const APP_HTML = `<!doctype html>
     var date = state.date, was = state.data;
     call("GET", "/api/day?date=" + date).then(function(d){
       if (inflight || state.pillMode || state.date !== date || state.data !== was) return;
+      if (d.lang && d.lang !== LANG) { state.data = d; setLang(d.lang, true); return; }
       var pk = function(x){ return JSON.stringify([x.pills, x.pillList]); };
       var rest = function(x){ return JSON.stringify([x.meals, x.totals, x.targets, x.weights, x.today]); };
       if (rest(d) !== rest(was)) { state.data = d; render(); return; }
@@ -4006,6 +4270,14 @@ const APP_HTML = `<!doctype html>
   window.addEventListener("focus", sync);
   if (tg && tg.onEvent) { try { tg.onEvent("activated", sync); } catch(e){} }
 
+  // Язык: кнопка в шапке, выбор сохраняется на аккаунте (бот и приложение Android читают то же самое)
+  document.getElementById("lang").onclick = function(){
+    var next = LANG === "en" ? "ru" : "en";
+    tick();
+    setLang(next, true);
+    call("POST", "/api/lang", { lang: next }).catch(function(){});
+  };
+  applyStatic();
   load(null);
 })();
 </script>

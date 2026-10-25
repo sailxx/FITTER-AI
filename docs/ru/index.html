@@ -1,0 +1,671 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>FITTER — подсчёт калорий по фото в Telegram</title>
+  <meta name="description" content="FITTER — бесплатный Telegram-бот для подсчёта калорий и БЖУ по фото еды. Сфотографируйте тарелку — ИИ распознает продукты, оценит порцию и запишет всё в дневник питания. Без установки и рекламы.">
+  <meta name="robots" content="index,follow,max-image-preview:large">
+  <meta name="google-site-verification" content="KMzaNessaT8tYKuYTi8cyXiFAt6PD9tVDn9j6xCl1Xo">
+  <link rel="canonical" href="https://sailxx.github.io/FITTER-AI/ru/">
+  <link rel="alternate" hreflang="ru" href="https://sailxx.github.io/FITTER-AI/ru/">
+  <link rel="alternate" hreflang="en" href="https://sailxx.github.io/FITTER-AI/">
+  <link rel="alternate" hreflang="x-default" href="https://sailxx.github.io/FITTER-AI/">
+  <meta name="theme-color" content="#000000">
+  <link rel="icon" href="../icon-32.png" sizes="32x32" type="image/png">
+  <link rel="icon" href="../logo.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="../icon-180.png">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://sailxx.github.io/FITTER-AI/ru/">
+  <meta property="og:site_name" content="FITTER">
+  <meta property="og:locale" content="ru_RU">
+  <meta property="og:title" content="FITTER — подсчёт калорий по фото в Telegram">
+  <meta property="og:description" content="Сфотографируйте еду — FITTER посчитает калории и БЖУ и запишет их в дневник. Бесплатно, прямо в Telegram.">
+  <meta property="og:image" content="https://sailxx.github.io/FITTER-AI/og.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:image:alt" content="FITTER: подсчёт калорий по фото в Telegram">
+  <meta name="vk:image" content="https://sailxx.github.io/FITTER-AI/og.png">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="FITTER — подсчёт калорий по фото">
+  <meta name="twitter:description" content="Фото еды → калории и БЖУ → дневник. Бесплатно, в Telegram.">
+  <meta name="twitter:image" content="https://sailxx.github.io/FITTER-AI/og.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Golos+Text:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+  <script type="application/ld+json">
+  {"@context":"https://schema.org","@type":"SoftwareApplication","name":"FITTER","applicationCategory":"HealthApplication","operatingSystem":"Telegram","inLanguage":"ru","description":"Telegram-бот для оценки калорий, белков, жиров и углеводов по фото еды и ведения дневника питания.","image":"https://sailxx.github.io/FITTER-AI/og.png","offers":{"@type":"Offer","price":"0","priceCurrency":"RUB"},"url":"https://sailxx.github.io/FITTER-AI/","installUrl":"https://t.me/FitterFoodBot","featureList":["Подсчёт калорий и БЖУ по фото","Запись еды текстом","КБЖУ по штрихкоду и этикетке","Исправление продукта и веса с пересчётом КБЖУ","Персональная норма калорий по формуле Миффлина — Сан-Жеора","Дневник питания в Telegram Mini App","Учёт воды и напоминания","Учёт веса и график","Напоминания о таблетках и витаминах","ИИ-советы «Что съесть»","Серии и достижения","ИИ-разбор недели"],"sameAs":["https://t.me/FitterFoodBot","https://github.com/sailxx/FITTER-AI"]}
+  </script>
+  <script type="application/ld+json">
+  {"@context":"https://schema.org","@type":"FAQPage","mainEntity":[
+  {"@type":"Question","name":"Как посчитать калории по фотографии?","acceptedAnswer":{"@type":"Answer","text":"Откройте бота FITTER в Telegram и отправьте фото блюда. ИИ распознает продукты, оценит вес порции и посчитает калории, белки, жиры и углеводы. Запись сразу появится в дневнике, её можно проверить и поправить."}},
+  {"@type":"Question","name":"Насколько точен расчёт калорий по фото?","acceptedAnswer":{"@type":"Answer","text":"Оценка по фото приблизительная и зависит от состава и размера порции. Чтобы было точнее, добавьте подпись к фото («200 г риса») или поправьте вес и продукт кнопкой под записью. Для упаковок бот берёт КБЖУ прямо с этикетки. FITTER не заменяет консультацию врача или диетолога."}},
+  {"@type":"Question","name":"Нужно ли устанавливать приложение?","acceptedAnswer":{"@type":"Answer","text":"Нет. FITTER работает прямо в Telegram, а дневник открывается как Telegram Mini App. Регистрация не нужна."}},
+  {"@type":"Question","name":"Сколько стоит FITTER?","acceptedAnswer":{"@type":"Answer","text":"Сейчас FITTER бесплатный и без рекламы. Откройте бота в Telegram и начните вести дневник."}},
+  {"@type":"Question","name":"Как FITTER рассчитывает мою норму?","acceptedAnswer":{"@type":"Answer","text":"При первом запуске бот задаёт 6 вопросов: пол, возраст, рост, вес, активность и цель. Норма калорий и БЖУ считается по формуле Миффлина — Сан-Жеора и пересчитывается, когда вы записываете новый вес."}},
+  {"@type":"Question","name":"Можно ли исправить продукт или вес?","acceptedAnswer":{"@type":"Answer","text":"Да. Нажмите на продукт под записью и укажите правильный вес, название или и то и другое, например «форель 200 г». Калории и БЖУ пересчитаются."}},
+  {"@type":"Question","name":"Что делать с упакованными продуктами?","acceptedAnswer":{"@type":"Answer","text":"Сфотографируйте этикетку — бот перепишет КБЖУ точно с неё. Если этикетки не видно, бот прочитает штрихкод и найдёт продукт в базе Open Food Facts. Цифры штрихкода можно прислать и текстом."}},
+  {"@type":"Question","name":"Есть ли напоминания пить воду?","acceptedAnswer":{"@type":"Answer","text":"Да. Включите их командой /remind и выберите интервал: 30 минут, 1 час, 1,5 часа или 2 часа. Ночью напоминаний нет, а после выполнения нормы они прекращаются."}},
+  {"@type":"Question","name":"Сохраняются ли мои фотографии?","acceptedAnswer":{"@type":"Answer","text":"Нет. Фото передаётся в нейросеть только для распознавания и не сохраняется. В дневнике хранятся анкета и записи еды, воды, веса и таблеток. Данные можно удалить в любой момент."}}
+  ]}
+  </script>
+<style>
+:root{
+  --paper:#000;--ink:#f4f6f2;--muted:#8f978f;--green:#30d158;--green-d:#4be07a;--on:#03210c;--soft:#0f1d14;
+  --line:#1e231f;--card:#0b0d0b;--dark:#0b0d0b;--dark2:#151915;--red:#ff6b57;--red-soft:#2a1411;
+  --glow:0 0 60px -12px #30d15866;--shadow:0 24px 80px #000c;--r:24px;
+  --sans:"Golos Text",Arial,sans-serif;--mono:"JetBrains Mono",ui-monospace,monospace;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth;overflow-x:clip;background:#000}
+main{overflow-x:clip}
+body{margin:0;background:radial-gradient(70% 36% at 50% 0,#30d15826,transparent 72%),radial-gradient(40% 30% at 100% 22%,#a6f23a12,transparent 70%),#000;color:var(--ink);font-family:var(--sans);-webkit-font-smoothing:antialiased;overflow-x:hidden;line-height:1.5}
+a{color:inherit}
+img,svg{max-width:100%}
+.wrap{width:min(1140px,100% - 32px);margin:auto}
+.hl{background:linear-gradient(transparent 64%,#30d15866 64%);padding:0 .08em;border-radius:2px}
+
+/* header */
+header{position:sticky;top:0;z-index:30;background:#000000b8;backdrop-filter:blur(14px);border-bottom:1px solid var(--line)}
+.head{height:68px;display:flex;align-items:center;justify-content:space-between;gap:16px}
+.brand{display:flex;align-items:center;gap:10px;text-decoration:none;font-size:20px;font-weight:800;letter-spacing:-.03em}
+.brand img{width:34px;height:34px;filter:drop-shadow(0 0 10px #30d15866)}
+nav{display:flex;align-items:center;gap:26px;font-size:13px;font-weight:600;color:var(--muted)}
+nav a{text-decoration:none;transition:color .2s}nav a:hover{color:#fff}
+nav a.lang{padding:5px 10px;border:1px solid var(--line);border-radius:99px;font-size:12px;font-weight:800;letter-spacing:.04em}
+
+/* buttons */
+.button{display:inline-flex;align-items:center;justify-content:center;gap:10px;min-height:56px;padding:0 28px;border-radius:16px;background:#fff;color:#000;text-decoration:none;font-weight:700;font-size:16px;border:0;cursor:pointer;font-family:inherit;transition:transform .2s,background .2s,box-shadow .2s}
+.button:hover{transform:translateY(-2px);background:#e8ebe6;box-shadow:0 12px 34px #ffffff22}
+.button.lime{background:linear-gradient(180deg,#5ee387,#27b54a);color:var(--on);box-shadow:0 10px 36px -6px #30d15888}
+.button.lime:hover{background:linear-gradient(180deg,#78ee9b,#30c653);box-shadow:0 14px 44px -6px #30d158aa}
+.button.small{min-height:40px;padding:0 16px;font-size:13px;border-radius:12px}
+.button.ghost{background:transparent;color:var(--ink);border:1.5px solid #2a312b}
+.button.ghost:hover{background:#111511;border-color:var(--green);box-shadow:none}
+.tg{width:20px;height:20px;flex:0 0 auto}
+.pulse{position:relative}
+.pulse::after{content:"";position:absolute;inset:0;border-radius:inherit;box-shadow:0 0 0 0 #30d158;animation:pulse 2.4s infinite}
+@keyframes pulse{0%{box-shadow:0 0 0 0 #30d158aa}70%{box-shadow:0 0 0 16px #30d15800}100%{box-shadow:0 0 0 0 #30d15800}}
+
+.kicker{font:500 11.5px var(--mono);letter-spacing:.14em;text-transform:uppercase;color:var(--green-d)}
+h1{font-size:clamp(40px,6.2vw,74px);line-height:1.02;letter-spacing:-.045em;margin:18px 0 20px;font-weight:800}
+h2{font-size:clamp(30px,4.4vw,52px);letter-spacing:-.04em;line-height:1.08;margin:10px 0 14px;font-weight:800}
+h3{letter-spacing:-.02em;margin:0 0 8px;font-size:20px}
+.section-head{max-width:700px;margin-bottom:40px}
+.section-head p{color:var(--muted);line-height:1.7;margin:0;font-size:17px}
+.center{text-align:center;margin-left:auto;margin-right:auto}
+section{padding:0 0 110px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:28px}
+
+/* hero */
+.hero{padding:56px 0 70px;display:grid;grid-template-columns:1.08fr .92fr;gap:48px;align-items:center}
+.eyebrow{display:inline-flex;align-items:center;gap:8px;background:#0b0d0b;border:1px solid var(--line);border-radius:999px;padding:7px 14px 7px 8px;font:500 11.5px var(--mono);letter-spacing:.06em;text-transform:uppercase}
+.eyebrow b{background:var(--green);color:var(--on);border-radius:999px;padding:3px 9px;letter-spacing:0}
+.lead{font-size:19px;color:var(--muted);line-height:1.65;max-width:560px;margin:0 0 30px}
+.lead strong{color:var(--ink)}
+.cta-row{display:flex;flex-wrap:wrap;gap:12px;align-items:center}
+.cta-note{font-size:13px;color:var(--muted);font-weight:500;margin-top:14px;display:flex;gap:18px;flex-wrap:wrap}
+.cta-note span::before{content:"✓ ";color:var(--green-d);font-weight:800}
+
+.phone-wrap{position:relative;display:flex;justify-content:center}
+.phone-wrap::before{content:"";position:absolute;inset:8% 0 0;background:radial-gradient(closest-side,#30d15838,transparent 72%);filter:blur(20px);pointer-events:none}
+.phone{width:min(360px,100%);background:#141814;border-radius:40px;padding:11px;box-shadow:var(--shadow),0 0 0 1px #2a312b,var(--glow);position:relative}
+.phone-in{background:#0a0d0b url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='40' height='40'%3E%3Ccircle cx='4' cy='4' r='1.2' fill='%231a221c'/%3E%3C/svg%3E");border-radius:30px;overflow:hidden;min-height:560px;display:flex;flex-direction:column}
+.p-head{display:flex;align-items:center;gap:10px;background:#111511;padding:12px 16px;border-bottom:1px solid var(--line)}
+.p-head img{width:34px;height:34px}
+.p-head b{display:block;font-size:14px}.p-head small{color:var(--muted);font-size:11px}
+.chat{padding:14px;display:flex;flex-direction:column;gap:9px;font-size:12.5px}
+.msg{max-width:88%;border-radius:16px;padding:10px 12px;background:#1a1f1b;opacity:0;transform:translateY(10px);animation:in .5s forwards}
+.msg.me{align-self:flex-end;background:#1c5c35;border-bottom-right-radius:6px}
+.msg.bot{border-bottom-left-radius:6px}
+.photo{width:190px;height:120px;border-radius:12px;background:radial-gradient(circle at 50% 50%,#fff 0 38%,#eee 39% 41%,transparent 42%),#c4a27a;position:relative;overflow:hidden;margin-bottom:6px}
+.photo i{position:absolute;border-radius:50%}
+.row{display:flex;justify-content:space-between;gap:12px;padding:2px 0}
+.row b{font-variant-numeric:tabular-nums}
+.tot{margin-top:6px;padding-top:6px;border-top:1px dashed #2e362f;font-weight:800}
+.bar{height:8px;border-radius:9px;background:#0b0d0b;overflow:hidden;margin:6px 0 2px}
+.bar i{display:block;height:100%;width:0;background:linear-gradient(90deg,#27b54a,#5ee387);border-radius:9px;animation:grow 1.2s 3.4s forwards}
+@keyframes grow{to{width:67%}}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chips span{background:#1a1f1b;border-radius:10px;padding:6px 10px;font-weight:600;font-size:11.5px}
+@keyframes in{to{opacity:1;transform:none}}
+.d1{animation-delay:.3s}.d2{animation-delay:1.2s}.d3{animation-delay:2.2s}.d4{animation-delay:4s}
+.badge{position:absolute;background:#0f1310;color:#fff;border:1px solid #2a312b;border-radius:18px;padding:12px 16px;font-weight:700;box-shadow:var(--shadow);font-size:13px;line-height:1.2}
+.badge big{display:block;font:700 22px var(--mono);color:var(--green);letter-spacing:-.04em}
+.badge.b1{left:-10px;top:90px;animation:float 5s ease-in-out infinite}
+.badge.b2{right:-14px;bottom:110px;animation:float 5s 1.5s ease-in-out infinite}
+@keyframes float{50%{transform:translateY(-10px)}}
+
+/* ticker */
+.ticker{background:#0b0d0b;border-block:1px solid var(--line);color:#fff;overflow:hidden;padding:18px 0;margin-bottom:110px;transform:rotate(-1deg);width:104%;margin-left:-2%}
+.ticker div{display:flex;gap:44px;white-space:nowrap;animation:tick 32s linear infinite;font:500 16px var(--mono);letter-spacing:-.02em;width:max-content}
+.ticker span::before{content:"✦";color:var(--green);margin-right:44px}
+@keyframes tick{to{transform:translateX(-50%)}}
+
+/* pain */
+.vs{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+.vs .card{padding:32px}
+.vs h3{display:flex;justify-content:space-between;align-items:center;gap:10px}
+.vs ul{list-style:none;padding:0;margin:18px 0 0;display:grid;gap:13px}
+.vs li{display:flex;gap:12px;align-items:flex-start;font-weight:500;line-height:1.45}
+.vs li::before{flex:0 0 26px;height:26px;border-radius:50%;display:grid;place-items:center;font-size:13px;font-weight:800}
+.bad li::before{content:"✕";background:var(--red-soft);color:var(--red)}
+.bad li{color:var(--muted)}
+.good{background:linear-gradient(180deg,#0f1d14,#0b0d0b)!important;color:#fff;border-color:#1f5c33!important;box-shadow:var(--glow)}
+.good li::before{content:"✓";background:var(--green);color:var(--on)}
+.time{font:500 12.5px var(--mono);border-radius:999px;padding:6px 12px;white-space:nowrap}
+.bad .time{background:var(--red-soft);color:var(--red)}
+.good .time{background:var(--green);color:var(--on)}
+.save{margin-top:18px;display:flex;align-items:center;justify-content:space-between;gap:20px;flex-wrap:wrap;background:var(--soft);border:1px solid #1f5c3355;border-radius:var(--r);padding:24px 30px}
+.save b{font-size:clamp(28px,4vw,42px);letter-spacing:-.04em;color:var(--green)}
+.save p{margin:0;color:var(--muted);max-width:560px;font-weight:500}
+
+/* steps */
+.steps{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;counter-reset:s}
+.step{position:relative;padding-top:74px;transition:border-color .25s,box-shadow .25s}
+.step:hover{border-color:#1f5c33;box-shadow:var(--glow)}
+.step::before{counter-increment:s;content:counter(s);position:absolute;top:24px;left:28px;width:38px;height:38px;border-radius:12px;background:var(--green);color:var(--on);display:grid;place-items:center;font:700 17px var(--mono)}
+.step p{color:var(--muted);margin:0;line-height:1.65}
+.step .t{position:absolute;top:34px;right:24px;font:500 12px var(--mono);color:var(--green-d)}
+
+/* calc */
+.calc{display:grid;grid-template-columns:1.1fr .9fr;gap:0;background:var(--card);border:1px solid var(--line);border-radius:32px;overflow:hidden;box-shadow:var(--shadow)}
+.calc form{padding:36px;display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.calc label{display:grid;gap:7px;font:500 11.5px var(--mono);color:var(--muted);text-transform:uppercase;letter-spacing:.08em}
+.calc .full{grid-column:1/-1}
+.calc input,.calc select{font:inherit;font-size:16px;font-weight:600;color:var(--ink);background:#000;border:1.5px solid var(--line);border-radius:14px;padding:13px 14px;width:100%;text-transform:none;letter-spacing:0;color-scheme:dark}
+.calc input:focus,.calc select:focus{outline:none;border-color:var(--green);box-shadow:0 0 0 3px #30d15822}
+.seg{display:flex;background:#000;border:1.5px solid var(--line);border-radius:14px;padding:4px;gap:4px}
+.seg button{flex:1;font:inherit;font-weight:700;font-size:14px;border:0;background:transparent;border-radius:10px;padding:10px 6px;cursor:pointer;color:var(--muted);transition:background .2s,color .2s}
+.seg button:hover{color:#fff}
+.seg button.on{background:var(--green);color:var(--on)}
+.res{background:radial-gradient(90% 70% at 80% 0,#30d15826,transparent 70%),#0f130f;border-left:1px solid var(--line);color:#fff;padding:36px;display:flex;flex-direction:column;justify-content:center;gap:18px}
+.res small{color:#a4ada4;font-weight:500}
+.kcal{font-size:clamp(52px,7vw,76px);font-weight:800;letter-spacing:-.05em;line-height:1;color:var(--green);font-variant-numeric:tabular-nums;text-shadow:0 0 40px #30d15866}
+.kcal span{font-size:20px;color:#fff;letter-spacing:0;margin-left:6px;text-shadow:none}
+.macros{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.macros div{background:var(--dark2);border:1px solid var(--line);border-radius:16px;padding:14px}
+.macros b{display:block;font:700 21px var(--mono);letter-spacing:-.03em;font-variant-numeric:tabular-nums}
+.macros span{font-size:12px;color:#a4ada4;font-weight:500}
+.res .button{width:100%}
+.fine{font-size:12px;color:#7d867d;line-height:1.5}
+
+/* bento */
+.bento{display:grid;grid-template-columns:repeat(6,1fr);gap:16px}
+.bento .card{grid-column:span 2;display:flex;flex-direction:column;gap:6px;transition:transform .25s,box-shadow .25s,border-color .25s}
+.bento .card:hover{transform:translateY(-4px);border-color:#1f5c33;box-shadow:var(--glow)}
+.bento .wide{grid-column:span 4}
+.bento .ico{width:46px;height:46px;border-radius:14px;background:var(--soft);border:1px solid #1f5c3355;display:grid;place-items:center;font-size:22px;margin-bottom:10px}
+.bento p{color:var(--muted);margin:0;line-height:1.6}
+.ways{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:18px}
+.ways div{background:#000;border:1px solid var(--line);border-radius:14px;padding:14px;font-size:13px;color:var(--muted);font-weight:500}
+.ways b{display:block;color:var(--ink);font-size:15px;margin-bottom:2px}
+.shot{width:100%;height:auto;border-radius:18px;margin-top:14px;background:#000}
+.streak{margin-top:auto;padding-top:14px}
+.streak span{display:inline-block;background:var(--dark2);border:1px solid #1f5c33;color:var(--green);border-radius:999px;padding:7px 13px;font:500 12.5px var(--mono)}
+
+/* ai */
+.ai{display:grid;grid-template-columns:1fr 1fr;gap:48px;align-items:center}
+.ai-list{display:grid;gap:14px;margin:24px 0 30px}
+.ai-list div{display:flex;gap:14px}
+.ai-list i{font-style:normal;flex:0 0 44px;height:44px;border-radius:14px;background:var(--soft);border:1px solid #1f5c33;display:grid;place-items:center;font-size:20px}
+.ai-list p{margin:2px 0 0;color:var(--muted);line-height:1.6}
+.sugg{background:linear-gradient(180deg,#0f1d14,#0b0d0b);border:1px solid #1f5c33;color:#fff;border-radius:30px;padding:26px;box-shadow:var(--shadow),var(--glow)}
+.sugg h4{margin:0 0 4px;font-size:18px}
+.sugg>small{color:#a4ada4}
+.opt{display:flex;justify-content:space-between;align-items:center;gap:14px;background:var(--dark2);border:1px solid var(--line);border-radius:18px;padding:16px;margin-top:12px}
+.opt b{display:block}.opt small{color:#a4ada4}
+.opt span{background:var(--green);color:var(--on);border-radius:10px;padding:8px 12px;font-weight:700;font-size:12px;white-space:nowrap}
+
+/* goals */
+.goals{display:grid;grid-template-columns:repeat(3,1fr);gap:18px}
+.goal{padding:32px;transition:border-color .25s,box-shadow .25s,transform .25s}
+.goal:hover{border-color:#1f5c33;box-shadow:var(--glow);transform:translateY(-3px)}
+.goal .em{font-size:38px}
+.goal p{color:var(--muted);line-height:1.65;margin:0 0 18px}
+.goal a{font-weight:700;text-decoration:none;color:var(--green-d)}
+.goal a:hover{text-decoration:underline}
+
+/* offer */
+.offer{background:radial-gradient(60% 90% at 100% 0,#30d15830,transparent 70%),#0b0d0b;border:1px solid #1f5c33;color:#fff;border-radius:36px;padding:56px;display:grid;grid-template-columns:1fr 1fr;gap:48px;align-items:center;position:relative;overflow:hidden;box-shadow:var(--glow)}
+.offer .kicker{color:var(--green)}
+.offer p{color:#a4ada4;font-size:17px;line-height:1.7}
+.price{font-size:clamp(70px,10vw,120px);font-weight:800;letter-spacing:-.06em;line-height:.9;color:var(--green);text-shadow:0 0 60px #30d15877}
+.price small{font-size:20px;color:#fff;letter-spacing:0;display:block;margin-top:10px;font-weight:600;text-shadow:none}
+.incl{list-style:none;padding:0;margin:0 0 28px;display:grid;gap:11px;position:relative}
+.incl li{display:flex;gap:12px;font-weight:600}
+.incl li::before{content:"✓";flex:0 0 24px;height:24px;border-radius:50%;background:var(--green);color:var(--on);display:grid;place-items:center;font-size:12px;font-weight:800}
+
+/* trust */
+.trust{display:grid;grid-template-columns:repeat(4,1fr);gap:16px}
+.trust .card b{display:block;margin-bottom:6px;font-size:17px}
+.trust .card p{margin:0;color:var(--muted);line-height:1.6;font-size:14px}
+.trust a,.section-head a{color:var(--green-d)}
+.trust .ck{width:36px;height:36px;border-radius:50%;background:var(--soft);border:1px solid #1f5c33;color:var(--green-d);display:grid;place-items:center;font-weight:800;margin-bottom:14px}
+
+/* faq */
+.faq{max-width:820px;margin:auto;display:grid;gap:10px}
+details{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:0 24px;transition:border-color .2s}
+details[open],details:hover{border-color:#2a3a2e}
+summary{cursor:pointer;list-style:none;padding:20px 0;font-weight:700;font-size:17px;display:flex;justify-content:space-between;gap:16px;align-items:center}
+summary::-webkit-details-marker{display:none}
+summary::after{content:"+";flex:0 0 32px;height:32px;border-radius:50%;background:var(--dark2);display:grid;place-items:center;font-size:20px;transition:transform .25s}
+details[open] summary::after{transform:rotate(45deg);background:var(--green);color:var(--on)}
+details p{margin:0 0 20px;color:var(--muted);line-height:1.7}
+
+/* final */
+.final{text-align:center;padding:90px 32px;border-radius:40px;background:radial-gradient(60% 80% at 50% 0,#7af0a0,transparent 75%),linear-gradient(180deg,#34d65c,#25a846);color:var(--on);position:relative;overflow:hidden;box-shadow:0 30px 100px -20px #30d15877}
+.final h2{font-size:clamp(36px,6vw,66px);max-width:820px;margin:10px auto 16px}
+.final p{font-size:18px;max-width:560px;margin:0 auto 30px;font-weight:500;color:#0b3a1a}
+.final .kicker{color:var(--on)}
+.final .button{background:#000;color:#fff}
+.final .button:hover{background:#111}
+.final small{display:block;margin-top:16px;font-weight:600;color:#0b3a1a}
+
+footer{padding:40px 0 110px;color:var(--muted);font-size:14px}
+.foot{display:flex;justify-content:space-between;gap:20px;flex-wrap:wrap;align-items:center;border-top:1px solid var(--line);padding-top:28px}
+.foot nav{gap:20px}
+
+.sticky{position:fixed;left:12px;right:12px;bottom:12px;z-index:40;display:none}
+.sticky .button{width:100%;box-shadow:0 14px 40px #000c,0 0 36px -6px #30d15899}
+
+.reveal{opacity:0;transform:translateY(24px);transition:opacity .7s,transform .7s}
+.reveal.vis{opacity:1;transform:none}
+
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}.msg{opacity:1;transform:none}.bar i{width:67%}.reveal{opacity:1;transform:none}}
+
+@media (max-width:980px){
+  .hero,.ai,.offer,.calc{grid-template-columns:1fr}
+  .hero{padding-top:36px}
+  .phone-wrap{margin-top:10px}
+  .steps,.goals{grid-template-columns:1fr}
+  .trust{grid-template-columns:1fr 1fr}
+  .bento .card,.bento .wide{grid-column:span 3}
+  .offer{padding:40px 28px}
+  .res{border-left:0;border-top:1px solid var(--line)}
+  nav a:not(.button){display:none}
+  nav a.lang{display:inline-block}
+}
+@media (max-width:640px){
+  section{padding-bottom:80px}
+  .vs,.trust{grid-template-columns:1fr}
+  .bento .card,.bento .wide{grid-column:1/-1}
+  .ways{grid-template-columns:1fr 1fr}
+  .calc form{grid-template-columns:1fr;padding:24px}
+  .res{padding:28px 24px}
+  .card,.vs .card{padding:24px}
+  .badge.b1{left:-4px;top:70px}.badge.b2{right:-4px}
+  .cta-row .button{width:100%}
+  .sticky{display:block}
+  .final{padding:64px 22px;border-radius:30px}
+  .lead{font-size:17px}
+  .ticker{margin-bottom:80px}
+}
+</style>
+</head>
+<body id="top">
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="tg" viewBox="0 0 24 24"><path fill="currentColor" d="M21.9 4.6 18.7 19.8c-.2 1-.9 1.3-1.7.8l-4.8-3.6-2.3 2.2c-.3.3-.5.5-1 .5l.3-4.9 8.9-8c.4-.3-.1-.5-.6-.2L6.5 13.5 1.8 12c-1-.3-1-1 .2-1.5L20.5 3.4c.9-.3 1.6.2 1.4 1.2z"/></symbol>
+</svg>
+
+<header>
+  <div class="wrap head">
+    <a class="brand" href="#top"><img src="../logo.svg" alt="" width="34" height="34"><span>FITTER</span></a>
+    <nav aria-label="Основная навигация">
+      <a href="#how">Как работает</a>
+      <a href="#calc">Твоя норма</a>
+      <a href="#features">Возможности</a>
+      <a href="#faq">Вопросы</a>
+      <a class="lang" href="../" hreflang="en" lang="en">EN</a>
+      <a class="button small" href="https://t.me/FitterFoodBot?start=site_nav" target="_blank" rel="noopener"><svg class="tg"><use href="#tg"/></svg>Начать бесплатно</a>
+    </nav>
+  </div>
+</header>
+
+<main>
+<!-- HERO -->
+<div class="wrap hero">
+  <div>
+    <span class="eyebrow"><b>0 ₽</b> ИИ-нутрициолог в твоём Telegram</span>
+    <h1>Худей без весов и&nbsp;таблиц. <span class="hl">Просто сфоткай еду</span></h1>
+    <p class="lead">Отправь фото тарелки — FITTER за <strong>~8 секунд</strong> найдёт продукты, оценит порцию, посчитает <strong>калории и БЖУ</strong> и запишет в дневник. Ты просто ешь и видишь, сколько осталось до нормы.</p>
+    <div class="cta-row">
+      <a class="button lime pulse" href="https://t.me/FitterFoodBot?start=site_hero" target="_blank" rel="noopener"><svg class="tg"><use href="#tg"/></svg>Посчитать первый приём пищи</a>
+      <a class="button ghost" href="#calc">Узнать свою норму</a>
+    </div>
+    <div class="cta-note"><span>Без установки</span><span>Без регистрации</span><span>Без рекламы</span><span>Старт за 1 минуту</span></div>
+  </div>
+
+  <div class="phone-wrap" aria-label="Пример диалога с ботом">
+    <div class="phone">
+      <div class="phone-in">
+        <div class="p-head"><img src="../logo.svg" alt="" width="34" height="34"><div><b>FITTER</b><small>бот</small></div></div>
+        <div class="chat">
+          <div class="msg me d1">
+            <div class="photo" aria-hidden="true">
+              <i style="width:52px;height:30px;left:52px;top:34px;background:#d39a5a;border-radius:40%"></i>
+              <i style="width:44px;height:36px;left:96px;top:46px;background:#f7f2e4"></i>
+              <i style="width:30px;height:24px;left:78px;top:66px;background:#7fb04a"></i>
+              <i style="width:14px;height:14px;left:110px;top:36px;background:#e05a3a"></i>
+            </div>
+            Обед 🙂
+          </div>
+          <div class="msg bot d2">🔍 Смотрю на фото и считаю…</div>
+          <div class="msg bot d3">
+            <b>🍽 Обед · 13:42</b>
+            <div class="row"><span>• Курица гриль — 150 г</span><b>248</b></div>
+            <div class="row"><span>• Рис отварной — 180 г</span><b>209</b></div>
+            <div class="row"><span>• Салат овощной — 120 г</span><b>23</b></div>
+            <div class="tot">🔥 480 ккал · 🥩 52 · 🧈 6 · 🍞 50</div>
+            <div class="bar"><i></i></div>
+            <small>📊 1 240 из 1 850 ккал · <b>осталось 610</b></small>
+          </div>
+          <div class="chips msg d4"><span>✏️ Курица 150 г</span><span>✏️ Рис 180 г</span><span>📱 Дневник</span></div>
+        </div>
+      </div>
+    </div>
+    <div class="badge b1"><big>≈ 8 сек</big>от фото до записи</div>
+    <div class="badge b2"><big>−0 мин</big>на взвешивание</div>
+  </div>
+</div>
+
+<div class="ticker" aria-hidden="true"><div>
+  <span>Фото → калории</span><span>Текстом: «2 яйца и тост»</span><span>Этикетка и штрихкод</span><span>Личная норма КБЖУ</span><span>Вода и напоминания</span><span>График веса</span><span>ИИ подскажет, что съесть</span><span>Разбор недели</span>
+  <span>Фото → калории</span><span>Текстом: «2 яйца и тост»</span><span>Этикетка и штрихкод</span><span>Личная норма КБЖУ</span><span>Вода и напоминания</span><span>График веса</span><span>ИИ подскажет, что съесть</span><span>Разбор недели</span>
+</div></div>
+
+<!-- PAIN -->
+<section>
+  <div class="wrap">
+    <div class="section-head reveal">
+      <span class="kicker">Почему диеты не работают</span>
+      <h2>Ты не бросаешь цель. Ты бросаешь <span class="hl">рутину</span></h2>
+      <p>Считать калории — самый надёжный способ управлять весом. Но в обычных приложениях это вторая работа, и большинство сдаётся через неделю. FITTER забирает рутину на себя.</p>
+    </div>
+    <div class="vs">
+      <div class="card bad reveal">
+        <h3>Обычный счётчик <span class="time">~15 мин в день</span></h3>
+        <ul>
+          <li>Взвешивать каждый продукт на кухонных весах</li>
+          <li>Искать блюдо в базе среди десятков похожих</li>
+          <li>Вручную складывать порции и пересчитывать БЖУ</li>
+          <li>Ставить отдельное приложение и регистрироваться</li>
+          <li>Забыть записать ужин — и бросить через неделю</li>
+        </ul>
+      </div>
+      <div class="card good reveal">
+        <h3>С FITTER <span class="time">~8 сек на приём пищи</span></h3>
+        <ul>
+          <li>Одно фото — ИИ сам найдёт продукты и оценит вес</li>
+          <li>Или текстом: «съел 2 яйца и тост»</li>
+          <li>Итог дня и остаток нормы — автоматически</li>
+          <li>Прямо в Telegram, который и так всегда под рукой</li>
+          <li>Напоминания, серии и награды — чтобы не бросить</li>
+        </ul>
+      </div>
+    </div>
+    <div class="save reveal">
+      <b>≈ 90 часов в год</b>
+      <p>столько уходит на ручной подсчёт по 15 минут в день. С FITTER это время остаётся тебе — на тренировки, сон или просто жизнь.</p>
+    </div>
+  </div>
+</section>
+
+<!-- HOW -->
+<section id="how">
+  <div class="wrap">
+    <div class="section-head center reveal">
+      <span class="kicker">Как это работает</span>
+      <h2>Три шага до первой записи</h2>
+      <p>Меньше минуты на старт. Дальше — одно фото на каждый приём пищи.</p>
+    </div>
+    <div class="steps">
+      <div class="card step reveal"><span class="t">30 сек</span><h3>Ответь на 6 вопросов</h3><p>Пол, возраст, рост, вес, активность и цель. FITTER рассчитает твою норму калорий и БЖУ по формуле Миффлина — Сан-Жеора.</p></div>
+      <div class="card step reveal"><span class="t">8 сек</span><h3>Отправь фото еды</h3><p>ИИ распознает каждый продукт, оценит граммы и посчитает КБЖУ. Подпись «это 200 г риса» сделает оценку ещё точнее.</p></div>
+      <div class="card step reveal"><span class="t">каждый день</span><h3>Смотри на результат</h3><p>Бот сразу покажет, сколько осталось до нормы. Итоги дня и недели, вода и вес — в красивом дневнике.</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- CALC -->
+<section id="calc">
+  <div class="wrap">
+    <div class="section-head center reveal">
+      <span class="kicker">Попробуй прямо сейчас</span>
+      <h2>Сколько тебе нужно <span class="hl">есть в день?</span></h2>
+      <p>Тот же расчёт, что делает FITTER при старте. Заполни — и получи свою норму калорий и БЖУ.</p>
+    </div>
+    <div class="calc reveal">
+      <form id="cf" onsubmit="return false">
+        <label class="full">Пол
+          <div class="seg" data-k="sex"><button type="button" class="on" data-v="f">Женский</button><button type="button" data-v="m">Мужской</button></div>
+        </label>
+        <label>Возраст<input type="number" id="age" value="28" min="14" max="90" inputmode="numeric"></label>
+        <label>Рост, см<input type="number" id="h" value="168" min="130" max="220" inputmode="numeric"></label>
+        <label>Вес, кг<input type="number" id="w" value="68" min="35" max="250" inputmode="decimal"></label>
+        <label>Активность
+          <select id="act">
+            <option value="1.2">Сидячая работа</option>
+            <option value="1.375" selected>1–3 тренировки</option>
+            <option value="1.55">3–5 тренировок</option>
+            <option value="1.725">Каждый день</option>
+          </select>
+        </label>
+        <label class="full">Цель
+          <div class="seg" data-k="goal"><button type="button" class="on" data-v="lose">Похудеть</button><button type="button" data-v="keep">Держать</button><button type="button" data-v="gain">Набрать</button></div>
+        </label>
+      </form>
+      <div class="res" aria-live="polite">
+        <small>Твоя дневная норма</small>
+        <div class="kcal"><b id="kcal">1 850</b><span>ккал</span></div>
+        <div class="macros">
+          <div><b id="p">—</b><span>белки, г</span></div>
+          <div><b id="f">—</b><span>жиры, г</span></div>
+          <div><b id="c">—</b><span>углеводы, г</span></div>
+        </div>
+        <a class="button lime" id="calcBtn" href="https://t.me/FitterFoodBot?start=site_calc" target="_blank" rel="noopener"><svg class="tg"><use href="#tg"/></svg>Следить за нормой в FITTER</a>
+        <span class="fine">Ориентировочный расчёт. В боте норма пересчитывается сама, когда ты записываешь новый вес. Не заменяет консультацию врача.</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- FEATURES -->
+<section id="features">
+  <div class="wrap">
+    <div class="section-head reveal">
+      <span class="kicker">Возможности</span>
+      <h2>Всё для дневника питания — в одном чате</h2>
+      <p>От записи обеда до разбора недели. Ничего не нужно настраивать.</p>
+    </div>
+    <div class="bento">
+      <div class="card wide reveal">
+        <div class="ico">📸</div>
+        <h3>Записывай еду так, как удобно</h3>
+        <p>Ошиблась нейросеть — нажми ✏️ и поправь вес или продукт, КБЖУ пересчитаются.</p>
+        <div class="ways">
+          <div><b>Фото</b>продукты и порция</div>
+          <div><b>Текст</b>«творог и банан»</div>
+          <div><b>Этикетка</b>КБЖУ с упаковки</div>
+          <div><b>Штрихкод</b>Open Food Facts</div>
+        </div>
+      </div>
+      <div class="card reveal"><div class="ico">🎯</div><h3>Личная норма</h3><p>Калории и БЖУ под твою цель. Записал новый вес — норма пересчитается сама.</p></div>
+      <div class="card reveal"><div class="ico">💧</div><h3>Вода и напоминания</h3><p>30 мл на 1 кг веса. Бот напомнит попить — от 30 мин до 2 часов, ночью молчит.</p></div>
+      <div class="card reveal"><div class="ico">📉</div><h3>Вес и график</h3><p>История замеров, разница с прошлым разом и наглядный график.</p></div>
+      <div class="card reveal"><div class="ico">💊</div><h3>Таблетки и витамины</h3><p>Напоминание вовремя с кнопками «Принял», «Через 30 мин», «Пропустить».</p></div>
+      <div class="card reveal"><div class="ico">🔥</div><h3>Серии и награды</h3><p>Дни подряд и 13 достижений. Пропускать становится жалко.</p><div class="streak"><span>🔥 Железная привычка — 30 дней</span></div></div>
+      <div class="card reveal"><div class="ico">📊</div><h3>Итоги дня и недели</h3><p>Сколько съедено, сколько осталось и где был перебор — с графиком.</p></div>
+      <div class="card wide reveal"><div class="ico">📱</div><h3>Красивый дневник без скачивания</h3><p>Открывается кнопкой прямо из чата как Telegram Mini App: кольцо калорий, календарь недели, карточки БЖУ, стакан воды с кнопками ±250 мл. Подстраивается под светлую и тёмную тему.</p><img class="shot" src="../screens.webp" width="1000" height="791" loading="lazy" alt="Чат с ботом FITTER и дневник питания в Telegram Mini App"><a class="button small" style="align-self:flex-start;margin-top:10px" href="https://t.me/FitterFoodBot?start=site_app" target="_blank" rel="noopener">Открыть дневник ↗</a></div>
+    </div>
+  </div>
+</section>
+
+<!-- AI -->
+<section id="ai">
+  <div class="wrap ai">
+    <div class="reveal">
+      <span class="kicker">ИИ-ассистент</span>
+      <h2>Не только считает, но и <span class="hl">подсказывает</span></h2>
+      <p class="lead">FITTER знает твою норму и то, что ты уже съел. Поэтому его советы — про тебя, а не «ешьте больше овощей».</p>
+      <div class="ai-list">
+        <div><i>🥗</i><div><b>«Что съесть»</b><p>3 варианта следующего приёма пищи под остаток калорий и белка, время суток и цель. Понравился — запиши одной кнопкой.</p></div></div>
+        <div><i>🗓</i><div><b>Разбор недели</b><p>Каждое воскресенье в 20:00: оценка питания, что получилось и 3 совета на следующую неделю.</p></div></div>
+        <div><i>💬</i><div><b>Вопросы о питании</b><p>«Сколько белка в твороге?» — ответ с учётом твоей нормы и съеденного за день.</p></div></div>
+      </div>
+      <a class="button" href="https://t.me/FitterFoodBot?start=site_ai" target="_blank" rel="noopener"><svg class="tg"><use href="#tg"/></svg>Спросить ассистента</a>
+    </div>
+    <div class="sugg reveal">
+      <h4>🥗 Что съесть</h4>
+      <small>Осталось 610 ккал и 38 г белка · ужин</small>
+      <div class="opt"><div><b>Омлет из 3 яиц с овощами</b><small>≈ 320 ккал · 21 г белка</small></div><span>Записать</span></div>
+      <div class="opt"><div><b>Творог 5% с ягодами</b><small>≈ 250 ккал · 30 г белка</small></div><span>Записать</span></div>
+      <div class="opt"><div><b>Рыба на пару и салат</b><small>≈ 380 ккал · 35 г белка</small></div><span>Записать</span></div>
+    </div>
+  </div>
+</section>
+
+<!-- GOALS -->
+<section>
+  <div class="wrap">
+    <div class="section-head center reveal">
+      <span class="kicker">Под любую цель</span>
+      <h2>Худеешь, держишь форму или набираешь</h2>
+    </div>
+    <div class="goals">
+      <div class="card goal reveal"><div class="em">🏃</div><h3>Похудеть</h3><p>Дефицит калорий без голодовок: видно, где перебор, а советы предлагают сытные варианты в рамках остатка.</p><a href="https://t.me/FitterFoodBot?start=site_goal_lose" target="_blank" rel="noopener">Начать худеть →</a></div>
+      <div class="card goal reveal"><div class="em">⚖️</div><h3>Держать вес</h3><p>Спокойный контроль: дни в норме, график веса и разбор недели помогают не съехать.</p><a href="https://t.me/FitterFoodBot?start=site_goal_keep" target="_blank" rel="noopener">Держать форму →</a></div>
+      <div class="card goal reveal"><div class="em">💪</div><h3>Набрать массу</h3><p>Следи за белком в каждом приёме пищи и добирай норму с подсказками «Что съесть».</p><a href="https://t.me/FitterFoodBot?start=site_goal_gain" target="_blank" rel="noopener">Набрать массу →</a></div>
+    </div>
+  </div>
+</section>
+
+<!-- OFFER -->
+<section>
+  <div class="wrap">
+    <div class="offer reveal">
+      <div style="position:relative">
+        <span class="kicker">Цена</span>
+        <div class="price">0 ₽<small>Сейчас бесплатно и без рекламы</small></div>
+        <p>Никаких пробных периодов, привязки карты и платных «премиум»-функций. Открой бота — и все возможности уже твои.</p>
+      </div>
+      <div style="position:relative">
+        <ul class="incl">
+          <li>Калории и БЖУ по фото, тексту, этикетке и штрихкоду</li>
+          <li>Личная норма и автоматический пересчёт</li>
+          <li>Дневник в Telegram Mini App</li>
+          <li>ИИ-ассистент «Что съесть» и разбор недели</li>
+          <li>Вода, вес, витамины, напоминания</li>
+          <li>Серии, награды и итоги недели</li>
+        </ul>
+        <a class="button lime" href="https://t.me/FitterFoodBot?start=site_offer" target="_blank" rel="noopener"><svg class="tg"><use href="#tg"/></svg>Забрать бесплатно</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- TRUST -->
+<section>
+  <div class="wrap">
+    <div class="section-head reveal">
+      <span class="kicker">Честно</span>
+      <h2>Твои данные — твои</h2>
+      <p>Дневник питания — личная вещь. Поэтому FITTER хранит минимум и ничего не продаёт.</p>
+    </div>
+    <div class="trust">
+      <div class="card reveal"><div class="ck">✓</div><b>Фото не хранятся</b><p>Снимок уходит в нейросеть только для распознавания и нигде не сохраняется.</p></div>
+      <div class="card reveal"><div class="ck">✓</div><b>Без рекламы и трекеров</b><p>Не продаём данные и не ставим сторонние счётчики. Подробно — в <a href="privacy.html">политике</a>.</p></div>
+      <div class="card reveal"><div class="ck">✓</div><b>Открытый код</b><p>Весь сервис можно проверить на <a href="https://github.com/sailxx/FITTER-AI" target="_blank" rel="noopener">GitHub</a>.</p></div>
+      <div class="card reveal"><div class="ck">✓</div><b>Ты всё контролируешь</b><p>Любую запись можно поправить или удалить, а все данные — стереть по запросу.</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- FAQ -->
+<section id="faq">
+  <div class="wrap">
+    <div class="section-head center reveal">
+      <span class="kicker">Вопросы и ответы</span>
+      <h2>Частые вопросы</h2>
+      <p>Не нашли ответ? <a href="https://t.me/arkhitkovv" target="_blank" rel="noopener">Напишите автору</a>.</p>
+    </div>
+    <div class="faq">
+      <details open><summary>Как посчитать калории по фотографии?</summary><p>Откройте бота FITTER в Telegram и отправьте фото блюда. ИИ распознает продукты, оценит вес порции и посчитает калории, белки, жиры и углеводы. Запись сразу появится в дневнике, её можно проверить и поправить.</p></details>
+      <details><summary>Насколько точен расчёт калорий по фото?</summary><p>Оценка по фото приблизительная и зависит от состава и размера порции. Чтобы было точнее, добавьте подпись к фото («200 г риса») или поправьте вес и продукт кнопкой под записью. Для упаковок бот берёт КБЖУ прямо с этикетки. FITTER не заменяет консультацию врача или диетолога.</p></details>
+      <details><summary>Сколько стоит FITTER?</summary><p>Сейчас FITTER бесплатный и без рекламы. Откройте бота в Telegram и начните вести дневник.</p></details>
+      <details><summary>Нужно ли устанавливать приложение?</summary><p>Нет. FITTER работает прямо в Telegram, а дневник открывается как Telegram Mini App. Регистрация не нужна.</p></details>
+      <details><summary>Как FITTER рассчитывает мою норму?</summary><p>При первом запуске бот задаёт 6 вопросов: пол, возраст, рост, вес, активность и цель. Норма калорий и БЖУ считается по формуле Миффлина — Сан-Жеора и пересчитывается, когда вы записываете новый вес.</p></details>
+      <details><summary>Можно ли исправить продукт или вес?</summary><p>Да. Нажмите на продукт под записью и укажите правильный вес, название или и то и другое, например «форель 200 г». Калории и БЖУ пересчитаются.</p></details>
+      <details><summary>Что делать с упакованными продуктами?</summary><p>Сфотографируйте этикетку — бот перепишет КБЖУ точно с неё. Если этикетки не видно, бот прочитает штрихкод и найдёт продукт в базе Open Food Facts. Цифры штрихкода можно прислать и текстом.</p></details>
+      <details><summary>Есть ли напоминания пить воду?</summary><p>Да. Включите их командой /remind и выберите интервал: 30 минут, 1 час, 1,5 часа или 2 часа. Ночью напоминаний нет, а после выполнения нормы они прекращаются.</p></details>
+      <details><summary>Сохраняются ли мои фотографии?</summary><p>Нет. Фото передаётся в нейросеть только для распознавания и не сохраняется. В дневнике хранятся анкета и записи еды, воды, веса и таблеток. Данные можно удалить в любой момент.</p></details>
+    </div>
+  </div>
+</section>
+
+<!-- FINAL -->
+<section>
+  <div class="wrap">
+    <div class="final reveal">
+      <span class="kicker">Первая запись — через минуту</span>
+      <h2>Что у тебя на тарелке прямо сейчас? Сфоткай&nbsp;— и&nbsp;узнаешь</h2>
+      <p>Открой FITTER, ответь на 6 вопросов и отправь первое фото. Это бесплатно.</p>
+      <a class="button" href="https://t.me/FitterFoodBot?start=site_cta" target="_blank" rel="noopener"><svg class="tg"><use href="#tg"/></svg>Открыть @FitterFoodBot</a>
+      <small>Бесплатно · Без установки · Без рекламы</small>
+    </div>
+  </div>
+</section>
+</main>
+
+<footer>
+  <div class="wrap foot">
+    <a class="brand" href="#top"><img src="../logo.svg" alt="" width="34" height="34"><span>FITTER</span></a>
+    <nav aria-label="Ссылки в подвале">
+      <a href="privacy.html">Конфиденциальность</a>
+      <a href="https://github.com/sailxx/FITTER-AI" target="_blank" rel="noopener">GitHub</a>
+      <a href="https://t.me/arkhitkovv" target="_blank" rel="noopener">Автор</a>
+      <a href="https://t.me/FitterFoodBot?start=site" target="_blank" rel="noopener">Telegram-бот</a>
+    </nav>
+  </div>
+</footer>
+
+<div class="sticky"><a class="button lime" href="https://t.me/FitterFoodBot?start=site_mobile" target="_blank" rel="noopener"><svg class="tg"><use href="#tg"/></svg>Начать бесплатно в Telegram</a></div>
+
+<script>
+// Calculator (Mifflin — St Jeor)
+const st={sex:'f',goal:'lose'};
+const $=id=>document.getElementById(id);
+const fmt=n=>Math.round(n).toLocaleString('ru-RU');
+document.querySelectorAll('.seg').forEach(seg=>{
+  seg.addEventListener('click',e=>{
+    const b=e.target.closest('button');if(!b)return;
+    seg.querySelectorAll('button').forEach(x=>x.classList.toggle('on',x===b));
+    st[seg.dataset.k]=b.dataset.v;calc();
+  });
+});
+['age','h','w','act'].forEach(id=>$(id).addEventListener('input',calc));
+function calc(){
+  const a=+$('age').value,h=+$('h').value,w=+$('w').value,k=+$('act').value;
+  if(!a||!h||!w)return;
+  const bmr=10*w+6.25*h-5*a+(st.sex==='m'?5:-161);
+  const mult={lose:.85,keep:1,gain:1.1}[st.goal];
+  const kcal=Math.max(1200,bmr*k*mult);
+  const p=w*{lose:1.8,keep:1.5,gain:2}[st.goal];
+  const f=w*.9;
+  const c=Math.max(0,(kcal-p*4-f*9)/4);
+  $('kcal').textContent=fmt(kcal);$('p').textContent=fmt(p);$('f').textContent=fmt(f);$('c').textContent=fmt(c);
+  $('calcBtn').href='https://t.me/FitterFoodBot?start=site_calc_'+st.goal;
+}
+calc();
+
+// Reveal on scroll
+const io=new IntersectionObserver(es=>es.forEach(e=>{if(e.isIntersecting){e.target.classList.add('vis');io.unobserve(e.target)}}),{threshold:.12});
+document.querySelectorAll('.reveal').forEach(el=>io.observe(el));
+
+// Hide sticky CTA near final block
+const sticky=document.querySelector('.sticky'),fin=document.querySelector('.final');
+new IntersectionObserver(([e])=>{sticky.style.opacity=e.isIntersecting?0:1;sticky.style.pointerEvents=e.isIntersecting?'none':''}).observe(fin);
+</script>
+</body>
+</html>

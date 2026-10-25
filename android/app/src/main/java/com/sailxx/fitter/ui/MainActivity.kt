@@ -1,5 +1,6 @@
 package com.sailxx.fitter.ui
 
+import com.sailxx.fitter.data.tr
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
@@ -252,11 +253,11 @@ private fun GlassBar(tab: Tab, backdrop: GraphicsLayer, onTab: (Tab) -> Unit, on
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            GlassTab(R.drawable.ic_nav_home, "Сегодня", tab == Tab.Today) { onTab(Tab.Today) }
-            GlassTab(R.drawable.ic_nav_tips, "Советы", tab == Tab.Tips) { onTab(Tab.Tips) }
+            GlassTab(R.drawable.ic_nav_home, tr("Сегодня", "Today"), tab == Tab.Today) { onTab(Tab.Today) }
+            GlassTab(R.drawable.ic_nav_tips, tr("Советы", "Tips"), tab == Tab.Tips) { onTab(Tab.Tips) }
             CameraButton(onCamera)
-            GlassTab(R.drawable.ic_nav_dumbbell, "Тренировки", tab == Tab.Workouts) { onTab(Tab.Workouts) }
-            GlassTab(R.drawable.ic_nav_gear, "Настройки", tab == Tab.Settings) { onTab(Tab.Settings) }
+            GlassTab(R.drawable.ic_nav_dumbbell, tr("Тренировки", "Workouts"), tab == Tab.Workouts) { onTab(Tab.Workouts) }
+            GlassTab(R.drawable.ic_nav_gear, tr("Настройки", "Settings"), tab == Tab.Settings) { onTab(Tab.Settings) }
         }
     }
 }
@@ -312,6 +313,6 @@ private fun CameraButton(onClick: () -> Unit) {
             .clickable(interactionSource = press, indication = null, onClick = onClick),
         contentAlignment = Alignment.Center,
     ) {
-        Icon(painterResource(R.drawable.ic_nav_camera), "Сфотографировать еду", Modifier.size(26.dp), tint = Color.White)
+        Icon(painterResource(R.drawable.ic_nav_camera), tr("Сфотографировать еду", "Photograph food"), Modifier.size(26.dp), tint = Color.White)
     }
 }

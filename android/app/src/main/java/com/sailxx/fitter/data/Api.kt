@@ -87,6 +87,9 @@ object Api {
 
     suspend fun logout(token: String) = authed("/api/logout", token, "POST", JSONObject())
 
+    /** Язык бота и приложения: "en" или "ru". */
+    suspend fun setLang(token: String, lang: String) = authed("/api/lang", token, "POST", JSONObject().put("lang", lang))
+
     /** Еда текстом: «2 яйца и тост». 422 not_food — нейросеть не нашла еду (answer — её ответ). */
     suspend fun mealText(token: String, date: String, text: String) =
         authed("/api/meal/add", token, "POST", JSONObject().put("date", date).put("text", text))

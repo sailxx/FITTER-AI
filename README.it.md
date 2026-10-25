@@ -103,7 +103,7 @@ L’intero server è un solo file, [`worker.js`](worker.js), senza dipendenze.
 - Le chiavi sono nei secret di Cloudflare, non nel codice.
 - Le foto **non vengono conservate**: vanno a Gemini solo per il riconoscimento.
 
-Altro: [informativa sulla privacy](https://sailxx.github.io/FITTER-AI/privacy.html) (in russo).
+Altro: [informativa sulla privacy](https://sailxx.github.io/FITTER-AI/privacy.html).
 
 ---
 
@@ -114,7 +114,7 @@ Altro: [informativa sulla privacy](https://sailxx.github.io/FITTER-AI/privacy.ht
 - [x] **v2.6** Nuovo aspetto del diario, suggerimenti sulle macro, grafico della settimana; acqua e integratori ridisegnati nel bot
 - [ ] **v3.0** Prodotto: app indipendente
 
-Cronologia completa: [CHANGELOG.md](CHANGELOG.md) (in russo).
+Cronologia completa: [CHANGELOG.md](CHANGELOG.md).
 
 ---
 

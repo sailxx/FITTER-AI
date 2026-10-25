@@ -1,5 +1,6 @@
 package com.sailxx.fitter.ui
 
+import com.sailxx.fitter.data.tr
 import android.graphics.Bitmap
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -91,7 +92,7 @@ fun AddMealSheet(openCamera: Boolean = false, onClose: () -> Unit) {
 
     fun load(uri: Uri) = scope.launch {
         error = null
-        photo = runCatching { Photos.encode(context, uri) }.getOrElse { error = "Не получилось открыть фото"; null }
+        photo = runCatching { Photos.encode(context, uri) }.getOrElse { error = tr("Не получилось открыть фото", "Couldn't open the photo"); null }
     }
     val camera = rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { ok -> if (ok) cameraUri?.let { load(it) } }
     val gallery = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri -> uri?.let { load(it) } }
@@ -101,7 +102,7 @@ fun AddMealSheet(openCamera: Boolean = false, onClose: () -> Unit) {
     fun send() = scope.launch {
         val token = FitterRepository.token(context) ?: return@launch
         val p = photo
-        if (p == null && text.trim().length < 2) { error = "Напиши, что съел, или прикрепи фото"; return@launch }
+        if (p == null && text.trim().length < 2) { error = tr("Напиши, что съел, или прикрепи фото", "Type what you ate or attach a photo"); return@launch }
         error = null
         stage = Stage.Busy(p != null)
         try {
@@ -113,18 +114,18 @@ fun AddMealSheet(openCamera: Boolean = false, onClose: () -> Unit) {
             throw e
         } catch (e: ApiException) {
             error = when {
-                e.error == "not_food" && p != null -> "Не вижу еды на фото. Сними тарелку сверху и поближе или напиши текстом"
-                e.error == "not_food" -> e.answer.ifBlank { "Не понял, что ты съел. Напиши, например: «2 яйца и тост»" }
-                e.code == 429 -> "На сегодня лимит запросов к нейросети закончился. Завтра снова можно!"
-                e.code == 413 -> "Фото слишком большое"
-                else -> "Нейросеть сейчас не отвечает. Попробуй ещё раз через минуту"
+                e.error == "not_food" && p != null -> tr("Не вижу еды на фото. Сними тарелку сверху и поближе или напиши текстом", "I can't see any food in the photo. Shoot the plate from above and closer, or type it")
+                e.error == "not_food" -> e.answer.ifBlank { tr("Не понял, что ты съел. Напиши, например: «2 яйца и тост»", "I didn't get what you ate. Try, for example: “2 eggs and toast”") }
+                e.code == 429 -> tr("На сегодня лимит запросов к нейросети закончился. Завтра снова можно!", "You've used up today's AI requests. Try again tomorrow!")
+                e.code == 413 -> tr("Фото слишком большое", "The photo is too large")
+                else -> tr("Нейросеть сейчас не отвечает. Попробуй ещё раз через минуту", "The AI isn't responding right now. Please try again in a minute")
             }
             stage = Stage.Edit
         } catch (e: UnauthorizedException) {
             FitterRepository.refresh(context)
             onClose()
         } catch (e: Exception) {
-            error = "Нет связи с сервером. Проверь интернет"
+            error = tr("Нет связи с сервером. Проверь интернет", "Can't reach the server. Check your internet connection")
             stage = Stage.Edit
         }
     }
@@ -160,12 +161,12 @@ private fun EditStage(
     onCamera: () -> Unit, onGallery: () -> Unit, onSend: () -> Unit,
 ) {
     val t = LocalTokens.current
-    Text("Добавить еду", fontSize = 26.sp, letterSpacing = (-0.5).sp, fontWeight = FontWeight.ExtraBold, color = t.text)
-    Text("Сфотографируй тарелку или опиши словами — посчитаю калории и БЖУ", fontSize = 14.sp, color = t.hint)
+    Text(tr("Добавить еду", "Add food"), fontSize = 26.sp, letterSpacing = (-0.5).sp, fontWeight = FontWeight.ExtraBold, color = t.text)
+    Text(tr("Сфотографируй тарелку или опиши словами — посчитаю калории и БЖУ", "Photograph your plate or describe it in words — I'll count calories and macros"), fontSize = 14.sp, color = t.hint)
     Spacer(Modifier.height(18.dp))
     Row(horizontalArrangement = Arrangement.spacedBy(Gap)) {
-        SourceButton(R.drawable.ic_camera, "Сфотографировать", Modifier.weight(1f), onCamera)
-        SourceButton(R.drawable.ic_photo, "Из галереи", Modifier.weight(1f), onGallery)
+        SourceButton(R.drawable.ic_camera, tr("Сфотографировать", "Take a photo"), Modifier.weight(1f), onCamera)
+        SourceButton(R.drawable.ic_photo, tr("Из галереи", "From gallery"), Modifier.weight(1f), onGallery)
     }
     if (photo != null) {
         Spacer(Modifier.height(12.dp))
@@ -186,7 +187,7 @@ private fun EditStage(
     OutlinedTextField(
         value = text, onValueChange = { if (it.length <= 300) onText(it) },
         modifier = Modifier.fillMaxWidth(),
-        placeholder = { Text(if (photo != null) "Подсказка: «гречка с курицей, 300 г»" else "Например: 2 яйца, тост и кофе с молоком", color = t.hint) },
+        placeholder = { Text(if (photo != null) tr("Подсказка: «гречка с курицей, 300 г»", "Hint: “buckwheat with chicken, 300 g”") else tr("Например: 2 яйца, тост и кофе с молоком", "For example: 2 eggs, toast and a latte"), color = t.hint) },
         minLines = 2, maxLines = 4,
         shape = RoundedCornerShape(20.dp),
         colors = fieldColors(),
@@ -196,7 +197,7 @@ private fun EditStage(
         Text(it, color = Palette.Danger, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
     }
     Spacer(Modifier.height(18.dp))
-    PrimaryButton(if (photo != null) "Посчитать по фото" else "Записать", height = 56.dp, onClick = onSend)
+    PrimaryButton(if (photo != null) tr("Посчитать по фото", "Count from photo") else tr("Записать", "Log it"), height = 56.dp, onClick = onSend)
 }
 
 @Composable
@@ -224,8 +225,8 @@ private fun BusyStage(isPhoto: Boolean, photo: Bitmap?) {
             Image(painterResource(R.drawable.ic_sparkles), null, Modifier.size(72.dp).graphicsLayer { rotationZ = 12f * sin(ph); scaleX = 1f + 0.08f * sin(ph * 2); scaleY = scaleX })
         }
         Spacer(Modifier.height(18.dp))
-        Text(if (isPhoto) "Смотрю на фото…" else "Считаю калории…", fontSize = 20.sp, fontWeight = FontWeight.ExtraBold, color = t.text)
-        Text("Обычно это 5–10 секунд", fontSize = 14.sp, color = t.hint)
+        Text(if (isPhoto) tr("Смотрю на фото…", "Looking at the photo…") else tr("Считаю калории…", "Counting calories…"), fontSize = 20.sp, fontWeight = FontWeight.ExtraBold, color = t.text)
+        Text(tr("Обычно это 5–10 секунд", "Usually takes 5–10 seconds"), fontSize = 14.sp, color = t.hint)
     }
 }
 
@@ -235,14 +236,14 @@ private fun DoneStage(s: Stage.Done, onMore: () -> Unit, onClose: () -> Unit) {
     Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
         Image(painterResource(R.drawable.ic_party), null, Modifier.size(64.dp).rise(0))
         Spacer(Modifier.height(10.dp))
-        Text("Записал!", fontSize = 24.sp, fontWeight = FontWeight.ExtraBold, color = t.text)
+        Text(tr("Записал!", "Logged!"), fontSize = 24.sp, fontWeight = FontWeight.ExtraBold, color = t.text)
         Spacer(Modifier.height(12.dp))
         Column(Modifier.fillMaxWidth().background(t.fill, RoundedCornerShape(22.dp)).padding(18.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(s.title, fontWeight = FontWeight.Bold, color = t.text, modifier = Modifier.weight(1f))
-                Text("🔥 ${s.kcal} ккал", fontWeight = FontWeight.ExtraBold, color = t.text)
+                Text("🔥 ${s.kcal} ${tr("ккал", "kcal")}", fontWeight = FontWeight.ExtraBold, color = t.text)
             }
-            Text("Б ${s.p} · Ж ${s.f} · У ${s.c}", fontSize = 13.sp, color = t.hint)
+            Text(tr("Б ${s.p} · Ж ${s.f} · У ${s.c}", "P ${s.p} · F ${s.f} · C ${s.c}"), fontSize = 13.sp, color = t.hint)
             if (s.comment.isNotBlank()) {
                 Spacer(Modifier.height(8.dp))
                 Text(s.comment, fontSize = 13.sp, color = t.text)
@@ -250,8 +251,8 @@ private fun DoneStage(s: Stage.Done, onMore: () -> Unit, onClose: () -> Unit) {
         }
         Spacer(Modifier.height(16.dp))
         Row(horizontalArrangement = Arrangement.spacedBy(Gap)) {
-            SoftButton("Ещё блюдо", Modifier.weight(1f), height = 54.dp, onClick = onMore)
-            PrimaryButton("Готово", Modifier.weight(1f), onClick = onClose)
+            SoftButton(tr("Ещё блюдо", "Add another"), Modifier.weight(1f), height = 54.dp, onClick = onMore)
+            PrimaryButton(tr("Готово", "Done"), Modifier.weight(1f), onClick = onClose)
         }
         Spacer(Modifier.width(1.dp))
     }

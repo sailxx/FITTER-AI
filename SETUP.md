@@ -1,109 +1,113 @@
-# Как запустить FITTER бесплатно
+# How to run FITTER for free
 
-Понадобится примерно 20 минут. Программировать не нужно, только копировать и вставлять.
+**English** · [Русский](SETUP.ru.md)
 
-Всё бесплатно:
+It takes about 20 minutes. No programming — just copy and paste.
 
-| Что | Зачем | Цена |
+Everything is free:
+
+| What | Why | Price |
 |---|---|---|
-| Telegram и @BotFather | сам бот | бесплатно |
-| Google AI Studio | ключ к нейросети Gemini, которая смотрит на фото | бесплатно |
-| Cloudflare Workers | сервер, на котором работает бот 24/7 | бесплатно, 100 000 запросов в день |
-| Cloudflare KV | база данных: анкеты и дневники | бесплатно |
+| Telegram and @BotFather | the bot itself | free |
+| Google AI Studio | a key to the Gemini AI that looks at the photos | free |
+| Cloudflare Workers | the server the bot runs on 24/7 | free, 100,000 requests a day |
+| Cloudflare KV | the database: profiles and diaries | free |
 
 ---
 
-## Шаг 1. Создать бота в Telegram
+## Step 1. Create the bot in Telegram
 
-1. Открой в Telegram бота **@BotFather**
-2. Отправь `/newbot`
-3. Придумай имя, например `Fitter AI`
-4. Придумай адрес, он должен заканчиваться на `bot`, например `fitter_ai_vlad_bot`
-5. BotFather пришлёт **токен**, он выглядит так: `7123456789:AAH...`
-6. Сохрани токен в заметки. Это пароль от бота, никому его не показывай
+1. Open the **@BotFather** bot in Telegram
+2. Send `/newbot`
+3. Pick a name, for example `Fitter AI`
+4. Pick a username that ends in `bot`, for example `fitter_ai_vlad_bot`
+5. BotFather sends you a **token** that looks like `7123456789:AAH...`
+6. Save the token in your notes. It's the bot's password — show it to no one
 
-## Шаг 2. Получить ключ нейросети Gemini
+## Step 2. Get a Gemini API key
 
-1. Открой https://aistudio.google.com/apikey и войди через Google‑аккаунт
-2. Нажми **Create API key**
-3. Скопируй ключ, он начинается на `AIza...`, и сохрани в заметки
+1. Open https://aistudio.google.com/apikey and sign in with your Google account
+2. Click **Create API key**
+3. Copy the key (it starts with `AIza...`) and save it in your notes
 
-> Если сайт пишет, что недоступен в твоей стране, ключ нужно получить через VPN.
-> Сам бот потом работает без VPN: к нейросети обращается сервер Cloudflare, а не твой телефон.
+> If the site says it's unavailable in your country, get the key through a VPN.
+> The bot itself later works without a VPN: the AI is called by the Cloudflare server, not by your phone.
 
-## Шаг 3. Создать сервер на Cloudflare
+## Step 3. Create the server on Cloudflare
 
-1. Зарегистрируйся на https://dash.cloudflare.com/sign-up (бесплатно, карта не нужна)
-2. Слева открой **Compute (Workers)** → **Workers & Pages** → **Create** → **Create Worker**
-   (кнопка может называться **Start with Hello World!**)
-3. Назови его `fitter-ai` и нажми **Deploy**
-4. Нажми **Edit code**
-5. Удали весь код в редакторе и вставь вместо него весь код из файла [`worker.js`](worker.js)
-   (на GitHub открой файл → кнопка **Copy raw file** справа сверху)
-6. Нажми **Deploy** справа сверху
+1. Sign up at https://dash.cloudflare.com/sign-up (free, no card needed)
+2. On the left open **Compute (Workers)** → **Workers & Pages** → **Create** → **Create Worker**
+   (the button may be called **Start with Hello World!**)
+3. Name it `fitter-ai` and click **Deploy**
+4. Click **Edit code**
+5. Delete all the code in the editor and paste the whole code from [`worker.js`](worker.js) instead
+   (on GitHub open the file → the **Copy raw file** button at the top right)
+6. Click **Deploy** at the top right
 
-## Шаг 4. Подключить базу данных
+## Step 4. Connect the database
 
-1. Слева открой **Storage & Databases** → **KV** → **Create** (или **Create instance**)
-2. Название: `fitter-db` → **Create**
-3. Вернись в свой воркер `fitter-ai` → вкладка **Bindings** (или **Settings → Bindings**) → **Add binding**
-4. Выбери **KV namespace**
-5. Variable name: **`DB`** (большими буквами, это важно!)
+1. On the left open **Storage & Databases** → **KV** → **Create** (or **Create instance**)
+2. Name: `fitter-db` → **Create**
+3. Go back to your `fitter-ai` worker → the **Bindings** tab (or **Settings → Bindings**) → **Add binding**
+4. Choose **KV namespace**
+5. Variable name: **`DB`** (in capital letters, this is important!)
 6. KV namespace: `fitter-db` → **Add binding** / **Save**
 
-## Шаг 5. Добавить секретные ключи
+## Step 5. Add the secret keys
 
-В воркере открой **Settings** → **Variables and Secrets** → **Add**. Добавь три штуки, тип **Secret**:
+In the worker open **Settings** → **Variables and Secrets** → **Add**. Add three of them, type **Secret**:
 
 | Variable name | Value |
 |---|---|
-| `BOT_TOKEN` | токен от BotFather из шага 1 |
-| `GEMINI_API_KEY` | ключ Gemini из шага 2 |
-| `WEBHOOK_SECRET` | любой пароль из латинских букв и цифр, например `fitter2026secret` |
+| `BOT_TOKEN` | the BotFather token from step 1 |
+| `GEMINI_API_KEY` | the Gemini key from step 2 |
+| `WEBHOOK_SECRET` | any password of Latin letters and digits, for example `fitter2026secret` |
 
-Нажми **Deploy** / **Save**.
+Click **Deploy** / **Save**.
 
-## Шаг 6. Включить бота
+## Step 6. Turn the bot on
 
-1. Найди адрес своего воркера. Он показан на странице воркера, выглядит так:
-   `https://fitter-ai.ТВОЁ-ИМЯ.workers.dev`
-2. Открой в браузере этот адрес, добавив в конце `/setup`:
+1. Find your worker's address. It's shown on the worker page and looks like this:
+   `https://fitter-ai.YOUR-NAME.workers.dev`
+2. Open this address in a browser, adding `/setup` at the end:
    ```
-   https://fitter-ai.ТВОЁ-ИМЯ.workers.dev/setup
+   https://fitter-ai.YOUR-NAME.workers.dev/setup
    ```
-3. Введи свой WEBHOOK_SECRET в поле и нажми **Настроить бота**. Все пункты должны быть с ✅
-4. Открой своего бота в Telegram и нажми **Старт** 🎉
+3. Enter your WEBHOOK_SECRET in the field and click **Set up the bot**. Every line should have a ✅
+   (the page is shown in Russian if your browser is set to Russian, otherwise in English)
+   The bot also installs an English and a Russian command menu: the language follows the user's Telegram, and anyone can change it with `/lang`
+4. Open your bot in Telegram and tap **Start** 🎉
 
 ---
 
-## Если что‑то не работает
+## If something doesn't work
 
-| Проблема | Что сделать |
+| Problem | What to do |
 |---|---|
-| На /setup ❌ «Токен бота неверный» | Проверь BOT_TOKEN: скопируй заново из @BotFather, без пробелов |
-| ❌ «База данных KV подключена» | В шаге 4 имя переменной должно быть ровно `DB` |
-| ❌ «Gemini не отвечает» с кодом 400 или 403 | Ключ Gemini неверный, создай новый в AI Studio |
-| ❌ «Gemini не отвечает» с кодом 429 | Закончился бесплатный лимит, подожди до завтра или создай ключ в другом Google‑аккаунте |
-| Бот молчит | Открой /setup ещё раз. В Cloudflare открой воркер → **Logs**, там видны ошибки |
-| Дневник (Mini App) не открывается | Иногда в России домен workers.dev работает плохо. Можно подключить свой домен в Cloudflare (Settings → Domains & Routes) и снова открыть /setup на новом адресе |
-| Модель Gemini устарела | Добавь переменную `GEMINI_MODEL` с названием новой модели из https://ai.google.dev/gemini-api/docs/models |
+| On /setup ❌ “The bot token is wrong” | Check BOT_TOKEN: copy it again from @BotFather, with no spaces |
+| ❌ “The KV database is connected” | In step 4 the variable name must be exactly `DB` |
+| ❌ “Gemini is not responding” with code 400 or 403 | The Gemini key is wrong, create a new one in AI Studio |
+| ❌ “Gemini is not responding” with code 429 | The free limit is used up, wait until tomorrow or create a key in another Google account |
+| The bot is silent | Open /setup again. In Cloudflare open the worker → **Logs**, errors are visible there |
+| The diary (Mini App) doesn't open | The workers.dev domain sometimes works poorly in some countries. You can connect your own domain in Cloudflare (Settings → Domains & Routes) and open /setup again on the new address |
+| The Gemini model is outdated | Add a `GEMINI_MODEL` variable with the name of a new model from https://ai.google.dev/gemini-api/docs/models |
 
-## Дополнительные настройки
+## Extra settings
 
-| Переменная | Что делает | По умолчанию |
+| Variable | What it does | Default |
 |---|---|---|
-| `GEMINI_MODEL` | Какую модель Gemini использовать | `gemini-3.5-flash`, если она недоступна, бот сам пробует запасные |
-| `DAILY_AI_LIMIT` | Сколько фото и вопросов в день можно одному человеку | `40` |
+| `GEMINI_MODEL` | Which Gemini model to use | `gemini-3.5-flash`; if it's unavailable, the bot tries fallbacks itself |
+| `DAILY_AI_LIMIT` | How many photos and questions a day one person can send | `40` |
 
-## Обновить бота
+## Update the bot
 
-Когда в `worker.js` появится новая версия: Cloudflare → воркер → **Edit code** → вставить новый код → **Deploy**. Данные пользователей не пропадут, они хранятся в базе.
+When a new version of `worker.js` appears: Cloudflare → the worker → **Edit code** → paste the new code → **Deploy**. Users' data is not lost, it lives in the database.
 
-## Для тех, кто умеет в командную строку
+## For those comfortable with the command line
 
 ```bash
-npm test                         # проверка без интернета
-npx wrangler kv namespace create fitter-db   # id вставить в wrangler.toml
+npm test                         # check without the internet
+npx wrangler kv namespace create fitter-db   # put the id into wrangler.toml
 npx wrangler secret put BOT_TOKEN
 npx wrangler secret put GEMINI_API_KEY
 npx wrangler secret put WEBHOOK_SECRET

@@ -16,7 +16,8 @@ Example: after a fix, report what changed, test result, and what Vlad must do (e
 - `test/test.js` — offline tests with faked Telegram, Gemini, and KV.
 - `wrangler.toml` — KV binding `DB`, crons, `[vars]`; `package.json` — version.
 - `README.md` — features, structure, roadmap; `CHANGELOG.md` — version history; `SETUP.md` — deploy guide.
-- `docs/` — GitHub Pages landing, `privacy.html`, SEO files; `icons/` — custom emoji PNG/SVG sources.
+- `docs/` — GitHub Pages landing and `privacy.html` in English, Russian copies in `docs/ru/`, SEO files; `icons/` — custom emoji PNG/SVG sources.
+- Languages: English and Russian everywhere. Bot: `L(u, ru, en)` with `u.lang` (missing = `ru`, new users by Telegram `language_code`); Mini App: `T(ru, en)`; Android: `tr(ru, en)` and `Lang`. Strings live next to each other in the code; no dictionaries.
 
 Example: a Mini App bug routes to `APP_HTML` and `/api/*` handlers in `worker.js`, then `test/test.js`.
 
@@ -46,7 +47,8 @@ Example: pill reminder bug → `rg "pillTick|pl:ids"` → read `pillTick` and it
 - Cron weekday must be letters (`SUN`), never `0`. New env vars must be Cloudflare Secrets, never Text vars (`[vars]` overwrites them on deploy).
 - Never write secrets (`BOT_TOKEN`, `GEMINI_API_KEY`, `WEBHOOK_SECRET`, `ADMIN_ID`) in chat, code, or the repo.
 - After new bot commands, tell Vlad to open `/setup`.
-- When data collection or processing changes, update `docs/privacy.html`.
+- When data collection or processing changes, update `docs/privacy.html` and `docs/ru/privacy.html`.
+- Every user-visible string needs both languages; keep `README.md`/`README.ru.md`, `SETUP.md`/`SETUP.ru.md`, `CHANGELOG.md`/`CHANGELOG.ru.md` in step.
 - With each release, update `CHANGELOG.md`, the README roadmap, and `package.json` version; major versions also get a GitHub Release.
 - Commits: no `Co-Authored-By` or `Claude-Session` trailers. `git pull` before work — Vlad edits README on GitHub.
 - Feature work goes on a branch + PR; small docs/site fixes may go straight to `main`. Push or publish only with Vlad's go-ahead.

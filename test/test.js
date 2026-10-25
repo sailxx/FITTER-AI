@@ -81,7 +81,7 @@ async function call(update) {
   await Promise.all(pending.splice(0));
   return sent.slice();
 }
-const from = { id: 42, first_name: "Влад" };
+const from = { id: 42, first_name: "Влад", language_code: "ru" };
 const chat = { id: 42, type: "private" };
 const msg = (text) => call({ message: { message_id: 1, from, chat, text } });
 const cb = (data) => call({ callback_query: { id: "q", from, data, message: { message_id: 7, chat } } });
@@ -167,7 +167,7 @@ assert.match(lastText(s), /270 ккал/);
 day = await env.DB.get(`d:42:${date}`, "json");
 assert.equal(day.meals[0].title, "Форель с рисом");
 assert.equal(day.meals[0].items[0].kcal_100, 150);
-assert.ok(geminiCalls.at(-1).body.contents[0].parts[0].text.includes("Стало: «форель»"));
+assert.ok(geminiCalls.at(-1).body.contents[0].parts[0].text.includes("Now: “форель”"));
 console.log("✓ название исправлено, КБЖУ пересчитаны");
 
 // 5. Текст: запись еды и вопрос
@@ -177,7 +177,7 @@ assert.match(lastText(s), /Банан — 120 г · <b>107<\/b> ккал/);
 geminiReply = { intent: "question", answer: "В твороге 5% около 17 г белка на 100 г 💪", title: "", items: [] };
 s = await msg("сколько белка в твороге?");
 assert.match(lastText(s), /17 г белка/);
-assert.ok(geminiCalls.at(-1).body.contents[0].parts[0].text.includes("Уже съедено сегодня"));
+assert.ok(geminiCalls.at(-1).body.contents[0].parts[0].text.includes("Already eaten today"));
 console.log("✓ текст: запись и вопрос");
 
 // 6. Не еда
@@ -439,14 +439,22 @@ new Function(script);
 }
 r = await worker.fetch(new Request(base + "/setup?secret=s3cret"), env, ctx);
 assert.doesNotMatch(await r.text(), /Всё готово/, "секрет в адресе не принимается");
-const setupPost = (secret) => worker.fetch(new Request(base + "/setup", { method: "POST", body: new URLSearchParams({ secret }) }), env, ctx);
+const setupPost = (secret, lang) => worker.fetch(new Request(base + "/setup", { method: "POST", headers: lang ? { "accept-language": lang } : {}, body: new URLSearchParams({ secret }) }), env, ctx);
 r = await setupPost("wrong");
 assert.equal(r.status, 403);
 assert.ok(!sent.some((x) => x.method === "setWebhook"));
-r = await setupPost("s3cret");
+sent.length = 0;
+r = await setupPost("s3cret", "ru-RU,ru;q=0.9");
 const setupHtml = await r.text();
 assert.match(setupHtml, /Всё готово/);
 assert.equal(sent.find((x) => x.method === "setWebhook").body.url, base + "/webhook");
+const cmdCalls = sent.filter((x) => x.method === "setMyCommands");
+assert.equal(cmdCalls.length, 2, "меню команд: английское и русское");
+assert.equal(cmdCalls[0].body.language_code, undefined);
+assert.equal(cmdCalls[1].body.language_code, "ru");
+assert.ok(cmdCalls[0].body.commands.some((c) => c.command === "lang"));
+r = await setupPost("s3cret");
+assert.match(await r.text(), /All set!/, "страница настройки по умолчанию на английском");
 console.log("✓ /app и /setup");
 
 // 10. Вода
@@ -545,7 +553,7 @@ console.log("✓ /app и /setup");
 
 // Серии, достижения и ИИ-разбор недели (отдельный пользователь)
 {
-  const from2 = { id: 77, first_name: "Аня" }, chat2 = { id: 77, type: "private" };
+  const from2 = { id: 77, first_name: "Аня", language_code: "ru" }, chat2 = { id: 77, type: "private" };
   const m2 = (text) => call({ message: { message_id: 1, from: from2, chat: chat2, text } });
   const t0 = new Date(Date.now() + 180 * 60000).toISOString().slice(0, 10);
   const sh = (n) => { const d = new Date(t0 + "T00:00:00Z"); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10); };
@@ -650,7 +658,7 @@ console.log("✓ /app и /setup");
   assert.match(t, /🥗(<\/tg-emoji>)? <b>Что съесть<\/b>/);
   assert.match(t, /<b>Творог с бананом<\/b> · 349 ккал/);
   assert.match(t, /Творог 5% 200 г, Банан 120 г/);
-  assert.ok(geminiCalls.at(-1).body.contents[0].parts[0].text.includes("Осталось:"));
+  assert.ok(geminiCalls.at(-1).body.contents[0].parts[0].text.includes("Left:"));
   const kb = a.at(-1).body.reply_markup.inline_keyboard;
   assert.equal(kb[0].length, 3);
   assert.equal(kb[0][0].callback_data, "adv|0");
@@ -671,7 +679,7 @@ console.log("✓ /app и /setup");
   assert.equal(_test.startSource("/start"), "direct");
   assert.equal(_test.startSource("/start a b"), "direct");
   assert.equal((await env.DB.get("u:42", "json")).src, "direct");
-  const other = { id: 88, first_name: "Оля" };
+  const other = { id: 88, first_name: "Оля", language_code: "ru" };
   await call({ message: { message_id: 1, from: other, chat: { id: 88, type: "private" }, text: "/start VC_ru" } });
   assert.equal((await env.DB.get("u:88", "json")).src, "vc_ru");
   // Повторный /start с другой меткой не перезаписывает источник
@@ -756,7 +764,7 @@ console.log("✓ /app и /setup");
   const ent = [{ type: "custom_emoji", offset: 0, length: 2, custom_emoji_id: "1" }];
   s = await call({ message: { message_id: 1, from, chat, text: "🍏", entities: ent } });
   assert.match(lastText(s), /Номера иконок/);
-  const other2 = { id: 77, first_name: "Гость" };
+  const other2 = { id: 77, first_name: "Гость", language_code: "ru" };
   s = await call({ message: { message_id: 1, from: other2, chat: { id: 77, type: "private" }, text: "🍏", entities: ent } });
   assert.doesNotMatch(lastText(s) || "", /Номера иконок/);
   s = await call({ message: { message_id: 1, from: other2, chat: { id: 77, type: "private" }, text: "/makeemoji" } });
@@ -783,7 +791,7 @@ console.log("✓ /app и /setup");
 
 // 14. /delete: все данные пользователя стираются
 {
-  const del = { id: 55, first_name: "Удалю" };
+  const del = { id: 55, first_name: "Удалю", language_code: "ru" };
   const dchat = { id: 55, type: "private" };
   await env.DB.put("u:55", JSON.stringify({ id: 55, targets: { kcal: 2000 }, pills: [{ id: "a", name: "Д", times: ["09:00"] }] }));
   await env.DB.put("d:55:2026-10-01", JSON.stringify({ meals: [] }));
@@ -804,7 +812,7 @@ console.log("✓ /app и /setup");
   assert.ok(await env.DB.get("d:555:2026-10-01"), "чужие данные на месте");
   assert.deepEqual(JSON.parse(await env.DB.get("wr:ids")), [42]);
   assert.deepEqual(JSON.parse(await env.DB.get("pl:ids")), []);
-  s = await call({ message: { message_id: 1, from: { id: 56 }, chat: { id: 56, type: "private" }, text: "/delete" } });
+  s = await call({ message: { message_id: 1, from: { id: 56, language_code: "ru" }, chat: { id: 56, type: "private" }, text: "/delete" } });
   assert.match(lastText(s), /нет твоих данных/);
   console.log("✓ /delete: удаление всех данных");
 }
@@ -1008,6 +1016,109 @@ console.log("✓ /app и /setup");
   assert.ok(await env.DB.get("wo:42"));
   console.log("✓ приложение: дневник тренировок");
 }
+
+// 11a. Английский: язык по языку Telegram, ответы бота, переключатель и приложение
+{
+  const en = { id: 300, first_name: "Sam", language_code: "en" }, echat = { id: 300, type: "private" };
+  const e = (text) => call({ message: { message_id: 1, from: en, chat: echat, text } });
+  const ecb = (data) => call({ callback_query: { id: "q", from: en, data, message: { message_id: 7, chat: echat } } });
+  const noCyr = (text) => assert.ok(!/[А-Яа-яЁё]/.test(String(text).replace(/Русский/g, "")), "русский текст в английской версии: " + text);
+
+  // Анкета и первые ответы
+  s = await e("/start");
+  assert.match(lastText(s), /Your sex/);
+  assert.equal((await env.DB.get("u:300", "json")).lang, "en");
+  s = await ecb("sex|f");
+  assert.match(lastText(s), /How old are you/);
+  await e("30"); await e("165");
+  s = await e("60");
+  assert.match(lastText(s), /How active are you/);
+  s = await ecb("act|1.375");
+  assert.match(lastText(s), /What is your goal/);
+  s = await ecb("goal|lose");
+  assert.ok(s.some((x) => /Your daily goal/.test(x.body.text || "")));
+  assert.match(JSON.stringify(s.find((x) => x.body.reply_markup && x.body.reply_markup.keyboard).body.reply_markup), /Today.*Week.*Profile.*Help/);
+
+  // Фото, итоги дня и недели, справка — без русского текста
+  geminiReply = { is_food: true, title: "Oatmeal", comment: "Good start to the day", is_package: false, label_found: false, barcode: "",
+    items: [{ name: "Oatmeal", grams: 200, kcal_100: 70, protein_100: 2.5, fat_100: 1.5, carbs_100: 12 }] };
+  geminiCalls = [];
+  s = await call({ message: { message_id: 2, from: en, chat: echat, photo: [{ file_id: "p", width: 800, height: 600 }] } });
+  assert.match(geminiCalls.at(-1).body.contents[0].parts[0].text, /Write names and comments in English/);
+  const card = s.map((x) => x.body.text || "").find((x) => /Oatmeal/.test(x));
+  assert.match(card, /Oatmeal — 200 g · <b>140<\/b> kcal/);
+  assert.match(card, /kcal left/);
+  noCyr(card);
+  assert.ok(s.some((x) => /New achievement/.test(x.body.text || "")), "награда по-английски");
+  s = await e("/today");
+  assert.match(lastText(s), /Today<\/b>/);
+  assert.match(lastText(s), /Protein/);
+  noCyr(lastText(s));
+  s = await e("/week");
+  assert.match(lastText(s), /<b>Week<\/b>/);
+  noCyr(lastText(s));
+  s = await e("/help");
+  assert.match(lastText(s), /How it works/);
+  noCyr(lastText(s));
+  s = await e("/profile");
+  assert.match(lastText(s), /Daily goal/);
+  noCyr(lastText(s).replace("Язык", ""));
+  s = await e("/awards");
+  assert.match(lastText(s), /Achievements/);
+  noCyr(lastText(s));
+  s = await e("/pills");
+  assert.match(lastText(s), /Add vitamins or medications/);
+  s = await e("/water");
+  assert.match(lastText(s), /<b>0 L<\/b> \/ 1\.8 L/);
+  s = await e("water 500");
+  assert.match(lastText(s), /500 ml logged/);
+
+  // Разбор английских фраз
+  assert.equal(_test.parseWater("water 300"), 300);
+  assert.equal(_test.parseWater("2 glasses of water"), 500);
+  assert.equal(_test.parseWater("a glass of water"), 250);
+  assert.equal(_test.parseWater("drank 0.5 l of water"), 500);
+  assert.equal(_test.parseWater("300 ml of water"), 300);
+  assert.deepEqual(_test.parseFix("trout 200 g"), { name: "trout", grams: 200 });
+  assert.deepEqual(_test.parseFix("150 grams"), { grams: 150 });
+  const pill = _test.parsePill("Vitamin D, 1 capsule, at 9:00 and 21:00");
+  assert.deepEqual([pill.name, pill.dose, pill.times], ["Vitamin D", "1 capsule", ["09:00", "21:00"]]);
+
+  // Напоминание о воде по-английски
+  s = await ecb("wr|every|30");
+  assert.match(lastText(s), /Water reminders/);
+  const eu = await env.DB.get("u:300", "json");
+  eu.wr.last = 0;
+  await env.DB.put("u:300", JSON.stringify(eu));
+  sent.length = 0;
+  assert.equal(await _test.waterTick(env, Date.UTC(2026, 9, 6, 10, 0)), 1);
+  assert.match(sent.find((x) => x.method === "sendMessage").body.text, /Time for some water/);
+
+  // Переключатель: /lang, кнопка в профиле, приложение
+  s = await e("/lang");
+  assert.match(lastText(s), /Language/);
+  s = await e("/lang ru");
+  assert.equal((await env.DB.get("u:300", "json")).lang, "ru");
+  s = await e("/today");
+  assert.match(lastText(s), /Сегодня<\/b>/);
+  s = await ecb("lang|en");
+  assert.equal((await env.DB.get("u:300", "json")).lang, "en");
+  const einit = await signInit({ id: 300, first_name: "Sam" }, TOKEN);
+  let rr = await apiCall("/api/day", "GET", null, einit);
+  assert.equal((await rr.json()).lang, "en");
+  rr = await apiCall("/api/lang", "POST", { lang: "ru" }, einit);
+  assert.equal(rr.status, 200);
+  assert.equal((await env.DB.get("u:300", "json")).lang, "ru");
+  rr = await apiCall("/api/lang", "POST", { lang: "de" }, einit);
+  assert.equal(rr.status, 400);
+  rr = await apiCall("/api/widget", "GET", null, einit);
+  assert.equal((await rr.json()).lang, "ru");
+  assert.match(_test.APP_HTML, /id="lang"/);
+  assert.match(_test.APP_HTML, /T\("Сегодня", "Today"\)/);
+  assert.equal(_test.ACHIEVEMENTS.every((a) => a.length === 8 && a[6] && a[7]), true, "у каждой награды есть английское название");
+  console.log("✓ английская версия: бот, переключатель языка, приложение");
+}
+
 
 // 12. Лимит запросов к ИИ
 env.DAILY_AI_LIMIT = "1";

@@ -1,5 +1,6 @@
 package com.sailxx.fitter.ui
 
+import com.sailxx.fitter.data.tr
 import androidx.annotation.DrawableRes
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.core.Animatable
@@ -112,16 +113,16 @@ fun LoginScreen() {
                         FitterRepository.saveLogin(context, r.token)
                         return@launch
                     }
-                    LinkPoll.Denied -> { message = "Вход отменён в боте. Попробуем ещё раз?"; break }
+                    LinkPoll.Denied -> { message = tr("Вход отменён в боте. Попробуем ещё раз?", "Sign-in was cancelled in the bot. Try again?"); break }
                     LinkPoll.Expired -> break
                     else -> Unit // ждём или нет сети — пробуем ещё
                 }
             }
-            if (message == null) message = "Время на вход вышло. Нажми кнопку ещё раз"
+            if (message == null) message = tr("Время на вход вышло. Нажми кнопку ещё раз", "Sign-in timed out. Tap the button again")
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
-            message = "Нет связи с сервером. Проверь интернет"
+            message = tr("Нет связи с сервером. Проверь интернет", "Can't reach the server. Check your internet connection")
         }
         step = Step.Hello
     }
@@ -172,7 +173,7 @@ private fun Hello(message: String?, onLogin: () -> Unit, onBot: () -> Unit) {
         label = "angle",
     )
     Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.rise(0)) {
-        Text("Привет!", fontSize = 38.sp, fontWeight = FontWeight.ExtraBold, color = Ink, letterSpacing = (-0.5).sp)
+        Text(tr("Привет!", "Hi!"), fontSize = 38.sp, fontWeight = FontWeight.ExtraBold, color = Ink, letterSpacing = (-0.5).sp)
         Spacer(Modifier.width(10.dp))
         Image(
             painterResource(R.drawable.ic_hello), null,
@@ -181,15 +182,15 @@ private fun Hello(message: String?, onLogin: () -> Unit, onBot: () -> Unit) {
     }
     Spacer(Modifier.height(10.dp))
     Text(
-        "Я FITTER — считаю калории по фото.\nВойди через Telegram, и дневник всегда будет под рукой.",
+        tr("Я FITTER — считаю калории по фото.\nВойди через Telegram, и дневник всегда будет под рукой.", "I'm FITTER — I count calories from photos.\nSign in with Telegram and your diary is always at hand."),
         fontSize = 16.sp, lineHeight = 22.sp, color = Sub, textAlign = TextAlign.Center,
         modifier = Modifier.rise(120),
     )
     Spacer(Modifier.height(20.dp))
     Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.rise(220)) {
-        Feature(R.drawable.ic_camera, "Фото → ккал")
-        Feature(R.drawable.ic_water, "Вода")
-        Feature(R.drawable.ic_sparkles, "Виджеты")
+        Feature(R.drawable.ic_camera, tr("Фото → ккал", "Photo → kcal"))
+        Feature(R.drawable.ic_water, tr("Вода", "Water"))
+        Feature(R.drawable.ic_sparkles, tr("Виджеты", "Widgets"))
     }
     Spacer(Modifier.height(32.dp))
     TelegramButton(onLogin, Modifier.rise(340))
@@ -199,7 +200,7 @@ private fun Hello(message: String?, onLogin: () -> Unit, onBot: () -> Unit) {
     }
     Spacer(Modifier.height(18.dp))
     Text(
-        "Ещё нет анкеты? Открой бота — это минута",
+        tr("Ещё нет анкеты? Открой бота — это минута", "No profile yet? Open the bot — it takes a minute"),
         fontSize = 14.sp, color = Palette.G3, fontWeight = FontWeight.SemiBold,
         modifier = Modifier.rise(440).clip(RoundedCornerShape(10.dp)).clickable(onClick = onBot).padding(horizontal = 10.dp, vertical = 8.dp),
     )
@@ -255,7 +256,7 @@ private fun TelegramButton(onClick: () -> Unit, modifier: Modifier = Modifier) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             PaperPlane(Modifier.size(24.dp))
             Spacer(Modifier.width(10.dp))
-            Text("Войти через Telegram", color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.ExtraBold)
+            Text(tr("Войти через Telegram", "Sign in with Telegram"), color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.ExtraBold)
         }
     }
 }
@@ -324,16 +325,16 @@ private fun Waiting(onReopen: () -> Unit, onCancel: () -> Unit) {
             }
         }
         Spacer(Modifier.height(14.dp))
-        Text("Подтверди вход в Telegram", fontSize = 20.sp, fontWeight = FontWeight.ExtraBold, color = Ink, textAlign = TextAlign.Center)
+        Text(tr("Подтверди вход в Telegram", "Confirm sign-in in Telegram"), fontSize = 20.sp, fontWeight = FontWeight.ExtraBold, color = Ink, textAlign = TextAlign.Center)
         Spacer(Modifier.height(6.dp))
-        Text("Нажми «✅ Да, это я» в чате с ботом — и сразу возвращайся сюда.", fontSize = 15.sp, color = Sub, textAlign = TextAlign.Center)
+        Text(tr("Нажми «✅ Да, это я» в чате с ботом — и сразу возвращайся сюда.", "Tap “✅ Yes, it's me” in the chat with the bot, then come right back here."), fontSize = 15.sp, color = Sub, textAlign = TextAlign.Center)
         Spacer(Modifier.height(18.dp))
         Text(
-            "Открыть Telegram ещё раз", color = Palette.G3, fontWeight = FontWeight.Bold,
+            tr("Открыть Telegram ещё раз", "Open Telegram again"), color = Palette.G3, fontWeight = FontWeight.Bold,
             modifier = Modifier.clip(RoundedCornerShape(10.dp)).clickable(onClick = onReopen).padding(10.dp),
         )
         Text(
-            "Отмена", color = Sub, fontSize = 14.sp,
+            tr("Отмена", "Cancel"), color = Sub, fontSize = 14.sp,
             modifier = Modifier.clip(RoundedCornerShape(10.dp)).clickable(onClick = onCancel).padding(8.dp),
         )
     }
@@ -348,8 +349,8 @@ private fun DoneView() {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Image(painterResource(R.drawable.ic_party), null, Modifier.size(72.dp).graphicsLayer { scaleX = pop.value; scaleY = pop.value })
             Spacer(Modifier.height(12.dp))
-            Text("Готово!", fontSize = 34.sp, fontWeight = FontWeight.ExtraBold, color = Ink)
-            Text("Открываю твой дневник…", fontSize = 16.sp, color = Sub)
+            Text(tr("Готово!", "Done!"), fontSize = 34.sp, fontWeight = FontWeight.ExtraBold, color = Ink)
+            Text(tr("Открываю твой дневник…", "Opening your diary…"), fontSize = 16.sp, color = Sub)
         }
     }
 }

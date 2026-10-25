@@ -7,9 +7,11 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 
 /** Иконка на рабочем столе: alias из AndroidManifest.xml и её слои для превью в настройках. */
-enum class AppIconStyle(val title: String, val alias: String) {
-    GREEN("Зелёная", "com.sailxx.fitter.IconGreen"),
-    DARK("Тёмная", "com.sailxx.fitter.IconDark"),
+enum class AppIconStyle(private val ru: String, private val en: String, val alias: String) {
+    GREEN("Зелёная", "Green", "com.sailxx.fitter.IconGreen"),
+    DARK("Тёмная", "Dark", "com.sailxx.fitter.IconDark");
+
+    val title get() = tr(ru, en)
 }
 
 /**
