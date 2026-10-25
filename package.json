@@ -8,5 +8,5 @@
     "test": "node test/test.js",
     "deploy": "npx wrangler deploy"
   },
-  "license": "MIT"
+  "license": "Apache-2.0"
 }

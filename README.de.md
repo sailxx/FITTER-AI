@@ -126,7 +126,7 @@ Einen Fehler gefunden oder eine Idee? Öffne ein [Issue](https://github.com/sail
 
 ## ⚖️ Lizenz
 
-FITTER steht unter der **MIT**-Lizenz, siehe [LICENSE](LICENSE). Das Projekt ist unabhängig und steht in keiner Verbindung zu Telegram, Google oder Cloudflare. Die Namen gehören ihren Inhabern.
+FITTER steht unter der **Apache 2.0**-Lizenz, siehe [LICENSE](LICENSE). Das Projekt ist unabhängig und steht in keiner Verbindung zu Telegram, Google oder Cloudflare. Die Namen gehören ihren Inhabern.
 
 <div align="center">
   <br />

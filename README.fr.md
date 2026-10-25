@@ -126,7 +126,7 @@ Tu as trouvé un bug ou tu as une idée ? Ouvre une [issue](https://github.com/s
 
 ## ⚖️ Licence
 
-FITTER est distribué sous licence **MIT**, voir [LICENSE](LICENSE). C’est un projet indépendant, sans lien avec Telegram, Google ou Cloudflare. Les noms appartiennent à leurs propriétaires.
+FITTER est distribué sous licence **Apache 2.0**, voir [LICENSE](LICENSE). C’est un projet indépendant, sans lien avec Telegram, Google ou Cloudflare. Les noms appartiennent à leurs propriétaires.
 
 <div align="center">
   <br />
