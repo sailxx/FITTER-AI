@@ -8,6 +8,7 @@ const sent = [];
 let geminiReply = null;
 let geminiCalls = [];
 let offCalls = 0;
+const usdaCalls = [];
 let rejectQuote = false;
 
 class FakeKV {
@@ -52,6 +53,13 @@ globalThis.fetch = async (url, opts = {}) => {
     if (url.includes("gemini-3.5-flash:")) return new Response("model not found", { status: 404 }); // проверяем запасную модель
     const reply = typeof geminiReply === "function" ? geminiReply(body) : geminiReply;
     return Response.json({ candidates: [{ content: { parts: [{ text: JSON.stringify(reply) }] } }] });
+  }
+  if (url.startsWith("https://api.nal.usda.gov/fdc/v1/foods/search")) {
+    usdaCalls.push(url);
+    const q = new URL(url).searchParams.get("query");
+    if (q.includes("nothing")) return Response.json({ foods: [] });
+    const n = (nutrientId, value) => ({ nutrientId, value });
+    return Response.json({ foods: [{ description: "Chicken, breast, roasted", foodNutrients: [n(1008, 165), n(1003, 31), n(1004, 3.6), n(1005, 0), n(1089, 1.04), n(1093, 74), n(1092, 256)] }] });
   }
   if (url.startsWith("https://world.openfoodfacts.org/api/v2/product/")) {
     offCalls++;
@@ -1162,6 +1170,53 @@ console.log("✓ /app и /setup");
   assert.equal(Math.round(dj.meals[0].micro.iron * 10) / 10, 1.4);
   assert.ok(dj.micro.fiber > 3);
   console.log("✓ сверка калорий с БЖУ, микронутриенты и «Подробнее»");
+}
+
+
+// 11c. Привязка к USDA: питательность на 100 г берём из базы, вес и название — от нейросети
+{
+  const u9 = { id: 302, first_name: "Lee", language_code: "en" }, c9 = { id: 302, type: "private" };
+  await env.DB.put("u:302", JSON.stringify({ id: 302, name: "Lee", lang: "en", tz: 180, targets: { kcal: 2000, p: 100, f: 60, c: 250 }, weight: 70 }));
+  const reply = () => ({ is_food: true, title: "Chicken", comment: "", is_package: false, label_found: false, barcode: "",
+    items: [
+      { name: "Chicken breast", grams: 150, kcal_100: 250, protein_100: 20, fat_100: 15, carbs_100: 0, usda_query: "Chicken breast, roasted" },
+      { name: "Mystery stew", grams: 200, kcal_100: 120, protein_100: 8, fat_100: 5, carbs_100: 10, usda_query: "" },
+      { name: "Unknown thing", grams: 100, kcal_100: 100, protein_100: 5, fat_100: 3, carbs_100: 12, usda_query: "nothing here" },
+    ] });
+  const photo = () => call({ message: { message_id: 2, from: u9, chat: c9, photo: [{ file_id: "p", width: 800, height: 600 }] } });
+  // Без ключа USDA значения остаются от нейросети (калории только сверены с макросами)
+  geminiReply = reply();
+  usdaCalls.length = 0;
+  await photo();
+  let day = await env.DB.get("d:302:" + new Date(Date.now() + 180 * 60000).toISOString().slice(0, 10), "json");
+  assert.equal(usdaCalls.length, 0);
+  assert.equal(day.meals[0].items[0].protein_100, 20);
+  // С ключом: курица из USDA, сложное блюдо и ненайденное — как оценила нейросеть
+  env.USDA_API_KEY = "test-key";
+  await env.DB.put("d:302:" + new Date(Date.now() + 180 * 60000).toISOString().slice(0, 10), JSON.stringify({ meals: [] }));
+  geminiReply = reply();
+  await photo();
+  day = await env.DB.get("d:302:" + new Date(Date.now() + 180 * 60000).toISOString().slice(0, 10), "json");
+  const [chicken, stew, unk] = day.meals[0].items;
+  assert.deepEqual([chicken.kcal_100, chicken.protein_100, chicken.fat_100, chicken.carbs_100], [165, 31, 3.6, 0]);
+  assert.equal(chicken.src, "usda");
+  assert.equal(chicken.grams, 150, "вес остаётся от нейросети");
+  assert.equal(chicken.mi.iron, 1, "микронутриенты из USDA");
+  assert.equal(chicken.mi.sodium, 74);
+  assert.equal(chicken.usda, undefined, "поисковая фраза не хранится");
+  assert.equal(stew.src, undefined);
+  assert.equal(stew.protein_100, 8);
+  assert.equal(unk.src, undefined, "не нашлось в USDA — остаются значения нейросети");
+  assert.ok(usdaCalls[0].includes("api_key=test-key") && usdaCalls[0].includes("Foundation"));
+  // Повторный запрос берётся из кэша KV
+  const before = usdaCalls.length;
+  geminiReply = reply();
+  await photo();
+  assert.equal(usdaCalls.length, before, "USDA из кэша");
+  assert.equal(_test.parseUsda({ foods: [] }), null);
+  assert.equal(_test.parseUsda({ foods: [{ foodNutrients: [{ nutrientId: 1003, value: 1 }] }] }), null, "без калорий и макросов — не подходит");
+  delete env.USDA_API_KEY;
+  console.log("✓ привязка к USDA: значения из базы, кэш, запасной вариант");
 }
 
 

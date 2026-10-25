@@ -529,6 +529,7 @@ const ITEM_SCHEMA = {
     protein_100: { type: "NUMBER", description: "Protein per 100 g" },
     fat_100: { type: "NUMBER", description: "Fat per 100 g" },
     carbs_100: { type: "NUMBER", description: "Carbs per 100 g" },
+    usda_query: { type: "STRING", description: "English USDA FoodData Central search phrase for this single, simple food as eaten, for example “chicken breast, roasted, cooked” or “rice, white, cooked”. Empty string for mixed dishes, soups, sandwiches and branded products" },
     micro_100: {
       type: "OBJECT",
       description: "Micronutrients per 100 g of this product as eaten",
@@ -594,6 +595,7 @@ Accuracy rules:
 • Count hidden calories: cooking oil, butter, sauces, dressings, sugar in drinks, cheese on top. Fried and creamy dishes are far denser than boiled or grilled ones.
 • Estimate weight with scale cues: a standard dinner plate is about 26 cm, a fork about 19 cm, a hand-sized portion of meat about 100–120 g. Weigh cooked food, not dry.
 • Calories must match macros: kcal_100 ≈ 4·protein + 9·fat + 4·carbs (alcohol 7 per gram adds on top).
+• For each simple single food fill usda_query with an English USDA FoodData Central search phrase for it as eaten (“chicken breast, roasted, cooked”, “rice, white, cooked”); leave it empty for mixed dishes, soups, sandwiches and branded products. Values from USDA replace your per-100 g numbers, so the name and the weight must be right.
 • In micro_100 give typical micronutrients per 100 g (fiber, sugars, saturated fat, cholesterol, sodium, potassium, calcium, iron, magnesium, zinc, vitamins C, A, D, B12) for each item; use 0 only when the item really has none.
 Write names and comments in ${aiLang(u)}, short. Be realistic, neither under- nor overestimate.`;
 
@@ -606,7 +608,7 @@ Decide what the user sent:
   Then answer clearly and briefly in answer (up to 700 characters), without markdown, emoji are fine.
   Take the user's data below into account where appropriate. Do not diagnose; for health problems advise seeing a doctor.
 • other — everything else. In answer politely remind that you help with nutrition and they can send a photo of food.
-For food_log: calories must match macros (kcal ≈ 4·protein + 9·fat + 4·carbs), count cooking oil and sauces, weigh cooked food, and fill micro_100 (fiber, sugars, saturated fat, cholesterol, sodium, potassium, calcium, iron, magnesium, zinc, vitamins C, A, D, B12 per 100 g).
+For food_log: fill usda_query (English USDA FoodData Central phrase for a simple food as eaten, empty for mixed dishes); calories must match macros (kcal ≈ 4·protein + 9·fat + 4·carbs), count cooking oil and sauces, weigh cooked food, and fill micro_100 (fiber, sugars, saturated fat, cholesterol, sodium, potassium, calcium, iron, magnesium, zinc, vitamins C, A, D, B12 per 100 g).
 For question and other return empty items and an empty title.`;
 
 let lastModelUsed = null;
@@ -697,6 +699,8 @@ function cleanItems(items, { trust = false } = {}) {
         fat_100: r1(num(it.fat_100, 100)),
         carbs_100: r1(num(it.carbs_100, 100)),
       };
+      const uq = String(it.usda_query || "").trim().slice(0, 80);
+      if (uq) base.usda = uq;
       const src = it.mi || it.micro_100;
       if (src && typeof src === "object") {
         const mi = {};
@@ -710,6 +714,87 @@ function cleanItems(items, { trust = false } = {}) {
     })
     .slice(0, 12);
 }
+
+// ───────────────────────────── USDA FoodData Central ─────────────────────────────
+// Нейросеть оценивает вес порции и называет продукт, а питательность на 100 г берём из базы USDA:
+// это измеренные значения, а не память модели. Нужен бесплатный ключ USDA_API_KEY (секрет Cloudflare, https://fdc.nal.usda.gov/api-key-signup);
+// без ключа или если продукт не нашёлся, остаются значения нейросети.
+
+const USDA_URL = "https://api.nal.usda.gov/fdc/v1/foods/search";
+const USDA_TIMEOUT_MS = 4000;
+// Номера нутриентов в USDA → наши поля (на 100 г)
+const USDA_IDS = {
+  1003: "protein_100", 1004: "fat_100", 1005: "carbs_100",
+  1079: "fiber", 2000: "sugar", 1258: "satfat", 1253: "cholesterol", 1093: "sodium", 1092: "potassium",
+  1087: "calcium", 1089: "iron", 1090: "magnesium", 1095: "zinc", 1162: "vitc", 1106: "vita", 1114: "vitd", 1178: "b12",
+};
+
+// Ответ поиска USDA → { kcal_100, protein_100, fat_100, carbs_100, mi } или null
+function parseUsda(json) {
+  const food = (json && json.foods || [])[0];
+  if (!food) return null;
+  const out = { mi: {}, name: String(food.description || "") };
+  const by = {};
+  for (const n of food.foodNutrients || []) by[n.nutrientId] = Number(n.value);
+  // Энергия: у Foundation-продуктов бывает только расчётная (2047 / 2048)
+  const kcal = [1008, 2047, 2048].map((id) => by[id]).find((v) => Number.isFinite(v));
+  if (!Number.isFinite(kcal)) return null;
+  out.kcal_100 = kcal;
+  for (const [id, key] of Object.entries(USDA_IDS)) {
+    const v = by[id];
+    if (!Number.isFinite(v)) continue;
+    if (key.endsWith("_100")) out[key] = v; else out.mi[key] = v;
+  }
+  if (out.protein_100 === undefined || out.fat_100 === undefined || out.carbs_100 === undefined) return null;
+  return out;
+}
+
+async function lookupUsda(env, query) {
+  const q = String(query || "").toLowerCase().replace(/\s+/g, " ").trim().slice(0, 80);
+  if (!env.USDA_API_KEY || q.length < 2) return null;
+  const key = `usda:${q}`;
+  const cached = await env.DB.get(key, "json").catch(() => null);
+  if (cached) return cached.miss ? null : cached;
+  let found = null;
+  try {
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), USDA_TIMEOUT_MS);
+    const url = `${USDA_URL}?query=${encodeURIComponent(q)}&dataType=${encodeURIComponent("Foundation,SR Legacy")}&pageSize=1&api_key=${encodeURIComponent(env.USDA_API_KEY)}`;
+    const r = await fetch(url, { signal: ctrl.signal });
+    clearTimeout(timer);
+    if (!r.ok) return null; // лимит или сбой: не кэшируем
+    found = parseUsda(await r.json());
+  } catch (e) {
+    console.error("usda lookup:", e && e.message);
+    return null;
+  }
+  await env.DB.put(key, JSON.stringify(found || { miss: true }), { expirationTtl: found ? 30 * 86400 : 86400 }).catch(() => {});
+  return found;
+}
+
+// Подменяет питательность продуктов значениями USDA. Продукты без запроса (сложные блюда) и ненайденные остаются как есть
+async function applyUsda(env, items) {
+  if (!env.USDA_API_KEY) { for (const it of items) delete it.usda; return items; }
+  await Promise.all(items.map(async (it) => {
+    const q = it.usda;
+    delete it.usda;
+    if (!q) return;
+    const u = await lookupUsda(env, q);
+    if (!u) return;
+    it.kcal_100 = r1(u.kcal_100);
+    it.protein_100 = r1(u.protein_100);
+    it.fat_100 = r1(u.fat_100);
+    it.carbs_100 = r1(u.carbs_100);
+    const mi = {};
+    for (const k of MICRO_KEYS) { const v = Math.min(u.mi[k] || 0, MICRO[k][3]); if (v > 0) mi[k] = r1(v); }
+    if (Object.keys(mi).length) it.mi = mi; else delete it.mi;
+    it.src = "usda";
+  }));
+  return items;
+}
+
+// Очистить ответ нейросети и подтянуть значения из USDA
+const finalizeItems = async (env, raw, opts) => applyUsda(env, cleanItems(raw, opts));
 
 // Счётчик запросов в памяти воркера: если человек шлёт много фото разом, параллельные запросы
 // читают из базы старый счётчик. Здесь они видят свежий и не обходят дневной лимит
@@ -1513,7 +1598,7 @@ async function analyzePhoto(env, b64, mime, caption, u) {
     { text: photoPrompt(u) + (caption ? `\n\nHint from the user (take it into account first): ${caption}` : "") },
     { inline_data: { mime_type: mime, data: b64 } },
   ], PHOTO_SCHEMA);
-  const items = cleanItems(res.items, { trust: !!res.label_found });
+  const items = await finalizeItems(env, res.items, { trust: !!res.label_found });
   if (!res.is_food || !items.length) return null;
   // Упаковка: КБЖУ с этикетки, а если этикетки не видно — ищем по штрихкоду
   let comment = res.comment;
@@ -1738,6 +1823,7 @@ const FIX_SCHEMA = {
     fat_100: { type: "NUMBER" },
     carbs_100: { type: "NUMBER" },
     micro_100: ITEM_SCHEMA.properties.micro_100,
+    usda_query: ITEM_SCHEMA.properties.usda_query,
     meal_title: { type: "STRING", description: "New short name of the whole meal" },
   },
   required: ["name", "kcal_100", "protein_100", "fat_100", "carbs_100", "meal_title"],
@@ -1754,10 +1840,10 @@ async function recalcItem(env, meal, idx, name, grams, u) {
       `Other products on the plate: ${others || "none"}.\n` +
       `Give typical calories, protein, fat and carbs PER 100 GRAMS for “${name}” the way it is usually eaten ` +
       `(if the old name mentioned cooking method, sauce or side dish, take that into account).\n` +
-      `Calories must match macros (kcal ≈ 4·protein + 9·fat + 4·carbs). Also fill micro_100 per 100 g (fiber, sugars, saturated fat, cholesterol, sodium, potassium, calcium, iron, magnesium, zinc, vitamins C, A, D, B12).\n` +
+      `Fill usda_query with an English USDA FoodData Central search phrase for the product as eaten (empty for mixed dishes). Calories must match macros (kcal ≈ 4·protein + 9·fat + 4·carbs). Also fill micro_100 per 100 g (fiber, sugars, saturated fat, cholesterol, sodium, potassium, calcium, iron, magnesium, zinc, vitamins C, A, D, B12).\n` +
       `In name return a tidy product name. In meal_title return the new short name of the whole meal.`,
   }], FIX_SCHEMA);
-  const clean = cleanItems([{ ...res, grams: grams || it.grams }])[0];
+  const clean = (await finalizeItems(env, [{ ...res, grams: grams || it.grams }]))[0];
   if (!clean) throw new Error("пустой ответ");
   Object.assign(it, clean);
   if (!clean.mi) delete it.mi; // микронутриенты прежнего продукта к новому не относятся
@@ -1831,7 +1917,7 @@ async function onText(env, u, chatId, text) {
   tg(env, "sendChatAction", { chat_id: chatId, action: "typing" });
   try {
     const res = await askText(env, u, text, today(u));
-    const items = cleanItems(res.items);
+    const items = res.intent === "food_log" ? await finalizeItems(env, res.items) : cleanItems(res.items);
     if (res.intent === "food_log" && items.length) {
       return saveMealAndReply(env, u, chatId, null, res.title, items, "text", null);
     }
@@ -3279,7 +3365,7 @@ async function api(request, url, env) {
         console.error("app text error:", e && e.stack ? e.stack : e);
         return json({ error: "ai" }, 502);
       }
-      const items = cleanItems(res.items);
+      const items = res.intent === "food_log" ? await finalizeItems(env, res.items) : cleanItems(res.items);
       if (res.intent !== "food_log" || !items.length) return json({ error: "not_food", answer: res.answer || "" }, 422);
       return json(await addAppMeal(env, u, body.date, res.title, items, "app"));
     }
@@ -3467,6 +3553,7 @@ async function setup(request, env) {
   rows.push([!!env.BOT_TOKEN, R("BOT_TOKEN задан", "BOT_TOKEN is set")]);
   rows.push([!!env.GEMINI_API_KEY, R("GEMINI_API_KEY задан", "GEMINI_API_KEY is set")]);
   rows.push([!!env.DB, R("База данных KV подключена (имя DB)", "The KV database is connected (name DB)")]);
+  rows.push([true, env.USDA_API_KEY ? R("USDA_API_KEY задан: КБЖУ берутся из базы USDA", "USDA_API_KEY is set: nutrition comes from the USDA database") : R("USDA_API_KEY не задан (необязательно): КБЖУ оценивает только нейросеть", "USDA_API_KEY is not set (optional): nutrition is estimated by the AI only")]);
   rows.push([/^[A-Za-z0-9_-]{1,256}$/.test(env.WEBHOOK_SECRET), R("WEBHOOK_SECRET состоит только из латинских букв, цифр, _ и -", "WEBHOOK_SECRET contains only Latin letters, digits, _ and -")]);
   if (!env.BOT_TOKEN) return page(rows);
 
@@ -4424,4 +4511,4 @@ const APP_HTML = `<!doctype html>
 </html>`;
 
 // Для тестов
-export const _test = { MICRO, sumMicro, reconcile, mealDetails, live, widgetPayload, analyzePhoto, checkAiLimit, appHeaders, waterTick, pillTick, parsePill, nextSlot, slotOf, adviceText, weekTip, startSource, statsText, spark, ACHIEVEMENTS, baseEmoji, calcTargets, verifyInitData, cleanItems, sumItems, parseFix, parseWater, cleanBarcode, waterGoal, HELP, APP_HTML };
+export const _test = { parseUsda, lookupUsda, MICRO, sumMicro, reconcile, mealDetails, live, widgetPayload, analyzePhoto, checkAiLimit, appHeaders, waterTick, pillTick, parsePill, nextSlot, slotOf, adviceText, weekTip, startSource, statsText, spark, ACHIEVEMENTS, baseEmoji, calcTargets, verifyInitData, cleanItems, sumItems, parseFix, parseWater, cleanBarcode, waterGoal, HELP, APP_HTML };

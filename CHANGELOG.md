@@ -2,6 +2,9 @@
 
 **English** · [Русский](CHANGELOG.ru.md)
 
+## v3.10 — USDA database
+- 🥗 Nutrition per 100 g now comes from the USDA FoodData Central database: the AI recognizes the food, estimates the weight and names the product, and the calories, macros and micronutrients are taken from measured USDA values. Mixed dishes, packaged foods and products not found in USDA keep the AI's estimates. Needs the optional free `USDA_API_KEY` secret (see SETUP); results are cached for 30 days
+
 ## v3.9 — Accuracy and micronutrients
 - 🎯 Calories are now checked against the macros (4·protein + 9·fat + 4·carbs): if the AI's calories differ by more than 15%, they are recalculated from the macros; label and barcode values are left as they are. Macros per 100 g can no longer add up to more than 100 g
 - 🧠 Sharper AI instructions: values for the dish as eaten, hidden oil and sauces, scale cues for the portion weight
