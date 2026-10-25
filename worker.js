@@ -72,7 +72,10 @@ export default {
   // Расписание (wrangler.toml → [triggers]): по воскресеньям вечером — разбор недели
   // «*/30 * * * *» — напоминания о воде, «0 17 * * SUN» — разбор недели по воскресеньям
   async scheduled(event, env, ctx) {
-    const job = /^0 17 /.test(event.cron || "") ? weeklyRun(env) : Promise.all([waterTick(env), pillTick(env)]);
+    // В воскресенье с 17:30 до 21:30 UTC каждый запуск «*/30» добирает тех, кому не хватило лимита основного разбора в 17:00
+    const at = new Date(event.scheduledTime || Date.now());
+    const resume = at.getUTCDay() === 0 && at.getUTCHours() >= 17 && at.getUTCHours() < 22 && !(at.getUTCHours() === 17 && at.getUTCMinutes() === 0);
+    const job = /^0 17 /.test(event.cron || "") ? weeklyRun(env) : Promise.all([waterTick(env), pillTick(env), resume ? weeklyRun(env) : null]);
     ctx.waitUntil(job.catch((e) => console.error("cron error:", event.cron, e && e.stack ? e.stack : e)));
   },
 };
@@ -2538,15 +2541,22 @@ async function sendAnalysis(env, u, chatId, auto = false) {
 }
 
 // Каждое воскресенье вечером: разбор недели всем, у кого было 3+ дня с записями
+// За запуск рассылается не больше WEEKLY_PER_RUN разборов; остальных добирают следующие запуски (см. scheduled).
+// Отметка wk:<id>:<дата> не даёт разобрать одного и того же пользователя дважды и не даёт одним и тем же людям занимать лимит.
+const WEEKLY_PER_RUN = 50;
+
 async function weeklyRun(env) {
   let cursor, sent = 0;
   do {
     const page = await env.DB.list({ prefix: "u:", cursor });
     for (const k of page.keys) {
-      if (sent >= 50) return;
+      if (sent >= WEEKLY_PER_RUN) return;
       const u = await env.DB.get(k.name, "json");
       if (!u || !u.targets || u.weekly === false) continue;
+      const mark = `wk:${u.id}:${today(u)}`;
+      if (await env.DB.get(mark)) continue;
       const { recorded } = await weekData(env, u);
+      await env.DB.put(mark, "1", { expirationTtl: 8 * 86400 });
       if (recorded < 3) continue;
       await sendAnalysis(env, u, u.id, true);
       sent++;
@@ -2654,41 +2664,54 @@ async function onRemindButton(env, u, chatId, msgId, action, value, answer) {
 // Каждые 30 минут: кому пора напомнить о воде
 async function waterTick(env, now = Date.now()) {
   const ids = (await env.DB.get("wr:ids", "json")) || [];
-  let sent = 0;
-  for (const id of ids) {
-    const u = await env.DB.get(`u:${id}`, "json");
-    const w = u?.wr;
-    if (!u || !u.targets || !w || !w.every) continue;
-    const local = new Date(now + tzOf(u) * 60000);
-    const minutes = local.getUTCHours() * 60 + local.getUTCMinutes();
-    if (minutes < w.from * 60 || minutes >= w.to * 60) continue; // ночь
-    if (now - (w.last || 0) < w.every * 60000 - 10 * 60000) continue; // ещё рано (запас 10 минут на расписание)
-    const date = local.toISOString().slice(0, 10);
-    const day = await getDay(env, u.id, date);
-    const ml = day.water || 0;
-    const goal = waterGoal(u);
-    if (ml >= goal) continue; // норма уже выполнена
-    w.last = now;
-    await saveUser(env, u);
-    const left = goal - ml;
-    await send(env, u.id,
-      L(u,
-        `💧 <b>Время попить воды!</b>\n\n<b>${liters(ml, u)}</b> из ${liters(goal, u)} · ${pctOf(ml, goal)}%\n${squares(ml, goal, "🟦")}\n` +
-          `Осталось ${left} мл, это примерно ${Math.ceil(left / 250)} стак.`,
-        `💧 <b>Time for some water!</b>\n\n<b>${liters(ml, u)}</b> of ${liters(goal, u)} · ${pctOf(ml, goal)}%\n${squares(ml, goal, "🟦")}\n` +
-          `${left} ml left, about ${Math.ceil(left / 250)} glasses.`),
-      {
-        disable_notification: false,
-        reply_markup: {
-          inline_keyboard: [
-            [{ text: "💧 +250 " + L(u, "мл", "ml"), callback_data: `w|${date}|250` }, { text: "💧 +500 " + L(u, "мл", "ml"), callback_data: `w|${date}|500` }],
-            [{ text: L(u, "⏰ Настроить напоминания", "⏰ Set up reminders"), callback_data: "wr|menu" }],
-          ],
-        },
-      });
-    sent++;
+  const results = await perUser(ids, (id) => waterOne(env, id, now));
+  return results.reduce((a, b) => a + b, 0);
+}
+
+// Пользователи обрабатываются пачками по 10: один сбой не рвёт остальных, а отправка не идёт по одному
+async function perUser(items, fn) {
+  const out = [];
+  for (let i = 0; i < items.length; i += 10) {
+    out.push(...(await Promise.all(items.slice(i, i + 10).map((x) => fn(x).catch((e) => { console.error("cron user error:", e && e.stack ? e.stack : e); return 0; })))));
   }
-  return sent;
+  return out;
+}
+
+async function waterOne(env, id, now) {
+  const u = await env.DB.get(`u:${id}`, "json");
+  const w = u?.wr;
+  if (!u || !u.targets || !w || !w.every) return 0;
+  const local = new Date(now + tzOf(u) * 60000);
+  const minutes = local.getUTCHours() * 60 + local.getUTCMinutes();
+  if (minutes < w.from * 60 || minutes >= w.to * 60) return 0; // ночь
+  if (now - (w.last || 0) < w.every * 60000 - 10 * 60000) return 0; // ещё рано (запас 10 минут на расписание)
+  const date = local.toISOString().slice(0, 10);
+  const day = await getDay(env, u.id, date);
+  const ml = day.water || 0;
+  const goal = waterGoal(u);
+  if (ml >= goal) return 0; // норма уже выполнена
+  // Перечитываем пользователя: пока шёл запрос, он мог поменять настройки, и целиком перезаписывать старую копию нельзя
+  const fresh = await getUser(env, u.id);
+  if (!fresh?.wr?.every) return 0;
+  fresh.wr.last = now;
+  await saveUser(env, fresh);
+  const left = goal - ml;
+  await send(env, u.id,
+    L(u,
+      `💧 <b>Время попить воды!</b>\n\n<b>${liters(ml, u)}</b> из ${liters(goal, u)} · ${pctOf(ml, goal)}%\n${squares(ml, goal, "🟦")}\n` +
+        `Осталось ${left} мл, это примерно ${Math.ceil(left / 250)} стак.`,
+      `💧 <b>Time for some water!</b>\n\n<b>${liters(ml, u)}</b> of ${liters(goal, u)} · ${pctOf(ml, goal)}%\n${squares(ml, goal, "🟦")}\n` +
+        `${left} ml left, about ${Math.ceil(left / 250)} glasses.`),
+    {
+      disable_notification: false,
+      reply_markup: {
+        inline_keyboard: [
+          [{ text: "💧 +250 " + L(u, "мл", "ml"), callback_data: `w|${date}|250` }, { text: "💧 +500 " + L(u, "мл", "ml"), callback_data: `w|${date}|500` }],
+          [{ text: L(u, "⏰ Настроить напоминания", "⏰ Set up reminders"), callback_data: "wr|menu" }],
+        ],
+      },
+    });
+  return 1;
 }
 
 // ───────────────────────────── Таблетки ─────────────────────────────
@@ -2731,33 +2754,36 @@ const pillLine = (p) => `<b>${esc(p.name)}</b>${p.dose ? " · " + esc(p.dose) : 
 // Каждые 30 минут: кому пора принять таблетку
 async function pillTick(env, now = Date.now()) {
   const ids = (await env.DB.get("pl:ids", "json")) || [];
+  const results = await perUser(ids, (id) => pillOne(env, id, now));
+  return results.reduce((a, b) => a + b, 0);
+}
+
+async function pillOne(env, id, now) {
   let sent = 0;
-  for (const id of ids) {
-    const u = await env.DB.get(`u:${id}`, "json");
-    if (!u || !u.pills?.length) continue;
-    const local = new Date(now + tzOf(u) * 60000);
-    const today = local.toISOString().slice(0, 10);
-    const slot = slotOf(local.toISOString().slice(11, 16));
-    // Отложенное после 23:30 приходится на 00:00 — оно лежит во вчерашнем дне
-    const dates = slot === "00:00" ? [new Date(local.getTime() - 86400000).toISOString().slice(0, 10), today] : [today];
-    for (const date of dates) {
-      const day = await getDay(env, u.id, date);
-      day.pills = day.pills || {};
-      let changed = false;
-      for (const p of u.pills) {
-        for (const t of p.times) {
-          const key = pillKey(p.id, t);
-          const rec = day.pills[key];
-          const due = (!rec && t === slot && date === today) || (rec?.s === "snooze" && rec.at === slot);
-          if (!due) continue;
-          day.pills[key] = { s: "sent", at: slot };
-          changed = true;
-          await send(env, u.id, L(u, `💊 <b>Время принять</b>\n${pillLine(p)} · ${t}`, `💊 <b>Time to take</b>\n${pillLine(p)} · ${t}`), { reply_markup: pillReminderKeyboard(u, date, p, t) });
-          sent++;
-        }
+  const u = await env.DB.get(`u:${id}`, "json");
+  if (!u || !u.pills?.length) return 0;
+  const local = new Date(now + tzOf(u) * 60000);
+  const today = local.toISOString().slice(0, 10);
+  const slot = slotOf(local.toISOString().slice(11, 16));
+  // Отложенное после 23:30 приходится на 00:00 — оно лежит во вчерашнем дне
+  const dates = slot === "00:00" ? [new Date(local.getTime() - 86400000).toISOString().slice(0, 10), today] : [today];
+  for (const date of dates) {
+    const day = await getDay(env, u.id, date);
+    day.pills = day.pills || {};
+    let changed = false;
+    for (const p of u.pills) {
+      for (const t of p.times) {
+        const key = pillKey(p.id, t);
+        const rec = day.pills[key];
+        const due = (!rec && t === slot && date === today) || (rec?.s === "snooze" && rec.at === slot);
+        if (!due) continue;
+        day.pills[key] = { s: "sent", at: slot };
+        changed = true;
+        await send(env, u.id, L(u, `💊 <b>Время принять</b>\n${pillLine(p)} · ${t}`, `💊 <b>Time to take</b>\n${pillLine(p)} · ${t}`), { reply_markup: pillReminderKeyboard(u, date, p, t) });
+        sent++;
       }
-      if (changed) await saveDay(env, u.id, date, day);
     }
+    if (changed) await saveDay(env, u.id, date, day);
   }
   return sent;
 }
@@ -4530,4 +4556,4 @@ const APP_HTML = `<!doctype html>
 </html>`;
 
 // Для тестов
-export const _test = { parseUsda, lookupUsda, MICRO, sumMicro, reconcile, mealDetails, live, widgetPayload, analyzePhoto, checkAiLimit, appHeaders, waterTick, pillTick, parsePill, nextSlot, slotOf, adviceText, weekTip, startSource, statsText, spark, ACHIEVEMENTS, baseEmoji, calcTargets, verifyInitData, cleanItems, sumItems, parseFix, parseWater, cleanBarcode, waterGoal, HELP, APP_HTML };
+export const _test = { perUser, parseUsda, lookupUsda, MICRO, sumMicro, reconcile, mealDetails, live, widgetPayload, analyzePhoto, checkAiLimit, appHeaders, waterTick, pillTick, parsePill, nextSlot, slotOf, adviceText, weekTip, startSource, statsText, spark, ACHIEVEMENTS, baseEmoji, calcTargets, verifyInitData, cleanItems, sumItems, parseFix, parseWater, cleanBarcode, waterGoal, HELP, APP_HTML };
