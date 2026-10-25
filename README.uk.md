@@ -126,7 +126,7 @@ sequenceDiagram
 
 ## ⚖️ Ліцензія
 
-FITTER поширюється за ліцензією **MIT**, див. [LICENSE](LICENSE). Це незалежний проєкт, не пов’язаний із Telegram, Google чи Cloudflare. Усі назви належать їхнім власникам.
+FITTER поширюється за ліцензією **Apache 2.0**, див. [LICENSE](LICENSE). Це незалежний проєкт, не пов’язаний із Telegram, Google чи Cloudflare. Усі назви належать їхнім власникам.
 
 <div align="center">
   <br />

@@ -170,7 +170,7 @@ sequenceDiagram
 
 ## ⚖️ Лицензия
 
-FITTER распространяется по лицензии **MIT**, см. файл [LICENSE](LICENSE). Проект независимый и не связан с Telegram, Google или Cloudflare. Названия принадлежат их владельцам.
+FITTER распространяется по лицензии **Apache 2.0**, см. файл [LICENSE](LICENSE). Проект независимый и не связан с Telegram, Google или Cloudflare. Названия принадлежат их владельцам.
 
 <div align="center">
   <br />
