@@ -17,9 +17,6 @@
 > [!IMPORTANT]
 > **FITTER estimates calories approximately.** Photo results depend on the ingredients and portion size, and any entry can be corrected by hand. The bot does not replace advice from a doctor or dietitian.
 
-> [!NOTE]
-> The bot, the diary and the Android app speak **English and Russian**. The language follows your Telegram by default; switch it any time with `/lang`, on the diary's EN/RU button or in the app under Settings → Language. Russian version of this page: [README.ru.md](README.ru.md).
-
 <p align="center"><img src="assets/readme/about-en.svg" width="100%" alt="About FITTER"></p>
 
 ---
