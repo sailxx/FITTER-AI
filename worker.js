@@ -3266,7 +3266,9 @@ async function onLinkCallback(env, u, chatId, msgId, yes, code, answer) {
     await answer(L(u, "Ссылка устарела", "Link expired"));
     return edit(env, chatId, msgId, L(u, "⌛ Ссылка для входа устарела. Нажми «Войти через Telegram» в приложении ещё раз.", "⌛ The sign-in link has expired. Tap “Sign in with Telegram” in the app again."));
   }
-  const pin = String(crypto.getRandomValues(new Uint32Array(1))[0] % 100000000).padStart(8, "0");
+  let digits = "";
+  while (digits.length < 8) digits += randHex(8).replace(/[a-f]/g, "");
+  const pin = digits.slice(0, 8);
   const approved = await accountCall(env, `link:${code}`, "link/approve", yes ? { uid: u.id, epoch: u.epoch || 0, pin } : {});
   if (!approved.ok) return answer(L(u, "Подтверждение уже обработано", "This request has already been handled"));
   await answer(yes ? L(u, "Код входа готов", "Sign-in code ready") : L(u, "Отменено", "Cancelled"));

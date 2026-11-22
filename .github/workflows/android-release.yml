@@ -46,7 +46,10 @@ jobs:
 
       - name: Android SDK
         if: steps.ver.outputs.skip != '1'
-        run: sdkmanager 'platforms;android-37.1' 'build-tools;36.0.0'
+        uses: android-actions/setup-android@be39fa834029ff78f1a44aa3bb0819b8fc2bd8fd # v4
+        with:
+          packages: 'platform-tools platforms;android-37.1 build-tools;36.0.0'
+          log-accepted-android-sdk-licenses: false
 
       - name: Ключ подписи из секретов
         if: steps.ver.outputs.skip != '1'
@@ -76,7 +79,7 @@ jobs:
         if: steps.ver.outputs.skip != '1'
         run: |
           cp app/build/outputs/apk/release/app-release.apk Fitter.apk
-          APKSIGNER=$(ls "$ANDROID_HOME"/build-tools/*/apksigner | sort -V | tail -1)
+          APKSIGNER="${ANDROID_HOME:-$ANDROID_SDK_ROOT}/build-tools/36.0.0/apksigner"
           SHA=$("$APKSIGNER" verify --print-certs Fitter.apk | grep -oP 'SHA-256 digest: \K\w+')
           [ -n "$SHA" ] || { echo "::error::APK не подписан"; exit 1; }
           [ "$SHA" = "6a8229a5e72aa53171d8999461643651187049e9f4e069078fbb94a8fa192988" ] || { echo "::error::APK подписан чужим ключом: $SHA"; exit 1; }
