@@ -15,6 +15,7 @@ import java.util.Locale
  */
 object Lang {
     private const val PREFS = "fitter_ui"
+    private const val LOGIN_CHOICE = "login_lang"
     // Пока ответ сервера о смене языка не дошёл, старый ответ не должен вернуть язык назад
     private const val HOLD_MS = 20_000L
 
@@ -31,16 +32,35 @@ object Lang {
     }
 
     fun set(context: Context, c: String) {
+        save(context, c, beforeLogin = false)
+    }
+
+    fun chooseForLogin(context: Context, c: String) {
+        save(context, c, beforeLogin = true)
+    }
+
+    private fun save(context: Context, c: String, beforeLogin: Boolean) {
         if (c != "ru" && c != "en") return
-        prefs(context).edit { putString("lang", c) }
+        prefs(context).edit {
+            putString("lang", c)
+            if (beforeLogin) putString(LOGIN_CHOICE, c) else remove(LOGIN_CHOICE)
+        }
         changedAt = System.currentTimeMillis()
         code = c
+    }
+
+    fun loginChoice(context: Context): String? = prefs(context).getString(LOGIN_CHOICE, null)
+
+    fun finishLoginChoice(context: Context, c: String) {
+        if (loginChoice(context) != c) return
+        changedAt = System.currentTimeMillis()
+        prefs(context).edit { remove(LOGIN_CHOICE) }
     }
 
     /** Язык аккаунта из ответа сервера: его могли сменить в боте или в дневнике. */
     fun fromServer(context: Context, c: String?) {
         if (c != "ru" && c != "en") return
-        if (c == code || System.currentTimeMillis() - changedAt < HOLD_MS) return
+        if (c == code || loginChoice(context) != null || System.currentTimeMillis() - changedAt < HOLD_MS) return
         prefs(context).edit { putString("lang", c) }
         code = c
     }

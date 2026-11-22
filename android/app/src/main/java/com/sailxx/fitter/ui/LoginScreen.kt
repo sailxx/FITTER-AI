@@ -24,6 +24,7 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.border
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
@@ -35,12 +36,19 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.selection.selectableGroup
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
@@ -64,6 +72,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
@@ -72,6 +81,7 @@ import androidx.compose.ui.unit.sp
 import com.sailxx.fitter.R
 import com.sailxx.fitter.data.Api
 import com.sailxx.fitter.data.FitterRepository
+import com.sailxx.fitter.data.Lang
 import com.sailxx.fitter.data.LinkPoll
 import kotlinx.coroutines.CancellationException
 import androidx.compose.material3.OutlinedTextField
@@ -149,33 +159,39 @@ fun LoginScreen() {
     ) {
         Blobs()
         FloatingFood()
-        Column(
-            Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding().padding(horizontal = 28.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
+        BoxWithConstraints(
+            Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding().imePadding().padding(horizontal = 24.dp),
+            contentAlignment = Alignment.TopCenter,
         ) {
-            Spacer(Modifier.weight(1f))
-            Logo()
-            Spacer(Modifier.height(28.dp))
-            AnimatedContent(
-                targetState = step,
-                transitionSpec = { (fadeIn(tween(300)) + scaleIn(initialScale = 0.92f)) togetherWith fadeOut(tween(200)) },
-                label = "step",
-            ) { s ->
-                Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
-                    when (s) {
-                        Step.Hello -> Hello(message, onLogin = { job = start() }, onBot = { openUrl(context, BOT_URL) })
-                        Step.Waiting -> Waiting(
-                            pin, message, checking, link != null,
-                            onPin = { pin = it.filter { c -> c in '0'..'9' }.take(8); message = null },
-                            onVerify = { job = verify() },
-                            onReopen = { link?.let { openUrl(context, it.url) } },
-                            onCancel = { job?.cancel(); step = Step.Hello },
-                        )
-                        Step.Done -> DoneView()
+            val logoSize = if (maxHeight < 660.dp) 120.dp else 180.dp
+            Column(
+                Modifier.widthIn(max = 420.dp).fillMaxWidth().verticalScroll(rememberScrollState())
+                    .heightIn(min = maxHeight).padding(vertical = 20.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center,
+            ) {
+                Logo(logoSize)
+                Spacer(Modifier.height(20.dp))
+                AnimatedContent(
+                    targetState = step,
+                    transitionSpec = { (fadeIn(tween(300)) + scaleIn(initialScale = 0.92f)) togetherWith fadeOut(tween(200)) },
+                    label = "step",
+                ) { s ->
+                    Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
+                        when (s) {
+                            Step.Hello -> Hello(message, onLogin = { job = start() }, onBot = { openUrl(context, BOT_URL) })
+                            Step.Waiting -> Waiting(
+                                pin, message, checking, link != null,
+                                onPin = { pin = it.filter { c -> c in '0'..'9' }.take(8); message = null },
+                                onVerify = { job = verify() },
+                                onReopen = { link?.let { openUrl(context, it.url) } },
+                                onCancel = { job?.cancel(); step = Step.Hello },
+                            )
+                            Step.Done -> DoneView()
+                        }
                     }
                 }
             }
-            Spacer(Modifier.weight(1.2f))
         }
     }
 }
@@ -215,7 +231,9 @@ private fun Hello(message: String?, onLogin: () -> Unit, onBot: () -> Unit) {
         Feature(R.drawable.ic_water, tr("Вода", "Water"))
         Feature(R.drawable.ic_sparkles, tr("Виджеты", "Widgets"))
     }
-    Spacer(Modifier.height(32.dp))
+    Spacer(Modifier.height(20.dp))
+    LoginLanguage()
+    Spacer(Modifier.height(16.dp))
     TelegramButton(onLogin, Modifier.rise(340))
     message?.let {
         Spacer(Modifier.height(14.dp))
@@ -227,6 +245,50 @@ private fun Hello(message: String?, onLogin: () -> Unit, onBot: () -> Unit) {
         fontSize = 14.sp, color = Palette.G3, fontWeight = FontWeight.SemiBold,
         modifier = Modifier.rise(440).clip(RoundedCornerShape(10.dp)).clickable(onClick = onBot).padding(horizontal = 10.dp, vertical = 8.dp),
     )
+}
+
+@Composable
+private fun LoginLanguage() {
+    val context = LocalContext.current
+    val shape = RoundedCornerShape(20.dp)
+    Column(
+        Modifier.fillMaxWidth().background(Color.White, shape)
+            .border(1.dp, Color(0xFFD5EBDF), shape).padding(10.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        Text(
+            tr("Язык приложения", "App language"),
+            color = Sub, fontSize = 13.sp, fontWeight = FontWeight.SemiBold,
+            modifier = Modifier.padding(horizontal = 4.dp),
+        )
+        Row(Modifier.selectableGroup(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            LoginLanguageOption("Русский", R.drawable.ic_flag_ru, Lang.code == "ru", Modifier.weight(1f)) {
+                Lang.chooseForLogin(context, "ru")
+            }
+            LoginLanguageOption("English", R.drawable.ic_flag_en, Lang.code == "en", Modifier.weight(1f)) {
+                Lang.chooseForLogin(context, "en")
+            }
+        }
+    }
+}
+
+@Composable
+private fun LoginLanguageOption(
+    label: String, @DrawableRes flag: Int, selected: Boolean, modifier: Modifier, onClick: () -> Unit,
+) {
+    val shape = RoundedCornerShape(12.dp)
+    Row(
+        modifier.heightIn(min = 48.dp).clip(shape)
+            .background(if (selected) Color(0xFFE3F8EC) else Color(0xFFF5F8F6))
+            .border(1.dp, if (selected) Palette.G3 else Color.Transparent, shape)
+            .selectable(selected = selected, role = Role.RadioButton, onClick = onClick)
+            .padding(horizontal = 6.dp, vertical = 6.dp),
+        horizontalArrangement = Arrangement.spacedBy(7.dp, Alignment.CenterHorizontally),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Image(painterResource(flag), null, Modifier.size(width = 25.dp, height = 17.dp))
+        Text(label, fontSize = 14.sp, color = Ink, fontWeight = if (selected) FontWeight.ExtraBold else FontWeight.SemiBold)
+    }
 }
 
 @Composable
@@ -310,13 +372,13 @@ private fun PaperPlane(modifier: Modifier) {
 
 /** Логотип: появляется с пружинкой, дышит, от него расходятся мягкие волны. */
 @Composable
-private fun Logo() {
+private fun Logo(diameter: Dp) {
     val enter = remember { Animatable(0.4f) }
     LaunchedEffect(Unit) { enter.animateTo(1f, spring(dampingRatio = 0.42f, stiffness = Spring.StiffnessLow)) }
     val t = rememberInfiniteTransition(label = "logo")
     val breathe by t.animateFloat(1f, 1.045f, infiniteRepeatable(tween(1600, easing = FastOutSlowInEasing), RepeatMode.Reverse), label = "b")
     val pulse by t.animateFloat(0f, 1f, infiniteRepeatable(tween(2200, easing = LinearEasing)), label = "p")
-    Box(Modifier.size(180.dp), contentAlignment = Alignment.Center) {
+    Box(Modifier.size(diameter), contentAlignment = Alignment.Center) {
         Canvas(Modifier.fillMaxSize()) {
             for (k in 0..1) {
                 val ph = (pulse + k * 0.5f) % 1f
@@ -325,7 +387,7 @@ private fun Logo() {
         }
         Image(
             painterResource(R.drawable.ic_logo), "FITTER",
-            Modifier.size(120.dp)
+            Modifier.size(diameter * (2f / 3))
                 .graphicsLayer { val s = enter.value * breathe; scaleX = s; scaleY = s; alpha = enter.value.coerceIn(0f, 1f) },
         )
     }

@@ -87,6 +87,10 @@ object FitterRepository {
             return@withLock true
         }
         try {
+            Lang.loginChoice(context)?.let { choice ->
+                Api.setLang(token, choice)
+                if (token(context) == token) Lang.finishLoginChoice(context, choice)
+            }
             val (w, d) = Api.dashboard(token)
             if (token(context) != token) return@withLock false
             Lang.fromServer(context, w.optString("lang"))

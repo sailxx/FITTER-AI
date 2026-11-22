@@ -4,6 +4,9 @@ name = "fitter-ai"
 main = "worker.js"
 compatibility_date = "2026-09-01"
 
+[assets]
+directory = "./assets/telegram"
+
 [[kv_namespaces]]
 binding = "DB"
 id = "7a5f3505aed24657afb0cc924445a9c2"

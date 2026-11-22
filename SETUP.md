@@ -74,8 +74,9 @@ Click **Deploy** / **Save**.
    ```
 3. Enter your `SETUP_SECRET` in the field and click **Set up the bot**. Every line should have a ✅
    (the page is shown in Russian if your browser is set to Russian, otherwise in English)
-   The bot also installs an English and a Russian command menu: the language follows the user's Telegram, and anyone can change it with `/lang`
+   Telegram shows the English or Russian command list based on its own language setting. Users choose the language of Fitter before the first questionnaire and can change it with `/lang`.
 4. Open your bot in Telegram and tap **Start** 🎉
+5. To add the Fitter flag icons to the language buttons, send `/makeemoji` from the bot owner's account after deployment. The language card itself already includes both illustrations.
 
 ---
 
