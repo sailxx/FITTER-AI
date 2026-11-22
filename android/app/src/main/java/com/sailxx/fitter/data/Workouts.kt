@@ -1,5 +1,6 @@
 package com.sailxx.fitter.data
 
+import androidx.core.content.edit
 import android.content.Context
 import android.util.Log
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -70,8 +71,11 @@ object WorkoutStore {
         val token = FitterRepository.token(context) ?: return
         try {
             val j = Api.workouts(token)
-            prefs(context).edit().putString("workouts", j.toString()).apply()
-            _state.value = parse(j).copy(loaded = true)
+            val parsed = parse(j).copy(loaded = true)
+            FitterRepository.withSession(context, token) {
+                prefs(context).edit { putString("workouts", j.toString()) }
+                _state.value = parsed
+            }
         } catch (e: Exception) {
             Log.w(TAG, "workouts failed", e)
             _state.value = _state.value.copy(loaded = true)

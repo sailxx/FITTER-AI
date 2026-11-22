@@ -170,7 +170,7 @@ fun TodayScreen(st: AppState, onAdd: () -> Unit, onSettings: () -> Unit) {
             day?.weights?.takeIf { it.isNotEmpty() }?.let { w -> item { WeightTile(w) } }
             item {
                 val meals = day?.meals.orEmpty()
-                BlockTitle(tr("Недавно добавлено", "Recently added"), meals.takeIf { it.isNotEmpty() }?.let { "${n(it.sumOf { m -> m.kcal })} ${tr("ккал", "kcal")}" })
+                BlockTitle(tr("Недавно добавлено", "Recently added"), note = meals.takeIf { it.isNotEmpty() }?.let { "${n(it.sumOf { m -> m.kcal })} ${tr("ккал", "kcal")}" })
             }
             val meals = day?.meals.orEmpty()
             if (meals.isEmpty()) item { EmptyMeals() } else items(meals.reversed(), key = { it.id }) { m ->

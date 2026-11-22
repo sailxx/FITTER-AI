@@ -205,11 +205,11 @@ fun TipsScreen() {
                         val a = advice!!
                         if (a.intro.isNotBlank()) Note(a.intro)
                         a.options.forEachIndexed { i, o -> OptionCard(i, o, onOpen = { openOption(i) }) { eat(i, o.title) } }
-                        SoftButton(tr("🔄 Другие варианты", "🔄 Other options")) { pickAdvice() }
+                        SoftButton(tr("🔄 Другие варианты", "🔄 Other options"), Modifier.fillMaxWidth()) { pickAdvice() }
                     }
                     else -> {
                         eaten?.let { Note(tr("Записал «$it» в дневник ✅", "Logged “$it” in your diary ✅")) }
-                        PrimaryButton(tr("✨ Подобрать варианты", "✨ Pick options")) { pickAdvice() }
+                        PrimaryButton(tr("✨ Подобрать варианты", "✨ Pick options"), Modifier.fillMaxWidth()) { pickAdvice() }
                     }
                 }
                 advErr?.let { Err(it) }
@@ -220,7 +220,7 @@ fun TipsScreen() {
                 when {
                     anBusy -> Thinking(tr("Разбираю твою неделю…", "Reviewing your week…"))
                     analysis != null -> AnalysisView(analysis!!)
-                    else -> PrimaryButton(tr("🧠 Разобрать неделю", "🧠 Review my week")) { analyze() }
+                    else -> PrimaryButton(tr("🧠 Разобрать неделю", "🧠 Review my week"), Modifier.fillMaxWidth()) { analyze() }
                 }
                 anErr?.let { Err(it) }
             }
@@ -309,8 +309,8 @@ private fun RecipeSheet(o: Option, recipe: Recipe?, busy: Boolean, similarBusy: 
                 }
             }
             err?.let { Err(it) }
-            if (similarBusy) Thinking(tr("Ищу похожее…", "Looking for similar…")) else SoftButton(tr("🔍 Найти похожее", "🔍 Find similar")) { onSimilar() }
-            PrimaryButton(tr("✅ Съел это", "✅ I ate this")) { onEat() }
+            if (similarBusy) Thinking(tr("Ищу похожее…", "Looking for similar…")) else SoftButton(tr("🔍 Найти похожее", "🔍 Find similar"), Modifier.fillMaxWidth()) { onSimilar() }
+            PrimaryButton(tr("✅ Съел это", "✅ I ate this"), Modifier.fillMaxWidth()) { onEat() }
         }
     }
 }

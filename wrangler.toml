@@ -1,5 +1,5 @@
 # Настройки для запуска через командную строку (npx wrangler deploy).
-# Если запускаешь через сайт Cloudflare — этот файл не нужен, смотри SETUP.md
+# Используется Wrangler и Workers Builds. Для настройки смотри SETUP.md.
 name = "fitter-ai"
 main = "worker.js"
 compatibility_date = "2026-09-01"
@@ -36,3 +36,4 @@ DAILY_AI_LIMIT = "40"
 #   npx wrangler secret put BOT_TOKEN
 #   npx wrangler secret put GEMINI_API_KEY
 #   npx wrangler secret put WEBHOOK_SECRET
+#   npx wrangler secret put SETUP_SECRET

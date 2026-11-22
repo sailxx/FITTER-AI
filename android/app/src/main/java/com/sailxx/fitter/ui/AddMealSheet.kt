@@ -44,6 +44,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -88,18 +89,40 @@ fun AddMealSheet(openCamera: Boolean = false, onClose: () -> Unit) {
     var text by remember { mutableStateOf("") }
     var photo by remember { mutableStateOf<Pair<String, Bitmap>?>(null) }
     var error by remember { mutableStateOf<String?>(null) }
-    var cameraUri by remember { mutableStateOf<Uri?>(null) }
+    var cameraUri by rememberSaveable { mutableStateOf<Uri?>(null) }
+    var preparingPhoto by remember { mutableStateOf(false) }
 
-    fun load(uri: Uri) = scope.launch {
+    fun load(uri: Uri, temporary: Boolean = false) {
+        if (preparingPhoto || stage != Stage.Edit) {
+            if (temporary) Photos.removeCameraPhoto(context, uri)
+            return
+        }
+        preparingPhoto = true
         error = null
-        photo = runCatching { Photos.encode(context, uri) }.getOrElse { error = tr("Не получилось открыть фото", "Couldn't open the photo"); null }
+        photo = null
+        scope.launch {
+            try {
+                photo = Photos.encode(context, uri)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (_: Exception) {
+                error = tr("Не получилось открыть фото", "Couldn't open the photo")
+            } finally {
+                if (temporary) Photos.removeCameraPhoto(context, uri)
+                preparingPhoto = false
+            }
+        }
     }
-    val camera = rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { ok -> if (ok) cameraUri?.let { load(it) } }
+    val camera = rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { ok ->
+        cameraUri?.let { if (ok) load(it, temporary = true) else Photos.removeCameraPhoto(context, it) }
+        cameraUri = null
+    }
     val gallery = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri -> uri?.let { load(it) } }
     // Открыли с виджета «Фото еды» — сразу запускаем камеру
-    LaunchedEffect(Unit) { if (openCamera) { val u = Photos.cameraUri(context); cameraUri = u; camera.launch(u) } }
+    LaunchedEffect(Unit) { if (openCamera && cameraUri == null) { val u = Photos.cameraUri(context); cameraUri = u; camera.launch(u) } }
 
     fun send() = scope.launch {
+        if (preparingPhoto || stage != Stage.Edit) return@launch
         val token = FitterRepository.token(context) ?: return@launch
         val p = photo
         if (p == null && text.trim().length < 2) { error = tr("Напиши, что съел, или прикрепи фото", "Type what you ate or attach a photo"); return@launch }
@@ -142,6 +165,7 @@ fun AddMealSheet(openCamera: Boolean = false, onClose: () -> Unit) {
                     Stage.Edit -> EditStage(
                         text = text, onText = { text = it; error = null },
                         photo = photo?.second, onRemovePhoto = { photo = null },
+                        preparingPhoto = preparingPhoto,
                         error = error,
                         onCamera = { val u = Photos.cameraUri(context); cameraUri = u; camera.launch(u) },
                         onGallery = { gallery.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) },
@@ -157,7 +181,7 @@ fun AddMealSheet(openCamera: Boolean = false, onClose: () -> Unit) {
 
 @Composable
 private fun EditStage(
-    text: String, onText: (String) -> Unit, photo: Bitmap?, onRemovePhoto: () -> Unit, error: String?,
+    text: String, onText: (String) -> Unit, photo: Bitmap?, onRemovePhoto: () -> Unit, preparingPhoto: Boolean, error: String?,
     onCamera: () -> Unit, onGallery: () -> Unit, onSend: () -> Unit,
 ) {
     val t = LocalTokens.current
@@ -165,8 +189,8 @@ private fun EditStage(
     Text(tr("Сфотографируй тарелку или опиши словами — посчитаю калории и БЖУ", "Photograph your plate or describe it in words — I'll count calories and macros"), fontSize = 14.sp, color = t.hint)
     Spacer(Modifier.height(18.dp))
     Row(horizontalArrangement = Arrangement.spacedBy(Gap)) {
-        SourceButton(R.drawable.ic_camera, tr("Сфотографировать", "Take a photo"), Modifier.weight(1f), onCamera)
-        SourceButton(R.drawable.ic_photo, tr("Из галереи", "From gallery"), Modifier.weight(1f), onGallery)
+        SourceButton(R.drawable.ic_camera, tr("Сфотографировать", "Take a photo"), Modifier.weight(1f), !preparingPhoto, onCamera)
+        SourceButton(R.drawable.ic_photo, tr("Из галереи", "From gallery"), Modifier.weight(1f), !preparingPhoto, onGallery)
     }
     if (photo != null) {
         Spacer(Modifier.height(12.dp))
@@ -197,14 +221,19 @@ private fun EditStage(
         Text(it, color = Palette.Danger, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
     }
     Spacer(Modifier.height(18.dp))
-    PrimaryButton(if (photo != null) tr("Посчитать по фото", "Count from photo") else tr("Записать", "Log it"), height = 56.dp, onClick = onSend)
+    val sendLabel = when {
+        preparingPhoto -> tr("Готовлю фото…", "Preparing photo…")
+        photo != null -> tr("Посчитать по фото", "Count from photo")
+        else -> tr("Записать", "Log it")
+    }
+    PrimaryButton(sendLabel, Modifier.fillMaxWidth(), height = 56.dp, enabled = !preparingPhoto, onClick = onSend)
 }
 
 @Composable
-private fun SourceButton(icon: Int, label: String, modifier: Modifier, onClick: () -> Unit) {
+private fun SourceButton(icon: Int, label: String, modifier: Modifier, enabled: Boolean, onClick: () -> Unit) {
     val t = LocalTokens.current
     Column(
-        modifier.clip(RoundedCornerShape(22.dp)).background(t.fill).clickable(onClick = onClick).padding(vertical = 16.dp),
+        modifier.clip(RoundedCornerShape(22.dp)).background(t.fill).clickable(enabled = enabled, onClick = onClick).padding(vertical = 16.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         IconBubble(icon, 52.dp, 30.dp)

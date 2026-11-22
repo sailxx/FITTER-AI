@@ -20,8 +20,68 @@
  */
 
 // Модели Gemini: если первая недоступна, бот сам попробует следующую
+import { diaryRequest } from "./day-storage.js";
+import { accountRequest } from "./account-storage.js";
+
 const MODEL_FALLBACKS = ["gemini-3.5-flash", "gemini-3.5-flash-lite", "gemini-3.1-flash-lite", "gemini-flash-latest"];
 const DEFAULT_TZ = 180; // Москва, UTC+3 (в минутах)
+const DEFAULT_PUBLIC_ORIGIN = "https://fitter-ai.vladislav-arkhitkov.workers.dev";
+
+class BodyError extends Error {
+  constructor(status, message) { super(message); this.status = status; }
+}
+
+async function readBody(request, limit) {
+  if (Number(request.headers.get("content-length")) > limit) throw new BodyError(413, "too big");
+  if (!request.body) return "";
+  const reader = request.body.getReader();
+  const decoder = new TextDecoder();
+  const chunks = [];
+  let size = 0;
+  try {
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      size += value.byteLength;
+      if (size > limit) { await reader.cancel().catch(() => {}); throw new BodyError(413, "too big"); }
+      chunks.push(decoder.decode(value, { stream: true }));
+    }
+    return chunks.join("") + decoder.decode();
+  } finally {
+    reader.releaseLock();
+  }
+}
+
+async function readJson(request, limit) {
+  const raw = await readBody(request, limit);
+  try {
+    const value = JSON.parse(raw || "{}");
+    if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error();
+    return value;
+  } catch { throw new BodyError(400, "bad json"); }
+}
+
+async function readImage(response, limit) {
+  if (!response.body || Number(response.headers.get("content-length")) > limit) throw new BodyError(413, "too big");
+  const reader = response.body.getReader();
+  const chunks = [];
+  let size = 0;
+  try {
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      size += value.byteLength;
+      if (size > limit) { await reader.cancel().catch(() => {}); throw new BodyError(413, "too big"); }
+      chunks.push(value);
+    }
+    const bytes = new Uint8Array(size);
+    let offset = 0;
+    for (const chunk of chunks) { bytes.set(chunk, offset); offset += chunk.byteLength; }
+    return bytes;
+  } finally {
+    reader.releaseLock();
+  }
+}
 
 // ───────────────────────────── Язык ─────────────────────────────
 // u.lang = "en" | "ru". Поля нет — человек из версии до перевода, ему остаётся русский.
@@ -36,15 +96,20 @@ const dayWord = (u, n) => L(u, plural(n, "день", "дня", "дней"), n ==
 export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
-    const E = Object.assign({}, env, { ORIGIN: url.origin });
+    const E = { ...env, ORIGIN: env.PUBLIC_ORIGIN || DEFAULT_PUBLIC_ORIGIN, defer: (p) => ctx.waitUntil(p), accountStates: new Map() };
     try {
       if (request.method === "POST" && url.pathname === "/webhook") {
         if (!env.WEBHOOK_SECRET || !safeEqual(request.headers.get("X-Telegram-Bot-Api-Secret-Token"), env.WEBHOOK_SECRET)) {
           return new Response("forbidden", { status: 403 });
         }
-        const update = await request.json();
+        const update = await readJson(request, 256 * 1024);
         // Отвечаем Telegram сразу, а саму работу делаем в фоне
         const who = update.message?.from?.id || update.callback_query?.from?.id;
+        if (Number.isSafeInteger(who) && Number.isSafeInteger(update.update_id)) {
+          const claimed = await accountCall(E, who, "account/update", { id: update.update_id });
+          if (!claimed.ok) return new Response("retry", { status: 503 });
+          if (!await claimed.json()) return new Response("ok");
+        }
         ctx.waitUntil(
           handleUpdate(update, E)
             .catch((e) => console.error("update error:", e && e.stack ? e.stack : e))
@@ -58,6 +123,7 @@ export default {
       }
       if (url.pathname.startsWith("/api/")) {
         const res = await api(request, url, E);
+        if (E.miniSession && res.ok) res.headers.set("X-Fitter-Mini", E.miniSession);
         // Изменение из приложения или дневника — сразу рассылаем открытым приложениям
         if (request.method === "POST" && E.liveUid && res.status < 400) ctx.waitUntil(live(E, E.liveUid));
         return res;
@@ -65,6 +131,7 @@ export default {
       if (url.pathname === "/") return new Response("FITTER работает ✅", { headers: { "content-type": "text/plain; charset=utf-8" } });
       return new Response("not found", { status: 404 });
     } catch (e) {
+      if (e instanceof BodyError) return json({ error: e.message }, e.status);
       console.error(e && e.stack ? e.stack : e);
       return new Response("error", { status: 500 });
     }
@@ -72,6 +139,7 @@ export default {
   // Расписание (wrangler.toml → [triggers]): по воскресеньям вечером — разбор недели
   // «*/30 * * * *» — напоминания о воде, «0 17 * * SUN» — разбор недели по воскресеньям
   async scheduled(event, env, ctx) {
+    env = { ...env, ORIGIN: env.PUBLIC_ORIGIN || DEFAULT_PUBLIC_ORIGIN, accountStates: new Map() };
     // В воскресенье с 17:30 до 21:30 UTC каждый запуск «*/30» добирает тех, кому не хватило лимита основного разбора в 17:00
     const at = new Date(event.scheduledTime || Date.now());
     const resume = at.getUTCDay() === 0 && at.getUTCHours() >= 17 && at.getUTCHours() < 22 && !(at.getUTCHours() === 17 && at.getUTCMinutes() === 0);
@@ -161,12 +229,13 @@ function buttonIcons(markup) {
 }
 
 async function tgRaw(env, method, payload) {
-  const r = await fetch(`https://api.telegram.org/bot${env.BOT_TOKEN}/${method}`, {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify(payload),
-  });
-  return r.json().catch(() => ({ ok: false, description: "bad json" }));
+  try {
+    const r = await fetch(`https://api.telegram.org/bot${env.BOT_TOKEN}/${method}`, {
+      method: "POST", redirect: "manual", signal: AbortSignal.timeout(8000),
+      headers: { "content-type": "application/json" }, body: JSON.stringify(payload),
+    });
+    return await r.json();
+  } catch { return { ok: false, description: "Telegram API unavailable" }; }
 }
 
 async function tg(env, method, payload) {
@@ -181,7 +250,7 @@ async function tg(env, method, payload) {
     const failed = (r) => !r.ok && !(r.description || "").includes("message is not modified");
     if (failed(j)) {
       // Запоминаем причину, её можно посмотреть командой /emojierr
-      console.error("custom emoji rejected:", j.description);
+      console.error("custom emoji rejected", method, j.error_code || "unknown");
       if (env.DB) await env.DB.put("cfg:emojierr", JSON.stringify({ at: new Date().toISOString(), method, error: j.description || "" })).catch(() => {});
       // Вторая попытка: иконки оставляем, а цитаты-блоки превращаем в обычный текст
       if (p.text && p.text.includes("<blockquote>")) {
@@ -198,7 +267,7 @@ async function tg(env, method, payload) {
     return tg(env, method, rest);
   }
   if (!j.ok && !(j.description || "").includes("message is not modified")) {
-    console.error("telegram error", method, JSON.stringify(j));
+    console.error("telegram error", method, j.error_code || "unknown");
   }
   return j;
 }
@@ -386,35 +455,125 @@ function appButton(env, u, ru = "📱 Открыть дневник", en = "📱
 // ───────────────────────────── База данных (KV) ─────────────────────────────
 
 async function getUser(env, id) {
-  return (await env.DB.get(`u:${id}`, "json")) || null;
+  const [u, state] = await Promise.all([env.DB.get(`u:${id}`, "json"), accountState(env, id)]);
+  return u && !state.deleting && (u.epoch || 0) === state.epoch ? u : null;
 }
 async function saveUser(env, u) {
-  await env.DB.put(`u:${u.id}`, JSON.stringify(u));
+  await writeAccount(env, u.id, `u:${u.id}`, JSON.stringify(u), null, u.epoch || 0);
+}
+const dayBases = new WeakMap();
+function dayStub(env, id) {
+  if (!env.LIVE) throw new Error("LIVE Durable Object binding is required for diary storage");
+  return env.LIVE.get(env.LIVE.idFromName(String(id)));
+}
+function accountCall(env, id, path, body = {}) {
+  return dayStub(env, id).fetch(`https://live/${path}`, { method: "POST", body: JSON.stringify(body) });
+}
+async function accountState(env, id) {
+  const key = String(id);
+  const cached = env.accountStates?.get(key);
+  if (cached) return cached;
+  const state = accountCall(env, id, "account/state").then(async (res) => {
+    if (!res.ok) throw new Error("Could not read account");
+    return res.json();
+  });
+  env.accountStates?.set(key, state);
+  return state;
+}
+async function accountKey(env, id, key) {
+  const { epoch } = await accountState(env, id);
+  return epoch ? `v:${id}:${epoch}:${key}` : key;
+}
+async function writeAccount(env, id, key, value, expirationTtl, epoch) {
+  epoch ??= (await accountState(env, id)).epoch;
+  const res = await accountCall(env, id, "account/write", { key, value, expirationTtl, epoch, session: env.authHash });
+  if (!res.ok) throw new Error("Account is no longer active");
 }
 async function getDay(env, id, date) {
-  return (await env.DB.get(`d:${id}:${date}`, "json")) || { meals: [] };
+  const { epoch } = await accountState(env, id);
+  const res = await dayStub(env, id).fetch(`https://live/day?date=${encodeURIComponent(date)}&uid=${encodeURIComponent(id)}&epoch=${epoch}`);
+  if (!res.ok) throw new Error("Could not read diary");
+  const day = await res.json();
+  dayBases.set(day, { epoch, base: structuredClone(day) });
+  return day;
+}
+async function getDays(env, id, dates) {
+  const { epoch } = await accountState(env, id);
+  const res = await dayStub(env, id).fetch(`https://live/days?uid=${encodeURIComponent(id)}&epoch=${epoch}&dates=${dates.join(",")}`);
+  if (!res.ok) throw new Error("Could not read diary period");
+  return res.json();
 }
 async function saveDay(env, id, date, day) {
-  if (!day.meals.length && !day.water && !Object.keys(day.pills || {}).length) return env.DB.delete(`d:${id}:${date}`);
-  await env.DB.put(`d:${id}:${date}`, JSON.stringify(day));
+  const previous = dayBases.get(day);
+  if (!previous) throw new Error("Diary changes require a read baseline");
+  const { epoch, base } = previous;
+  const res = await dayStub(env, id).fetch(`https://live/day?date=${encodeURIComponent(date)}&uid=${encodeURIComponent(id)}&epoch=${epoch}`, {
+    method: "POST", body: JSON.stringify({ base, day, session: env.authHash }),
+  });
+  if (!res.ok) throw new Error("Could not save diary");
+  const merged = await res.json();
+  for (const key of Object.keys(day)) delete day[key];
+  Object.assign(day, merged);
+  dayBases.set(day, { epoch, base: structuredClone(merged) });
 }
 async function getWeights(env, id) {
-  return (await env.DB.get(`w:${id}`, "json")) || [];
+  return (await env.DB.get(await accountKey(env, id, `w:${id}`), "json")) || [];
 }
 
 // Полное удаление данных пользователя по команде /delete
 async function deleteUserData(env, id) {
-  const u = await getUser(env, id);
-  const keys = [
-    `u:${id}`, `w:${id}`, `adv:${id}`, `wo:${id}`,
-    ...((u && u.apps) || []).map((a) => `tk:${a.h}`),
-    ...(await listAll(env, `d:${id}:`)),
-    ...(await listAll(env, `an:${id}:`)),
-    ...(await listAll(env, `wk:${id}:`)),
-  ];
-  await Promise.all(keys.map((k) => env.DB.delete(k)));
+  const { epoch } = await accountState(env, id);
+  const erase = await accountCall(env, id, "account/delete-data", { id, epoch });
+  if (!erase.ok) throw new Error("Could not finish deleting account");
+  return erase.status !== 202;
+}
+
+async function purgeAccount(ctx, env, request) {
+  const { id, epoch } = await request.json();
+  const state = (await ctx.storage.get("account")) || { epoch: 0 };
+  if (state.epoch !== epoch && !(state.deleting && state.epoch === epoch + 1)) return json({ error: "stale account" }, 409);
+  await ctx.storage.transaction(async (tx) => {
+    if (!state.deleting) await tx.put("account", { epoch: epoch + 1, deletedAt: Date.now(), deleting: true });
+    await tx.delete(["sessions", "ai"]);
+    if (!await tx.get("purge")) await tx.put("purge", { id, epoch });
+  });
+  if (ctx.storage.setAlarm) await ctx.storage.setAlarm(Date.now() + 30000);
+  for (const ws of ctx.getWebSockets()) { try { ws.close(1008, "Account deleted"); } catch {} }
+  const indexed = [...(await ctx.storage.list({ prefix: "kv:" })).keys()];
+  const pending = await ctx.storage.get("purge");
+  let keys = pending?.keys;
+  if (!keys) {
+    const u = await env.DB.get(`u:${id}`, "json");
+    const days = [...(await ctx.storage.list({ prefix: "day:" })).keys()];
+    const prefixes = [`d:${id}:`, `an:${id}:`, `wk:${id}:`, `v:${id}:`];
+    keys = [...new Set([
+      `w:${id}`, `adv:${id}`, `wo:${id}`,
+      ...indexed.map((key) => key.slice(3)).filter((key) => key !== `u:${id}`),
+      ...days.map((key) => `d:${id}:${key.slice(4)}`),
+      ...((u && u.apps) || []).map((a) => `tk:${a.h}`),
+      ...(await Promise.all(prefixes.map((prefix) => listAll(env, prefix)))).flat(),
+    ])];
+    await ctx.storage.put("purge", { id, epoch, keys });
+  }
+  const batch = keys.slice(0, 200);
+  for (let i = 0; i < batch.length; i += 20) await Promise.all(batch.slice(i, i + 20).map((k) => env.DB.delete(k)));
+  await ctx.storage.put("purge", { id, epoch, keys: keys.slice(batch.length) });
+  if (keys.length > batch.length) {
+    await ctx.storage.setAlarm(Date.now() + 1000);
+    return json({ status: "deleting" }, 202);
+  }
+  const erased = await diaryRequest(ctx, env, new Request("https://live/erase-days", { method: "POST" }));
+  if (!erased.ok) throw new Error("Could not erase diary");
   await wrIndex(env, id, false);
   await plIndex(env, id, false);
+  await env.DB.delete(`u:${id}`);
+  for (let i = 0; i < indexed.length; i += 100) await ctx.storage.delete(indexed.slice(i, i + 100));
+  const current = await ctx.storage.get("account");
+  await ctx.storage.transaction(async (tx) => {
+    await tx.put("account", { ...current, deleting: false });
+    await tx.delete(["purge"]);
+  });
+  return json({ ok: true });
 }
 
 // ───────────────────────────── Даты ─────────────────────────────
@@ -647,22 +806,18 @@ async function gemini(env, parts, schema, temperature = 0.2) {
     const body = bodyFor(model);
     const left = AI_DEADLINE_MS - (Date.now() - started);
     if (left < 3000) break;
-    const ctrl = new AbortController();
-    const timer = setTimeout(() => ctrl.abort(), left);
     let r;
     try {
       r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
         method: "POST",
         headers: { "content-type": "application/json", "x-goog-api-key": env.GEMINI_API_KEY },
         body,
-        signal: ctrl.signal,
+        signal: AbortSignal.timeout(left),
       });
     } catch (e) {
-      clearTimeout(timer);
       lastErr = new Error(`Gemini ${model}: нет ответа за ${Math.round(left / 1000)} с`);
       break;
     }
-    clearTimeout(timer);
     if (r.ok) {
       const j = await r.json();
       const text = (j.candidates?.[0]?.content?.parts || [])
@@ -670,16 +825,20 @@ async function gemini(env, parts, schema, temperature = 0.2) {
         .map((p) => p.text || "")
         .join("");
       if (!text) { lastErr = new Error(`Gemini ${model}: пустой ответ`); continue; }
+      const parsed = JSON.parse(text);
       lastModelUsed = model;
       if (workingModel !== model) {
         workingModel = model;
-        if (env.DB) await env.DB.put("cfg:model", model).catch(() => {});
+        if (env.DB) {
+          const write = env.DB.put("cfg:model", model).catch(() => {});
+          if (env.defer) env.defer(write); else await write;
+        }
       }
       console.log(`Gemini ${model}: ${Date.now() - started} мс`);
-      return JSON.parse(text);
+      return parsed;
     }
     const errText = await r.text();
-    lastErr = new Error(`Gemini ${model} ${r.status}: ${errText.slice(0, 300)}`);
+    lastErr = new Error(`Gemini ${model}: HTTP ${r.status}`);
     console.error(lastErr.message);
     if (r.status === 400 && /thinking/i.test(errText) && !noThinkingParam.has(model)) {
       noThinkingParam.add(model);
@@ -744,6 +903,7 @@ function cleanItems(items, { trust = false } = {}) {
 
 const USDA_URL = "https://api.nal.usda.gov/fdc/v1/foods/search";
 const USDA_TIMEOUT_MS = 2500;
+const usdaQuery = (q) => String(q || "").toLowerCase().replace(/\s+/g, " ").trim().slice(0, 80);
 // Номера нутриентов в USDA → наши поля (на 100 г)
 const USDA_IDS = {
   1003: "protein_100", 1004: "fat_100", 1005: "carbs_100",
@@ -772,36 +932,36 @@ function parseUsda(json) {
 }
 
 async function lookupUsda(env, query) {
-  const q = String(query || "").toLowerCase().replace(/\s+/g, " ").trim().slice(0, 80);
+  const q = usdaQuery(query);
   if (!env.USDA_API_KEY || q.length < 2) return null;
   const key = `usda:${q}`;
   const cached = await env.DB.get(key, "json").catch(() => null);
   if (cached) return cached.miss ? null : cached;
   let found = null;
   try {
-    const ctrl = new AbortController();
-    const timer = setTimeout(() => ctrl.abort(), USDA_TIMEOUT_MS);
     const url = `${USDA_URL}?query=${encodeURIComponent(q)}&dataType=${encodeURIComponent("Foundation,SR Legacy")}&pageSize=1&api_key=${encodeURIComponent(env.USDA_API_KEY)}`;
-    const r = await fetch(url, { signal: ctrl.signal });
-    clearTimeout(timer);
+    const r = await fetch(url, { signal: AbortSignal.timeout(USDA_TIMEOUT_MS) });
     if (!r.ok) return null; // лимит или сбой: не кэшируем
     found = parseUsda(await r.json());
   } catch (e) {
-    console.error("usda lookup:", e && e.message);
+    console.error("USDA lookup failed");
     return null;
   }
-  await env.DB.put(key, JSON.stringify(found || { miss: true }), { expirationTtl: found ? 30 * 86400 : 86400 }).catch(() => {});
+  const write = env.DB.put(key, JSON.stringify(found || { miss: true }), { expirationTtl: found ? 30 * 86400 : 86400 }).catch(() => {});
+  if (env.defer) env.defer(write); else await write;
   return found;
 }
 
 // Подменяет питательность продуктов значениями USDA. Продукты без запроса (сложные блюда) и ненайденные остаются как есть
 async function applyUsda(env, items) {
   if (!env.USDA_API_KEY) { for (const it of items) delete it.usda; return items; }
+  const lookups = new Map();
   await Promise.all(items.map(async (it) => {
-    const q = it.usda;
+    const q = usdaQuery(it.usda);
     delete it.usda;
     if (!q) return;
-    const u = await lookupUsda(env, q);
+    if (!lookups.has(q)) lookups.set(q, lookupUsda(env, q));
+    const u = await lookups.get(q);
     if (!u) return;
     it.kcal_100 = r1(u.kcal_100);
     it.protein_100 = r1(u.protein_100);
@@ -818,21 +978,14 @@ async function applyUsda(env, items) {
 // Очистить ответ нейросети и подтянуть значения из USDA
 const finalizeItems = async (env, raw, opts) => applyUsda(env, cleanItems(raw, opts));
 
-// Счётчик запросов в памяти воркера: если человек шлёт много фото разом, параллельные запросы
-// читают из базы старый счётчик. Здесь они видят свежий и не обходят дневной лимит
-const aiSeen = new Map(); // "id:дата" → сколько запросов уже было
-
-function checkAiLimit(env, u) {
-  const limit = Number(env.DAILY_AI_LIMIT || 40);
-  const d = today(u);
-  if (!u.ai || u.ai.date !== d) u.ai = { date: d, n: 0 };
-  const key = u.id + ":" + d;
-  const n = Math.max(u.ai.n, aiSeen.get(key) || 0);
-  if (n >= limit) return false;
-  u.ai.n = n + 1;
-  if (aiSeen.size > 10000) aiSeen.clear();
-  aiSeen.set(key, n + 1);
-  return true;
+// Квота общая для Telegram, Android, Mini App и фоновых задач.
+async function checkAiLimit(env, u) {
+  const date = today(u);
+  const configured = Number(env.DAILY_AI_LIMIT || 40);
+  const limit = Number.isSafeInteger(configured) && configured >= 0 ? configured : 40;
+  const previous = u.ai?.date === date ? Number(u.ai.n) || 0 : 0;
+  const res = await accountCall(env, u.id, "account/quota", { date, limit, previous, epoch: u.epoch || 0, session: env.authHash });
+  return res.ok && await res.json() === true;
 }
 
 function toBase64(buf) {
@@ -1146,6 +1299,15 @@ async function onMessage(msg, env) {
   const chatId = msg.chat.id;
   const known = await getUser(env, msg.from.id);
   let u = known || newUser(msg.from);
+  const state = await accountState(env, u.id);
+  if (state.deleting) {
+    if (msg.text?.trim() === "/delete") {
+      const done = await deleteUserData(env, u.id);
+      return send(env, chatId, done ? L(u, "🗑 Данные удалены.", "🗑 Data deleted.") : L(u, "Удаление продолжается.", "Deletion is in progress."));
+    }
+    return;
+  }
+  u.epoch = state.epoch;
   const text = (msg.text || "").trim();
   // Откуда пришёл новый пользователь: t.me/FitterFoodBot?start=habr → «habr»
   if (!known) u.src = startSource(text);
@@ -1156,7 +1318,7 @@ async function onMessage(msg, env) {
   const admin = isAdmin(env, msg.from);
   if (/^\/(emojipack|emojiid|makeemoji|emojierr)\b/.test(text) && !admin) return send(env, chatId, L(u, "Эта команда только для владельца бота", "This command is for the bot owner only"));
   if (admin && (msg.entities || msg.caption_entities || []).some((e) => e.type === "custom_emoji")) return sendEmojiIds(env, chatId, msg);
-  if (text.startsWith("/emojipack")) return sendEmojiPack(env, chatId, text.split(/\s+/)[1]);
+  if (admin && /^\/emojipack(?:\s|$)/.test(text)) return sendEmojiPack(env, chatId, text.split(/\s+/)[1]);
   if (text === "/emojiid") return send(env, chatId, "Отправь мне иконки из набора, и я пришлю их номера 🔢");
   if (text === "/makeemoji") return makeEmojiPack(env, chatId, msg.from);
   if (text === "/emojierr") {
@@ -1175,6 +1337,7 @@ async function onMessage(msg, env) {
 
   const linkCode = text.match(/^\/start link_([0-9a-z]{20})$/);
   if (linkCode && u.targets) return askLinkConfirm(env, u, chatId, linkCode[1]);
+  if (text === "/devices" && u.targets) return sendDevices(env, u, chatId);
   if (text === "/start" || text.startsWith("/start ")) {
     if (u.targets) {
       u.state = null;
@@ -1188,11 +1351,13 @@ async function onMessage(msg, env) {
   if (text === "/reset") return startOnboarding(env, u, chatId);
   if (text === "/delete") {
     if (!known) return send(env, chatId, L(u, "У меня нет твоих данных 🤷", "I don't have any of your data 🤷"));
+    u.deletePrompt = { nonce: randHex(8), expires: Date.now() + 300000 };
+    await saveUser(env, u);
     return send(env, chatId,
       L(u,
         "🗑 <b>Удалить все твои данные?</b>\n\nАнкета, дневник питания, вода, вес, таблетки и напоминания будут стёрты навсегда. Восстановить их не получится.",
         "🗑 <b>Delete all your data?</b>\n\nYour profile, food diary, water, weight, pills and reminders will be erased permanently. This can't be undone."),
-      { reply_markup: { inline_keyboard: [[{ text: L(u, "Да, удалить всё", "Yes, delete everything"), callback_data: "delall" }, { text: L(u, "Отмена", "Cancel"), callback_data: "delno" }]] } });
+      { reply_markup: { inline_keyboard: [[{ text: L(u, "Да, удалить всё", "Yes, delete everything"), callback_data: `delall|${u.deletePrompt.nonce}` }, { text: L(u, "Отмена", "Cancel"), callback_data: `delno|${u.deletePrompt.nonce}` }]] } });
   }
 
   // Анкета
@@ -1382,7 +1547,7 @@ async function finishOnboarding(env, u, chatId) {
   u.state = null;
   await saveUser(env, u);
   const weights = await getWeights(env, u.id);
-  if (!weights.length) await env.DB.put(`w:${u.id}`, JSON.stringify([{ date: today(u), kg: u.weight }]));
+  if (!weights.length) await writeAccount(env, u.id, await accountKey(env, u.id, `w:${u.id}`), JSON.stringify([{ date: today(u), kg: u.weight }]));
   await send(
     env, chatId,
     L(u,
@@ -1400,6 +1565,7 @@ async function finishOnboarding(env, u, chatId) {
 // ── Кнопки ──
 
 async function onCallback(q, env) {
+  if (q.message?.chat?.type !== "private" || q.message.chat.id !== q.from?.id) return;
   const data = q.data || "";
   const chatId = q.message?.chat?.id;
   const msgId = q.message?.message_id;
@@ -1408,6 +1574,11 @@ async function onCallback(q, env) {
   if (!u || !chatId) return answer(L({ lang: guessLang(q.from) }, "Напиши /start", "Send /start"));
   const [kind, a, b, c] = data.split("|");
   if (kind === "lnk" && u.targets) return onLinkCallback(env, u, chatId, msgId, a === "y", b || "", answer);
+  if (kind === "revoke" && /^[0-9a-f]{32}$/.test(a)) {
+    await accountCall(env, u.id, "account/revoke", { deviceId: a });
+    await answer(L(u, "Устройство отключено", "Device disconnected"));
+    return sendDevices(env, u, chatId);
+  }
 
   if (kind === "lang") {
     if (a === "en" || a === "ru") {
@@ -1446,11 +1617,16 @@ async function onCallback(q, env) {
     return finishOnboarding(env, u, chatId);
   }
   if (kind === "delall") {
-    await deleteUserData(env, u.id);
+    if (!u.deletePrompt || u.deletePrompt.nonce !== a || u.deletePrompt.expires <= Date.now()) return answer(L(u, "Отправь /delete ещё раз", "Send /delete again"));
+    if (!await deleteUserData(env, u.id)) {
+      await answer(L(u, "Доступ отозван", "Access revoked"));
+      return edit(env, chatId, msgId, L(u, "🗑 Доступ отозван. Удаляю записи в фоне.", "🗑 Access revoked. Deleting your records in the background."));
+    }
     await answer(L(u, "Данные удалены", "Data deleted"));
     return edit(env, chatId, msgId, L(u, "🗑 Все твои данные удалены. Чтобы начать заново, напиши /start", "🗑 All your data has been deleted. To start over, send /start"));
   }
   if (kind === "delno") {
+    if (u.deletePrompt?.nonce === a) { delete u.deletePrompt; await saveUser(env, u); }
     await answer();
     return edit(env, chatId, msgId, L(u, "Ничего не удалял 👌", "Nothing was deleted 👌"));
   }
@@ -1528,10 +1704,10 @@ async function onCallback(q, env) {
     return sendAdvice(env, u, chatId);
   }
   if (kind === "adv") {
-    const saved = await env.DB.get(`adv:${u.id}`, "json");
+    const saved = await env.DB.get(await accountKey(env, u.id, `adv:${u.id}`), "json");
     const o = saved?.date === today(u) ? saved.options[Number(a)] : null;
     if (!o) return answer(L(u, "Варианты устарели, нажми «Что съесть» ещё раз", "These options are out of date, tap “What to eat” again"));
-    await env.DB.delete(`adv:${u.id}`);
+    await writeAccount(env, u.id, await accountKey(env, u.id, `adv:${u.id}`), null);
     await answer(L(u, "Записываю ✅", "Logging ✅"));
     await tg(env, "editMessageReplyMarkup", { chat_id: chatId, message_id: msgId, reply_markup: { inline_keyboard: [] } });
     return saveMealAndReply(env, u, chatId, null, o.title, o.items, "advice", null);
@@ -1586,7 +1762,7 @@ function pickPhoto(msg) {
 }
 
 async function onPhoto(env, u, chatId, msg) {
-  if (!checkAiLimit(env, u)) {
+  if (!await checkAiLimit(env, u)) {
     return send(env, chatId, L(u, "На сегодня лимит запросов к нейросети закончился 😔 Завтра снова можно! А пока можешь поправить записи в дневнике.", "You've used up today's AI requests 😔 Try again tomorrow! Meanwhile you can edit your diary entries."));
   }
   tg(env, "sendChatAction", { chat_id: chatId, action: "typing" });
@@ -1595,28 +1771,31 @@ async function onPhoto(env, u, chatId, msg) {
     const f = await tg(env, "getFile", { file_id: pickPhoto(msg) });
     if (!f.ok) throw new Error("getFile failed");
     const path = f.result.file_path;
-    const img = await fetch(`https://api.telegram.org/file/bot${env.BOT_TOKEN}/${path}`);
+    const img = await fetch(`https://api.telegram.org/file/bot${env.BOT_TOKEN}/${path}`, { signal: AbortSignal.timeout(6000), redirect: "manual" })
+      .catch(() => { throw new Error("Telegram photo download failed"); });
     if (!img.ok) throw new Error("download failed " + img.status);
-    return { b64: toBase64(await img.arrayBuffer()), mime: /\.png$/i.test(path) ? "image/png" : /\.webp$/i.test(path) ? "image/webp" : "image/jpeg" };
+    return { b64: toBase64(await readImage(img, MAX_IMAGE_BYTES)), mime: /\.png$/i.test(path) ? "image/png" : /\.webp$/i.test(path) ? "image/webp" : "image/jpeg" };
   })();
-  download.catch(() => {}); // ошибку разберём ниже, а здесь не оставляем необработанной
-  const [, wait] = await Promise.all([
-    saveUser(env, u),
-    send(env, chatId, L(u, "🔍 Смотрю на фото и считаю калории…", "🔍 Looking at the photo and counting calories…")),
-  ]);
-  const waitId = wait.result?.message_id;
+  const analysis = Promise.all([saveUser(env, u), download]).then(([, { b64, mime }]) =>
+    analyzePhoto(env, b64, mime, (msg.caption || "").trim().slice(0, 300), u));
+  const wait = send(env, chatId, L(u, "🔍 Смотрю на фото и считаю калории…", "🔍 Looking at the photo and counting calories…"))
+    .catch(() => null);
+  let waitId;
   try {
-    const { b64, mime } = await download;
-    const r = await analyzePhoto(env, b64, mime, (msg.caption || "").trim().slice(0, 300), u);
+    const [r, status] = await Promise.all([analysis, wait]);
+    waitId = status?.result?.message_id;
     if (!r) {
-      return edit(env, chatId, waitId, L(u,
+      const text = L(u,
         "🤔 Не вижу на фото еды. Попробуй сфотографировать тарелку сверху и поближе.\n\nИли напиши текстом, что ты съел.",
-        "🤔 I can't see any food in the photo. Try shooting the plate from above and closer.\n\nOr just type what you ate."));
+        "🤔 I can't see any food in the photo. Try shooting the plate from above and closer.\n\nOr just type what you ate.");
+      return waitId ? edit(env, chatId, waitId, text) : send(env, chatId, text);
     }
     return saveMealAndReply(env, u, chatId, waitId, r.title, r.items, r.source, r.comment);
   } catch (e) {
     console.error("photo error:", e && e.stack ? e.stack : e);
-    return edit(env, chatId, waitId, L(u, "😔 Не получилось распознать фото. Попробуй ещё раз через минуту или напиши текстом, что ты съел.", "😔 Couldn't recognize the photo. Try again in a minute or just type what you ate."));
+    waitId = waitId || (await wait)?.result?.message_id;
+    const text = L(u, "😔 Не получилось распознать фото. Попробуй ещё раз через минуту или напиши текстом, что ты съел.", "😔 Couldn't recognize the photo. Try again in a minute or just type what you ate.");
+    return waitId ? edit(env, chatId, waitId, text) : send(env, chatId, text);
   }
 }
 
@@ -1626,23 +1805,22 @@ async function analyzePhoto(env, b64, mime, caption, u) {
     { text: photoPrompt(u) + (caption ? `\n\nHint from the user (take it into account first): ${caption}` : "") },
     { inline_data: { mime_type: mime, data: b64 } },
   ], PHOTO_SCHEMA);
-  const items = await finalizeItems(env, res.items, { trust: !!res.label_found });
-  if (!res.is_food || !items.length) return null;
+  if (!res.is_food) return null;
+  const items = cleanItems(res.items, { trust: !!res.label_found });
+  if (!items.length) return null;
+  const code = res.is_package && !res.label_found ? cleanBarcode(res.barcode) : null;
+  const [, product] = await Promise.all([applyUsda(env, items), code ? lookupBarcode(env, code, u) : null]);
   // Упаковка: КБЖУ с этикетки, а если этикетки не видно — ищем по штрихкоду
   let comment = res.comment;
   let source = "photo";
   if (res.is_package) {
     source = "package";
-    const code = cleanBarcode(res.barcode);
     if (res.label_found) {
       comment = L(u, "📦 КБЖУ взяты с этикетки. Если съел не всю упаковку — нажми ✏️ и впиши вес", "📦 Values taken from the label. If you didn't eat the whole pack, tap ✏️ and enter the weight");
-    } else if (code) {
-      const p = await lookupBarcode(env, code, u);
-      if (p) {
-        items.splice(0, 1, { ...p, grams: p.grams || items[0]?.grams || 100 });
-        comment = L(u, `📦 Нашёл по штрихкоду ${code} в базе Open Food Facts. Если съел не всю упаковку — нажми ✏️ и впиши вес`, `📦 Found by barcode ${code} in the Open Food Facts database. If you didn't eat the whole pack, tap ✏️ and enter the weight`);
-        source = "barcode";
-      }
+    } else if (product) {
+      items.splice(0, 1, { ...product, grams: product.grams || items[0]?.grams || 100 });
+      comment = L(u, `📦 Нашёл по штрихкоду ${code} в базе Open Food Facts. Если съел не всю упаковку — нажми ✏️ и впиши вес`, `📦 Found by barcode ${code} in the Open Food Facts database. If you didn't eat the whole pack, tap ✏️ and enter the weight`);
+      source = "barcode";
     }
     if (source === "package" && !res.label_found) {
       comment = L(u, "📦 Это упаковка, но КБЖУ я оценил примерно. Для точности сфотографируй этикетку с пищевой ценностью или пришли цифры штрихкода", "📦 This is a package, but I only estimated the values. For accuracy, photograph the nutrition label or send the barcode digits");
@@ -1892,7 +2070,7 @@ async function applyEdit(env, u, chatId, fix) {
   let waitId = null;
 
   if (fix.name) {
-    if (!checkAiLimit(env, u)) {
+    if (!await checkAiLimit(env, u)) {
       await saveUser(env, u);
       return send(env, chatId, L(u, "На сегодня лимит запросов к нейросети закончился 😔 Вес можно поправить, а название — завтра.", "You've used up today's AI requests 😔 You can still fix the weight; the name can wait until tomorrow."));
     }
@@ -1929,7 +2107,8 @@ async function applyEdit(env, u, chatId, fix) {
 
 // Разбор сообщения нейросетью: запись еды или вопрос
 async function askText(env, u, text, date) {
-  const t = dayTotals(await getDay(env, u.id, date));
+  const [day] = await Promise.all([getDay(env, u.id, date), saveUser(env, u)]);
+  const t = dayTotals(day);
   const ctx =
     `User data: ${u.sex === "m" ? "male" : "female"}, ${u.age} years old, height ${u.height} cm, weight ${u.weight} kg, ` +
     `goal: ${GOALS[u.goal][1]}. Daily target: ${u.targets.kcal} kcal, protein ${u.targets.p} g, fat ${u.targets.f} g, carbs ${u.targets.c} g. ` +
@@ -1938,10 +2117,9 @@ async function askText(env, u, text, date) {
 }
 
 async function onText(env, u, chatId, text) {
-  if (!checkAiLimit(env, u)) {
+  if (!await checkAiLimit(env, u)) {
     return send(env, chatId, L(u, "На сегодня лимит запросов к нейросети закончился 😔 Завтра снова можно!", "You've used up today's AI requests 😔 Try again tomorrow!"));
   }
-  await saveUser(env, u);
   tg(env, "sendChatAction", { chat_id: chatId, action: "typing" });
   try {
     const res = await askText(env, u, text, today(u));
@@ -2038,7 +2216,7 @@ async function sendWeek(env, u, chatId) {
   const end = today(u);
   const norm = u.targets.kcal;
   const dates = [...Array(7)].map((_, i) => shiftDate(end, i - 6));
-  const [days, weights] = await Promise.all([Promise.all(dates.map((d) => getDay(env, u.id, d))), getWeights(env, u.id)]);
+  const [days, weights] = await Promise.all([getDays(env, u.id, dates), getWeights(env, u.id)]);
 
   const rows = dates.map((d, i) => {
     const has = days[i].meals.length > 0;
@@ -2145,7 +2323,7 @@ Rules:
 
 // 🥗 Что съесть: 3 варианта под остаток нормы, любой можно сразу записать
 async function sendAdvice(env, u, chatId) {
-  if (!checkAiLimit(env, u)) return send(env, chatId, L(u, "На сегодня лимит запросов к нейросети закончился 😔 Завтра снова можно!", "You've used up today's AI requests 😔 Try again tomorrow!"));
+  if (!await checkAiLimit(env, u)) return send(env, chatId, L(u, "На сегодня лимит запросов к нейросети закончился 😔 Завтра снова можно!", "You've used up today's AI requests 😔 Try again tomorrow!"));
   await saveUser(env, u);
   tg(env, "sendChatAction", { chat_id: chatId, action: "typing" });
   let a;
@@ -2163,7 +2341,7 @@ async function sendAdvice(env, u, chatId) {
 async function makeAdvice(env, u, like = "") {
   const date = today(u);
   const dates = [...Array(7)].map((_, i) => shiftDate(date, i - 6));
-  const days = await Promise.all(dates.map((d) => getDay(env, u.id, d)));
+  const days = await getDays(env, u.id, dates);
   const day = days.at(-1);
   const t = dayTotals(day), g = u.targets;
   const left = { kcal: round(g.kcal - t.kcal), p: round(g.p - t.p), f: round(g.f - t.f), c: round(g.c - t.c) };
@@ -2181,7 +2359,7 @@ async function makeAdvice(env, u, like = "") {
     .slice(0, 3);
   if (!options.length) return null;
   const intro = String(res.intro || "").trim().slice(0, 200);
-  await env.DB.put(`adv:${u.id}`, JSON.stringify({ date, options, intro, left }), { expirationTtl: 6 * 3600 });
+  await writeAccount(env, u.id, await accountKey(env, u.id, `adv:${u.id}`), JSON.stringify({ date, options, intro, left }), 6 * 3600);
   return { date, options, intro, left };
 }
 
@@ -2213,7 +2391,7 @@ async function makeRecipe(env, u, saved, i) {
   };
   if (!recipe.steps.length) return null;
   saved.recipes = { ...(saved.recipes || {}), [i]: recipe };
-  await env.DB.put(`adv:${u.id}`, JSON.stringify(saved), { expirationTtl: 6 * 3600 });
+  await writeAccount(env, u.id, await accountKey(env, u.id, `adv:${u.id}`), JSON.stringify(saved), 6 * 3600);
   return recipe;
 }
 
@@ -2300,7 +2478,7 @@ async function saveWeight(env, u, kg) {
   const prev = list.length ? list[list.length - 1].kg : u.weight;
   const filtered = list.filter((w) => w.date !== date);
   filtered.push({ date, kg });
-  await env.DB.put(`w:${u.id}`, JSON.stringify(filtered.slice(-365)));
+  await writeAccount(env, u.id, await accountKey(env, u.id, `w:${u.id}`), JSON.stringify(filtered.slice(-365)));
   u.weight = kg;
   u.state = null;
   u.targets = calcTargets(u);
@@ -2354,7 +2532,7 @@ async function ensureStats(env, u, grant) {
   if (u.st) return;
   const end = today(u);
   const dates = [...Array(60)].map((_, i) => shiftDate(end, -i));
-  const days = await Promise.all(dates.map((d) => getDay(env, u.id, d)));
+  const days = await getDays(env, u.id, dates);
   const st = { meals: 0, packs: 0, normDays: 0, waterDays: 0, weighs: 0, normLast: "", waterLast: "" };
   const goal = waterGoal(u);
   days.forEach((day, i) => {
@@ -2471,18 +2649,18 @@ If there are few entries, keep in mind that some food may not have been logged.`
 async function weekData(env, u) {
   const end = today(u);
   const dates = [...Array(7)].map((_, i) => shiftDate(end, i - 6));
-  const [days, weights] = await Promise.all([Promise.all(dates.map((d) => getDay(env, u.id, d))), getWeights(env, u.id)]);
+  const [days, weights] = await Promise.all([getDays(env, u.id, dates), getWeights(env, u.id)]);
   return { end, dates, days, weights, recorded: days.filter((d) => d.meals.length).length };
 }
 
 async function makeAnalysis(env, u) {
   const { end, dates, days, weights, recorded } = await weekData(env, u);
   if (recorded < 2) return { short: true, recorded };
-  const key = `an:${u.id}:${end}`;
+  const key = await accountKey(env, u.id, `an:${u.id}:${end}`);
   const cached = await env.DB.get(key, "json").catch(() => null);
   // Разбор в кэше написан на том языке, который был тогда: после смены языка считаем заново
   if (cached && (cached.lang || "ru") === langOf(u)) return cached;
-  if (!checkAiLimit(env, u)) return { limit: true };
+  if (!await checkAiLimit(env, u)) return { limit: true };
   await saveUser(env, u);
   const g = u.targets;
   const lines = dates.map((d, i) => {
@@ -2507,7 +2685,7 @@ async function makeAnalysis(env, u) {
     summary: String(res.summary || "").trim().slice(0, 500),
     good: clean(res.good, 3), improve: clean(res.improve, 3), tips: clean(res.tips, 3),
   };
-  await env.DB.put(key, JSON.stringify(out), { expirationTtl: 12 * 3600 }).catch(() => {});
+  await writeAccount(env, u.id, key, JSON.stringify(out), 12 * 3600);
   return out;
 }
 
@@ -2557,12 +2735,12 @@ async function weeklyRun(env) {
     const page = await env.DB.list({ prefix: "u:", cursor });
     for (const k of page.keys) {
       if (sent >= WEEKLY_PER_RUN) return;
-      const u = await env.DB.get(k.name, "json");
+      const u = await getUser(env, k.name.slice(2));
       if (!u || !u.targets || u.weekly === false) continue;
-      const mark = `wk:${u.id}:${today(u)}`;
+      const mark = await accountKey(env, u.id, `wk:${u.id}:${today(u)}`);
       if (await env.DB.get(mark)) continue;
       const { recorded } = await weekData(env, u);
-      await env.DB.put(mark, "1", { expirationTtl: 8 * 86400 });
+      await writeAccount(env, u.id, mark, "1", 8 * 86400);
       if (recorded < 3) continue;
       await sendAnalysis(env, u, u.id, true);
       sent++;
@@ -2684,7 +2862,7 @@ async function perUser(items, fn) {
 }
 
 async function waterOne(env, id, now) {
-  const u = await env.DB.get(`u:${id}`, "json");
+  const u = await getUser(env, id);
   const w = u?.wr;
   if (!u || !u.targets || !w || !w.every) return 0;
   const local = new Date(now + tzOf(u) * 60000);
@@ -2766,7 +2944,7 @@ async function pillTick(env, now = Date.now()) {
 
 async function pillOne(env, id, now) {
   let sent = 0;
-  const u = await env.DB.get(`u:${id}`, "json");
+  const u = await getUser(env, id);
   if (!u || !u.pills?.length) return 0;
   const local = new Date(now + tzOf(u) * 60000);
   const today = local.toISOString().slice(0, 10);
@@ -2986,13 +3164,14 @@ function safeEqual(a, b) {
   return diff === 0;
 }
 
-// Подпись дневника действует сутки: утёкшие данные нельзя использовать долго
-const INIT_DATA_TTL = 86400;
+const INIT_DATA_TTL = 300;
+const MINI_SESSION_MS = 15 * 60000;
 
 // Проверяем, что запрос действительно пришёл из Telegram (подпись initData)
 async function verifyInitData(initData, token) {
   if (!initData || !token) return null;
   const params = new URLSearchParams(initData);
+  if (initData.length > 8192 || new Set(params.keys()).size !== [...params.keys()].length) return null;
   const hash = params.get("hash");
   if (!hash) return null;
   params.delete("hash");
@@ -3007,23 +3186,31 @@ async function verifyInitData(initData, token) {
   const sig = hex(await crypto.subtle.sign("HMAC", k2, enc.encode(dataCheck)));
   if (!safeEqual(sig, hash)) return null;
   const authDate = Number(params.get("auth_date") || 0);
-  if (Date.now() / 1000 - authDate > INIT_DATA_TTL) return null;
-  try { return JSON.parse(params.get("user")); } catch { return null; }
+  const age = Date.now() / 1000 - authDate;
+  if (!Number.isSafeInteger(authDate) || age < -30 || age > INIT_DATA_TTL) return null;
+  try {
+    const user = JSON.parse(params.get("user"));
+    return Number.isSafeInteger(user?.id) && user.id > 0 ? { ...user, authDate } : null;
+  } catch { return null; }
 }
 
 // ───────────────────────────── Приложение Android: вход через бота ─────────────────────────────
 //
-// 1. Приложение: POST /api/link/start → { code, secret, url }. Ничего не пишем в базу: код подписан ключом бота.
-// 2. Пользователь открывает url (t.me/FitterFoodBot?start=link_<code>) и подтверждает вход кнопкой в боте → lk:<code> = { uid }.
-// 3. Приложение раз в пару секунд шлёт POST /api/link/poll { code, secret } и один раз получает постоянный токен.
-// 4. Дальше все запросы /api/* — с заголовком Authorization: Bearer <токен>. В базе только хэш: tk:<sha256> = { uid, device, at }.
+// Секрет знает Android, проверочный код приходит в личку Telegram.
+// Durable Object погашает подтверждение атомарно и хранит только хэши токенов.
 
 const LINK_TTL = 600; // ссылка для входа живёт 10 минут
-const APP_TOKENS_MAX = 5; // столько телефонов можно подключить, самый старый вход отключается
 const BOT_LINK = "https://t.me/FitterFoodBot";
 
 const sha256 = async (s) => hex(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(s)));
 const randHex = (n) => hex(crypto.getRandomValues(new Uint8Array(n)));
+async function requestAllowed(env, request, scope, limit) {
+  const ip = request.headers.get("CF-Connecting-IP");
+  if (!ip) return true;
+  const bucket = await sha256(`${scope}:${ip}`);
+  const res = await accountCall(env, `rate:${bucket}`, "rate", { limit });
+  return res.ok;
+}
 async function linkSecret(env, code) {
   const key = await crypto.subtle.importKey("raw", new TextEncoder().encode("FitterLink" + env.BOT_TOKEN), { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
   return hex(await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(code)));
@@ -3036,8 +3223,9 @@ function linkCodeAlive(code) {
 }
 
 async function linkApi(request, url, env) {
-  if (request.method !== "POST") return json({ error: "not found" }, 404);
-  const body = await request.json().catch(() => ({}));
+  if (request.method !== "POST" || !["/api/link/start", "/api/link/poll"].includes(url.pathname)) return json({ error: "not found" }, 404);
+  if (!await requestAllowed(env, request, url.pathname, url.pathname === "/api/link/start" ? 30 : 240)) return json({ error: "limit" }, 429);
+  const body = await readJson(request, 4096);
   if (url.pathname === "/api/link/start") {
     const code = Date.now().toString(36).padStart(8, "0") + randHex(6);
     return json({ code, secret: await linkSecret(env, code), url: `${BOT_LINK}?start=link_${code}`, ttl: LINK_TTL });
@@ -3045,21 +3233,17 @@ async function linkApi(request, url, env) {
   if (url.pathname === "/api/link/poll") {
     const code = String(body.code || "");
     if (!linkCodeAlive(code) || !safeEqual(body.secret, await linkSecret(env, code))) return json({ error: "expired" }, 410);
-    // cacheTtl 30 — меньше разрешённого KV не бывает: подтверждение из бота дойдёт до телефона не дольше чем за полминуты
-    const link = await env.DB.get(`lk:${code}`, { type: "json", cacheTtl: 30 });
-    if (!link) return json({ status: "wait" });
-    if (!link.uid) return json({ error: "denied" }, 403);
-    await env.DB.delete(`lk:${code}`);
+    const pin = typeof body.pin === "string" && /^\d{8}$/.test(body.pin) ? body.pin : "";
+    const redeemed = await accountCall(env, `link:${code}`, "link/redeem", { pin });
+    if (!redeemed.ok) return json({ error: "denied" }, 403);
+    const link = await redeemed.json();
+    if (link.status) return json({ status: link.status });
     const u = await getUser(env, link.uid);
     if (!u || !u.targets) return json({ error: "no_profile" }, 404);
-    const token = "ft_" + randHex(32);
-    const h = await sha256(token);
+    const token = `ft2_${u.id}_${randHex(32)}`;
     const device = String(body.device || "Android").replace(/[<>&\n\r]/g, "").trim().slice(0, 40) || "Android";
-    const at = new Date().toISOString();
-    u.apps = [...(u.apps || []), { h, device, at }];
-    const old = u.apps.slice(0, Math.max(0, u.apps.length - APP_TOKENS_MAX));
-    u.apps = u.apps.slice(old.length);
-    await Promise.all([env.DB.put(`tk:${h}`, JSON.stringify({ uid: u.id, device, at })), saveUser(env, u), ...old.map((a) => env.DB.delete(`tk:${a.h}`))]);
+    const issued = await accountCall(env, u.id, "account/add-session", { hash: await sha256(token), device, epoch: link.epoch });
+    if (!issued.ok) return json({ error: "expired" }, 410);
     return json({ token, name: u.name || "" });
   }
   return json({ error: "not found" }, 404);
@@ -3082,21 +3266,52 @@ async function onLinkCallback(env, u, chatId, msgId, yes, code, answer) {
     await answer(L(u, "Ссылка устарела", "Link expired"));
     return edit(env, chatId, msgId, L(u, "⌛ Ссылка для входа устарела. Нажми «Войти через Telegram» в приложении ещё раз.", "⌛ The sign-in link has expired. Tap “Sign in with Telegram” in the app again."));
   }
-  // Отказ тоже записываем: приложение сразу покажет, что вход отменён
-  await env.DB.put(`lk:${code}`, JSON.stringify(yes ? { uid: u.id } : { denied: true }), { expirationTtl: LINK_TTL });
-  await answer(yes ? L(u, "Готово", "Done") : L(u, "Отменено", "Cancelled"));
-  return edit(env, chatId, msgId, yes ? L(u, "✅ Приложение Fitter подключено. Можно вернуться в него.", "✅ The Fitter app is connected. You can go back to it.") : L(u, "Вход в приложение отменён.", "Sign-in cancelled."));
+  const pin = String(crypto.getRandomValues(new Uint32Array(1))[0] % 100000000).padStart(8, "0");
+  const approved = await accountCall(env, `link:${code}`, "link/approve", yes ? { uid: u.id, epoch: u.epoch || 0, pin } : {});
+  if (!approved.ok) return answer(L(u, "Подтверждение уже обработано", "This request has already been handled"));
+  await answer(yes ? L(u, "Код входа готов", "Sign-in code ready") : L(u, "Отменено", "Cancelled"));
+  return edit(env, chatId, msgId, yes ? L(u,
+    `Код входа: <code>${pin}</code>\nВведи его только в приложении Fitter на своём телефоне. Никому не пересылай.`,
+    `Sign-in code: <code>${pin}</code>\nEnter it only in the Fitter app on your phone. Do not share it.`) : L(u, "Вход в приложение отменён.", "Sign-in cancelled."));
 }
 
-// Кто делает запрос: телефон с токеном или дневник в Telegram с подписью initData
-async function apiUserId(request, env) {
-  const m = (request.headers.get("Authorization") || "").match(/^Bearer (ft_[0-9a-f]{64})$/);
+async function sendDevices(env, u, chatId) {
+  const res = await accountCall(env, u.id, "account/devices");
+  if (!res.ok) return;
+  const sessions = await res.json();
+  return send(env, chatId, sessions.length ? L(u, "Подключённые устройства. Нажми, чтобы отозвать доступ.", "Connected devices. Tap to revoke access.") : L(u, "Подключённых устройств нет.", "No connected devices."), {
+    reply_markup: { inline_keyboard: sessions.map((s) => [{ text: `✕ ${s.device} · ${new Date(s.at).toISOString().slice(0, 10)}`, callback_data: `revoke|${s.hash.slice(0, 32)}` }]) },
+  });
+}
+
+async function apiAuth(request, env) {
+  const authorization = request.headers.get("Authorization");
+  const m = authorization?.match(/^Bearer (ft2_([1-9]\d{0,15})_[0-9a-f]{64})$/);
   if (m) {
-    const t = await env.DB.get(`tk:${await sha256(m[1])}`, "json");
-    return t ? t.uid : null;
+    const uid = Number(m[2]);
+    if (!Number.isSafeInteger(uid)) return null;
+    const hash = await sha256(m[1]);
+    const session = await accountCall(env, uid, "account/session", { hash });
+    return session.ok && await session.json() ? { uid, hash } : null;
+  }
+  if (authorization) return null;
+  const mini = request.headers.get("X-Fitter-Mini");
+  if (mini) {
+    const parts = mini.match(/^([1-9]\d{0,15})\.(\d{1,8})\.(\d{13})\.([0-9a-f]{64})$/);
+    if (!parts || Number(parts[3]) <= Date.now() || !Number.isSafeInteger(Number(parts[1]))) return null;
+    const payload = mini.slice(0, mini.lastIndexOf("."));
+    if (!safeEqual(parts[4], await linkSecret(env, `mini:${payload}`))) return null;
+    const uid = Number(parts[1]);
+    const state = await accountState(env, uid);
+    return !state.deleting && Number(parts[2]) === state.epoch ? { uid } : null;
   }
   const tgUser = await verifyInitData(request.headers.get("X-Init-Data"), env.BOT_TOKEN);
-  return tgUser ? tgUser.id : null;
+  if (!tgUser) return null;
+  const state = await accountState(env, tgUser.id);
+  if (state.deleting || (state.deletedAt && tgUser.authDate * 1000 <= state.deletedAt)) return null;
+  const payload = `${tgUser.id}.${state.epoch}.${Date.now() + MINI_SESSION_MS}`;
+  env.miniSession = `${payload}.${await linkSecret(env, `mini:${payload}`)}`;
+  return { uid: tgUser.id };
 }
 
 // Записать приём пищи из приложения: время, серия, достижения — как у записи в боте
@@ -3113,7 +3328,7 @@ async function addAppMeal(env, u, date, title, items, source) {
   await saveDay(env, u.id, date, day);
   if (date === today(u)) {
     const fresh = await progress(env, u, "meal", date, { pack: false, inNorm: inNorm(dayTotals(day).kcal, u.targets.kcal) });
-    await announce(env, u.id, fresh, u);
+    if (fresh.length) env.defer(announce(env, u.id, fresh, u).catch(() => console.error("Could not announce achievements")));
   } else {
     // Запись задним числом: серию и счётчики пересчитываем по истории
     delete u.st;
@@ -3128,9 +3343,8 @@ async function addAppMeal(env, u, date, title, items, source) {
 const plainText = (s) => String(s || "").replace(/<[^>]+>/g, "").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&amp;/g, "&");
 
 // Сводка за сегодня: виджеты, шапка приложения и живая синхронизация
-async function widgetPayload(env, u) {
-  const date = today(u);
-  const day = await getDay(env, u.id, date);
+async function widgetPayload(env, u, date = today(u), selectedDay = getDay(env, u.id, date)) {
+  const day = await selectedDay;
   const t = dayTotals(day);
   const pills = pillDoses(u, day);
   return {
@@ -3148,12 +3362,16 @@ async function widgetPayload(env, u) {
 }
 
 // День с неделей (Пн–Вс), в которую он входит: дневник и приложение
-async function dayPayload(env, u, date) {
+async function weekSnapshot(env, u, date) {
   const wd = (new Date(date + "T00:00:00Z").getUTCDay() + 6) % 7;
   const monday = shiftDate(date, -wd);
   const dates = [...Array(7)].map((_, i) => shiftDate(monday, i));
-  const [days, weights] = await Promise.all([Promise.all(dates.map((d) => getDay(env, u.id, d))), getWeights(env, u.id)]);
-  const day = days[dates.indexOf(date)];
+  const [days, weights] = await Promise.all([getDays(env, u.id, dates), getWeights(env, u.id)]);
+  return { dates, days, weights, selected: days[dates.indexOf(date)] };
+}
+
+async function dayPayload(env, u, date, snapshot = weekSnapshot(env, u, date)) {
+  const { dates, days, weights, selected: day } = await snapshot;
   const meals = day.meals.map((m) => ({ ...m, totals: sumItems(m.items), micro: sumMicro(m.items), items: m.items.map((it) => ({ ...it, totals: itemTotals(it), micro: sumMicro([it]) })) }));
   return {
     date,
@@ -3174,6 +3392,13 @@ async function dayPayload(env, u, date) {
   };
 }
 
+async function dashboardPayload(env, u) {
+  const date = today(u);
+  const snapshot = weekSnapshot(env, u, date);
+  const [widget, day] = await Promise.all([widgetPayload(env, u, date, snapshot.then((s) => s.selected)), dayPayload(env, u, date, snapshot)]);
+  return { widget, day };
+}
+
 // ───────────────────────────── Тренировки ─────────────────────────────
 //
 // Дневник тренировок из приложения: одна запись wo:<id> = { list: [тренировки], custom: [свои упражнения] }.
@@ -3187,12 +3412,12 @@ const WO_KINDS = ["w", "r", "t", "c"];
 const WO_EFFORTS = ["easy", "medium", "hard"];
 
 async function getWorkouts(env, id) {
-  const w = await env.DB.get(`wo:${id}`, "json");
+  const w = await env.DB.get(await accountKey(env, id, `wo:${id}`), "json");
   return { list: (w && w.list) || [], custom: (w && w.custom) || [] };
 }
 async function saveWorkouts(env, id, w) {
-  if (!w.list.length && !w.custom.length) return env.DB.delete(`wo:${id}`);
-  await env.DB.put(`wo:${id}`, JSON.stringify(w));
+  const key = await accountKey(env, id, `wo:${id}`);
+  await writeAccount(env, id, key, w.list.length || w.custom.length ? JSON.stringify(w) : null);
 }
 
 // Число из тела запроса в разумных пределах, иначе 0
@@ -3234,36 +3459,82 @@ async function live(env, uid) {
     if (!n) return; // приложение не открыто — не тратим чтения базы
     const u = await getUser(env, uid);
     if (!u || !u.targets) return;
-    const [widget, day] = await Promise.all([widgetPayload(env, u), dayPayload(env, u, today(u))]);
-    await stub.fetch("https://live/push", { method: "POST", body: JSON.stringify({ type: "sync", widget, day }) });
+    const dashboard = await dashboardPayload(env, u);
+    await stub.fetch("https://live/push", { method: "POST", body: JSON.stringify({ type: "sync", ...dashboard }) });
   } catch (e) {
     console.error("live error:", e && e.stack ? e.stack : e);
   }
 }
 
 export class Live {
-  constructor(ctx) {
+  constructor(ctx, env) {
     this.ctx = ctx;
+    this.env = env;
+    this.writeTail = Promise.resolve();
     // Пинг от приложения отвечаем, не будя объект: соединения живут почти бесплатно
     if (typeof WebSocketRequestResponsePair !== "undefined") ctx.setWebSocketAutoResponse(new WebSocketRequestResponsePair("ping", "pong"));
   }
 
   async fetch(request) {
-    if (request.headers.get("Upgrade") === "websocket") {
+    const path = new URL(request.url).pathname;
+    if (request.method === "POST" && !["/account/state", "/account/session", "/account/devices"].includes(path) || path === "/api/live") {
+      const result = this.writeTail.then(() => this.handle(request, path));
+      this.writeTail = result.catch(() => {});
+      return result;
+    }
+    return this.handle(request, path);
+  }
+
+  async closeRevokedSockets() {
+    const now = Date.now();
+    const sessions = (await this.ctx.storage.get("sessions")) || [];
+    const active = new Set(sessions.filter((s) => s.expires > now).map((s) => s.hash));
+    const sockets = [];
+    for (const socket of this.ctx.getWebSockets()) {
+      if (active.has(socket.deserializeAttachment()?.hash)) sockets.push(socket);
+      else { try { socket.close(1008, "Session expired"); } catch {} }
+    }
+    return sockets;
+  }
+
+  async handle(request, path) {
+    if (path === "/account/delete-data" && request.method === "POST") return purgeAccount(this.ctx, this.env, request);
+    if (path === "/api/live" && request.headers.get("Upgrade") === "websocket") {
+      const hash = request.headers.get("X-Fitter-Session");
+      const sessions = (await this.ctx.storage.get("sessions")) || [];
+      if (!sessions.some((s) => s.hash === hash && s.expires > Date.now())) return json({ error: "unauthorized" }, 401);
+      const active = await this.closeRevokedSockets();
+      if (active.filter((ws) => ws.deserializeAttachment()?.hash === hash).length >= 2) return json({ error: "too many sockets" }, 429);
       const pair = new WebSocketPair();
       this.ctx.acceptWebSocket(pair[1]);
+      pair[1].serializeAttachment({ hash });
       return new Response(null, { status: 101, webSocket: pair[0] });
     }
-    const path = new URL(request.url).pathname;
+    if (request.method === "POST" && (path.startsWith("/account/") || path.startsWith("/link/") || path === "/rate")) {
+      const res = await accountRequest(this.ctx, this.env, request);
+      if (res.ok && ["/account/erase", "/account/revoke", "/account/add-session"].includes(path)) await this.closeRevokedSockets();
+      if (res.ok && path === "/link/approve" && this.ctx.storage.setAlarm) await this.ctx.storage.setAlarm(Date.now() + LINK_TTL * 1000);
+      if (res.ok && path === "/rate" && this.ctx.storage.setAlarm) await this.ctx.storage.setAlarm(Date.now() + 120000);
+      return res;
+    }
+    if (path === "/day" || path === "/days" || path === "/erase-days") return diaryRequest(this.ctx, this.env, request);
     if (path === "/count") return new Response(String(this.ctx.getWebSockets().length));
     if (path === "/push") {
       const msg = await request.text();
-      for (const ws of this.ctx.getWebSockets()) {
+      for (const ws of await this.closeRevokedSockets()) {
         try { ws.send(msg); } catch {}
       }
       return new Response("ok");
     }
     return new Response("not found", { status: 404 });
+  }
+
+  async alarm() {
+    const purge = await this.ctx.storage.get("purge");
+    if (purge) {
+      const res = await this.fetch(new Request("https://live/account/delete-data", { method: "POST", body: JSON.stringify(purge) }));
+      if (!res.ok) throw new Error("Account purge failed");
+    } else await this.ctx.storage.delete(["link", "rate"]);
   }
 
   async webSocketMessage() {}
@@ -3275,19 +3546,19 @@ export class Live {
 
 async function api(request, url, env) {
   if (url.pathname.startsWith("/api/link/")) return linkApi(request, url, env);
-  const uid = await apiUserId(request, env);
-  if (!uid) return json({ error: "unauthorized" }, 401);
+  const auth = await apiAuth(request, env);
+  if (!auth) return json({ error: "unauthorized" }, 401);
+  const { uid, hash } = auth;
+  env.authHash = hash;
   env.liveUid = uid;
   const u = await getUser(env, uid);
   if (!u || !u.targets) return json({ error: "no_profile" }, 404);
 
   // Выход из приложения: токен больше не работает
   if (url.pathname === "/api/logout" && request.method === "POST") {
-    const m = (request.headers.get("Authorization") || "").match(/^Bearer (ft_[0-9a-f]{64})$/);
-    if (!m) return json({ error: "no token" }, 400);
-    const h = await sha256(m[1]);
-    u.apps = (u.apps || []).filter((a) => a.h !== h);
-    await Promise.all([env.DB.delete(`tk:${h}`), saveUser(env, u)]);
+    if (!hash) return json({ error: "no token" }, 400);
+    const revoked = await accountCall(env, uid, "account/revoke", { hash, epoch: u.epoch || 0 });
+    if (!revoked.ok) return json({ error: "unauthorized" }, 401);
     return json({ ok: true });
   }
 
@@ -3295,20 +3566,26 @@ async function api(request, url, env) {
   if (url.pathname === "/api/live") {
     if (!env.LIVE) return json({ error: "no live" }, 501);
     if (request.headers.get("Upgrade") !== "websocket") return json({ error: "websocket only" }, 426);
-    return env.LIVE.get(env.LIVE.idFromName(String(u.id))).fetch(request);
+    if (!hash) return json({ error: "unauthorized" }, 401);
+    const headers = new Headers(request.headers);
+    headers.set("X-Fitter-Session", hash);
+    return dayStub(env, uid).fetch(new Request(request, { headers }));
   }
 
   // Короткая сводка за сегодня для виджетов: одно чтение дня из базы
   if (url.pathname === "/api/widget" && request.method === "GET") return json(await widgetPayload(env, u));
+  if (url.pathname === "/api/dashboard" && request.method === "GET") return json(await dashboardPayload(env, u));
 
   if (url.pathname === "/api/day" && request.method === "GET") {
-    return json(await dayPayload(env, u, isDate(url.searchParams.get("date")) ? url.searchParams.get("date") : today(u)));
+    const date = url.searchParams.get("date");
+    if (date !== null && (!isDate(date) || date < "2024-01-01" || date > shiftDate(today(u), 1))) return json({ error: "bad date" }, 400);
+    return json(await dayPayload(env, u, date || today(u)));
   }
 
   // Советы ИИ в приложении: то, что уже подобрано, без новых запросов к нейросети
   if (url.pathname === "/api/tips" && request.method === "GET") {
     const date = today(u);
-    const [adv, an] = await Promise.all([env.DB.get(`adv:${u.id}`, "json"), env.DB.get(`an:${u.id}:${date}`, "json")]);
+    const [adv, an] = await Promise.all([env.DB.get(await accountKey(env, u.id, `adv:${u.id}`), "json"), env.DB.get(await accountKey(env, u.id, `an:${u.id}:${date}`), "json")]);
     return json({ advice: adv && adv.date === date ? advicePayload(adv) : null, analysis: an || null });
   }
 
@@ -3317,8 +3594,8 @@ async function api(request, url, env) {
 
   if (request.method === "POST") {
     // Фото приходит в теле запроса (base64), поэтому ограничиваем размер до чтения
-    if (Number(request.headers.get("content-length") || 0) > MAX_IMAGE_BYTES * 1.4) return json({ error: "too big" }, 413);
-    const body = await request.json().catch(() => ({}));
+    const limit = url.pathname === "/api/meal/photo" ? Math.ceil(MAX_IMAGE_BYTES * 1.4) : 256 * 1024;
+    const body = await readJson(request, limit);
     // Язык бота и приложения: один на аккаунт, общий для Telegram, дневника и Android
     if (url.pathname === "/api/lang") {
       if (body.lang !== "en" && body.lang !== "ru") return json({ error: "bad lang" }, 400);
@@ -3408,8 +3685,7 @@ async function api(request, url, env) {
       const text = String(body.text || "").trim().slice(0, 500);
       if (text.length < 2) return json({ error: "empty" }, 400);
       if (body.date > today(u)) return json({ error: "future" }, 400);
-      if (!checkAiLimit(env, u)) return json({ error: "limit" }, 429);
-      await saveUser(env, u);
+      if (!await checkAiLimit(env, u)) return json({ error: "limit" }, 429);
       let res;
       try {
         res = await askText(env, u, text, body.date);
@@ -3428,7 +3704,7 @@ async function api(request, url, env) {
       if (image.length < 100 || !/^[A-Za-z0-9+/]+={0,2}$/.test(image)) return json({ error: "bad image" }, 400);
       if (image.length > MAX_IMAGE_BYTES * 1.37) return json({ error: "too big" }, 413);
       if (body.date > today(u)) return json({ error: "future" }, 400);
-      if (!checkAiLimit(env, u)) return json({ error: "limit" }, 429);
+      if (!await checkAiLimit(env, u)) return json({ error: "limit" }, 429);
       await saveUser(env, u);
       let r;
       try {
@@ -3443,7 +3719,7 @@ async function api(request, url, env) {
 
     // «Что съесть»: новые варианты от нейросети
     if (url.pathname === "/api/advice") {
-      if (!checkAiLimit(env, u)) return json({ error: "limit" }, 429);
+      if (!await checkAiLimit(env, u)) return json({ error: "limit" }, 429);
       await saveUser(env, u);
       let a;
       try {
@@ -3458,14 +3734,16 @@ async function api(request, url, env) {
 
     // Полный рецепт варианта
     if (url.pathname === "/api/advice/recipe") {
-      const saved = await env.DB.get(`adv:${u.id}`, "json");
-      const o = saved?.date === today(u) ? saved.options[Number(body.i)] : null;
+      const saved = await env.DB.get(await accountKey(env, u.id, `adv:${u.id}`), "json");
+      const i = Number(body.i);
+      const o = saved?.date === today(u) ? saved.options[i] : null;
       if (!o) return json({ error: "expired" }, 410);
-      if (!saved.recipes?.[Number(body.i)] && !checkAiLimit(env, u)) return json({ error: "limit" }, 429);
+      if (saved.recipes?.[i]) return json(saved.recipes[i]);
+      if (!await checkAiLimit(env, u)) return json({ error: "limit" }, 429);
       await saveUser(env, u);
       let recipe;
       try {
-        recipe = await makeRecipe(env, u, saved, Number(body.i));
+        recipe = await makeRecipe(env, u, saved, i);
       } catch (e) {
         console.error("app recipe error:", e && e.stack ? e.stack : e);
         return json({ error: "ai" }, 502);
@@ -3476,10 +3754,10 @@ async function api(request, url, env) {
 
     // Похожие блюда на выбранный вариант: заменяют текущий список вариантов
     if (url.pathname === "/api/advice/similar") {
-      const saved = await env.DB.get(`adv:${u.id}`, "json");
+      const saved = await env.DB.get(await accountKey(env, u.id, `adv:${u.id}`), "json");
       const o = saved?.date === today(u) ? saved.options[Number(body.i)] : null;
       if (!o) return json({ error: "expired" }, 410);
-      if (!checkAiLimit(env, u)) return json({ error: "limit" }, 429);
+      if (!await checkAiLimit(env, u)) return json({ error: "limit" }, 429);
       await saveUser(env, u);
       let a;
       try {
@@ -3494,10 +3772,10 @@ async function api(request, url, env) {
 
     // «Съел этот вариант» — записываем в дневник
     if (url.pathname === "/api/advice/eat") {
-      const saved = await env.DB.get(`adv:${u.id}`, "json");
+      const saved = await env.DB.get(await accountKey(env, u.id, `adv:${u.id}`), "json");
       const o = saved?.date === today(u) ? saved.options[Number(body.i)] : null;
       if (!o) return json({ error: "expired" }, 410);
-      await env.DB.delete(`adv:${u.id}`);
+      await writeAccount(env, u.id, await accountKey(env, u.id, `adv:${u.id}`), null);
       return json(await addAppMeal(env, u, today(u), o.title, o.items, "advice"));
     }
 
@@ -3554,7 +3832,7 @@ async function api(request, url, env) {
       const idx = Number(body.idx);
       const name = String(body.name || "").trim().slice(0, 60);
       if (!meal.items[idx] || !name) return json({ error: "bad name" }, 400);
-      if (!checkAiLimit(env, u)) return json({ error: "limit" }, 429);
+      if (!await checkAiLimit(env, u)) return json({ error: "limit" }, 429);
       await saveUser(env, u);
       try {
         await recalcItem(env, meal, idx, name, null);
@@ -3579,9 +3857,8 @@ async function api(request, url, env) {
 
 // ───────────────────────────── Первичная настройка ─────────────────────────────
 
-// Секрет вводится в форме и уходит POST-запросом: в адресе, истории браузера и логах его нет.
-// Можно задать отдельный секрет SETUP_SECRET, иначе подходит WEBHOOK_SECRET
 async function setup(request, env) {
+  if (!env.SETUP_SECRET || env.SETUP_SECRET.length < 24 || env.SETUP_SECRET === env.WEBHOOK_SECRET) return new Response("not found", { status: 404 });
   // Страница настройки — на языке браузера: русский для ru, иначе английский
   const ruPage = /^\s*ru\b/i.test(request.headers.get("accept-language") || "");
   const R = (ru, en) => (ruPage ? ru : en);
@@ -3596,9 +3873,11 @@ async function setup(request, env) {
   const form =
     `<form method="post" action="/setup"><p><input type="password" name="secret" placeholder="${R("Секрет", "Secret")}" autocomplete="off" required ` +
     `style="font:inherit;padding:8px;width:100%;box-sizing:border-box"></p><p><button style="font:inherit;padding:8px 16px">${R("Настроить бота", "Set up the bot")}</button></p></form>`;
-  if (request.method !== "POST") return page([], `<p>${R("Введи", "Enter")} ${env.SETUP_SECRET ? "SETUP_SECRET" : "WEBHOOK_SECRET"}:</p>` + form);
-  const fd = await request.formData().catch(() => null);
-  if (!safeEqual(fd && fd.get("secret"), env.SETUP_SECRET || env.WEBHOOK_SECRET)) {
+  if (request.method === "GET") return page([], `<p>${R("Введи", "Enter")} SETUP_SECRET:</p>` + form);
+  if (request.method !== "POST") return new Response("method not allowed", { status: 405 });
+  if (!await requestAllowed(env, request, "setup", 10)) return new Response("too many requests", { status: 429 });
+  const fd = new URLSearchParams(await readBody(request, 4096));
+  if (!safeEqual(fd.get("secret"), env.SETUP_SECRET)) {
     return page([[false, R("Неверный секрет", "Wrong secret")]], form, 403);
   }
   const rows = [];
@@ -3617,7 +3896,6 @@ async function setup(request, env) {
     url: `${env.ORIGIN}/webhook`,
     secret_token: env.WEBHOOK_SECRET,
     allowed_updates: ["message", "callback_query"],
-    drop_pending_updates: true,
   });
   rows.push([wh.ok, wh.ok ? R("Webhook подключён — бот получает сообщения", "Webhook connected — the bot receives messages") : `Webhook: ${esc(wh.description || R("ошибка", "error"))}`]);
 
@@ -3637,6 +3915,7 @@ async function setup(request, env) {
     ["lang", "Language: English / Русский", "Язык: English / Русский"],
     ["help", "How to use", "Как пользоваться"],
     ["reset", "Redo the questionnaire", "Пройти анкету заново"],
+    ["devices", "Manage connected devices", "Управлять подключёнными устройствами"],
     ["delete", "Delete my data", "Удалить мои данные"],
   ];
   const cmds = await tg(env, "setMyCommands", { commands: COMMANDS.map(([command, description]) => ({ command, description })) });
@@ -3867,6 +4146,7 @@ const APP_HTML = `<!doctype html>
   .addm textarea::placeholder{color:var(--hint)}
   .addb{flex:none;width:44px;height:44px;border-radius:50%;background:var(--text);color:var(--bg);font-size:26px;font-weight:600;line-height:1}
   .addm.busy .addb{font-size:0}
+  #root[aria-busy="true"]{opacity:.7}
   .addm.busy .addb:after{content:"";display:block;width:18px;height:18px;margin:auto;border:3px solid rgba(127,127,127,.4);border-top-color:var(--bg);border-radius:50%;animation:spin .8s linear infinite}
   @keyframes spin{to{transform:rotate(360deg)}}
   .addh{margin:8px 10px 12px;color:var(--hint);font-size:12px}
@@ -3966,7 +4246,7 @@ const APP_HTML = `<!doctype html>
     setTimeout(function(){ el.classList.remove("tt"); }, 350);
   };
 
-  var initData = tg ? tg.initData : "";
+  var initData = tg ? tg.initData : "", miniSession = "";
   // Язык: сначала выбор на этом устройстве, иначе язык Telegram; когда придут данные, берём язык аккаунта
   var LANG = "en";
   try {
@@ -4076,25 +4356,49 @@ const APP_HTML = `<!doctype html>
   function once(key){ try { if (localStorage.getItem(key)) return false; localStorage.setItem(key, "1"); } catch(e){} return true; }
 
   var inflight = 0;
-  function call(method, path, body){
+  function call(method, path, body, signal){
     inflight++;
     var done = function(){ inflight--; };
-    return fetch(path, { method: method, headers: { "X-Init-Data": initData, "content-type": "application/json" }, body: body ? JSON.stringify(body) : undefined })
-      .then(function(res){ return res.json().then(function(j){ if (!res.ok) throw j; return j; }); })
+    var headers = { "content-type": "application/json" };
+    if (miniSession) headers["X-Fitter-Mini"] = miniSession; else headers["X-Init-Data"] = initData;
+    return fetch(path, { method: method, headers: headers, body: body ? JSON.stringify(body) : undefined, signal: signal })
+      .then(function(res){
+        var session = res.headers.get("X-Fitter-Mini");
+        if (session) { miniSession = session; initData = ""; }
+        return res.json().then(function(j){ if (!res.ok) throw j; return j; });
+      })
       .then(function(j){ done(); return j; }, function(e){ done(); throw e; });
   }
 
+  var navigation = null, requestedDate = null;
   function load(date){
-    call("GET", "/api/day" + (date ? "?date=" + date : "")).then(function(d){
+    if (navigation) navigation.abort();
+    var current = new AbortController();
+    navigation = current; requestedDate = date;
+    root.setAttribute("aria-busy", "true"); root.inert = true;
+    call("GET", "/api/day" + (date ? "?date=" + date : ""), null, current.signal).then(function(d){
+      if (navigation !== current) return;
       if (d.lang && d.lang !== LANG) { LANG = d.lang; try { localStorage.setItem("fitter_lang", LANG); } catch(e){} applyStatic(); }
       if (state.date !== d.date) state.pillMode = null;
       state.date = d.date; state.data = d; render();
     }).catch(function(e){
+      if (navigation !== current) return;
       var msg = e && e.error === "no_profile" ? T("Сначала пройди анкету в боте: нажми /start", "First complete the questionnaire in the bot: send /start") :
                 e && e.error === "unauthorized" ? T("Открой дневник через кнопку в боте FITTER", "Open the diary with the button in the FITTER bot") : T("Не получилось загрузить дневник. Попробуй ещё раз.", "Couldn't load the diary. Please try again.");
+      if (state.data && (!e || (e.error !== "no_profile" && e.error !== "unauthorized"))) {
+        if (tg && tg.showAlert) tg.showAlert(msg); else alert(msg);
+        return;
+      }
+      state.data = null; state.date = null;
       hero.innerHTML = ""; root.innerHTML = '<div class="err">' + msg + '</div>';
+    }).finally(function(){
+      if (navigation !== current) return;
+      navigation = null; requestedDate = null;
+      root.removeAttribute("aria-busy"); root.inert = false;
     });
   }
+
+  function isVisibleDate(date){ return state.date === date && (!navigation || requestedDate === date); }
 
   // Кольцо прогресса: дуга набегает через stroke-dashoffset (см. animateIn)
   function arcSvg(size, sw, val, max){
@@ -4439,8 +4743,13 @@ const APP_HTML = `<!doctype html>
     if (box.classList.contains("busy")) return;
     if (v.length < 2) { haptic("rigid"); ta.focus(); return; }
     box.classList.add("busy"); ta.disabled = true; btn.disabled = true; ta.blur(); haptic("medium");
-    call("POST", "/api/meal/add", { date: state.date, text: v })
-      .then(function(j){ notify("success"); state.flash = j.id; load(state.date); })
+    var date = state.date;
+    call("POST", "/api/meal/add", { date: date, text: v })
+      .then(function(j){
+        notify("success"); ta.value = ""; grow(ta);
+        box.classList.remove("busy"); ta.disabled = false; btn.disabled = false;
+        if (isVisibleDate(date)) { state.flash = j.id; load(date); }
+      })
       .catch(function(err){
         box.classList.remove("busy"); ta.disabled = false; btn.disabled = false; notify("error");
         var msg = err && err.error === "limit" ? T("На сегодня лимит запросов к нейросети закончился", "You've used up today's AI requests") :
@@ -4452,7 +4761,7 @@ const APP_HTML = `<!doctype html>
   function grow(ta){ ta.style.height = "auto"; ta.style.height = Math.min(120, ta.scrollHeight) + "px"; }
 
   function rename(el){
-    var old = el.textContent, mealId = el.dataset.meal, idx = Number(el.dataset.idx);
+    var date = state.date, old = el.textContent, mealId = el.dataset.meal, idx = Number(el.dataset.idx);
     var inp = document.createElement("input");
     inp.className = "ren"; inp.value = old; inp.placeholder = T("Например: форель", "For example: trout");
     el.replaceWith(inp); inp.focus(); inp.select();
@@ -4460,14 +4769,14 @@ const APP_HTML = `<!doctype html>
     function finish(save){
       if (done) return; done = true;
       var v = inp.value.trim();
-      if (!save || !v || v === old) { load(state.date); return; }
+      if (!save || !v || v === old) { if (isVisibleDate(date)) inp.replaceWith(el); return; }
       inp.disabled = true; inp.value = T("Пересчитываю…", "Recalculating…");
-      call("POST", "/api/item/rename", { date: state.date, mealId: mealId, idx: idx, name: v })
-        .then(function(){ notify("success"); load(state.date); })
+      call("POST", "/api/item/rename", { date: date, mealId: mealId, idx: idx, name: v })
+        .then(function(){ notify("success"); if (isVisibleDate(date)) load(date); })
         .catch(function(err){
           var msg = err && err.error === "limit" ? T("На сегодня лимит запросов к нейросети закончился", "You've used up today's AI requests") : T("Не получилось пересчитать, попробуй ещё раз", "Couldn't recalculate, please try again");
           if (tg && tg.showAlert) tg.showAlert(msg); else alert(msg);
-          load(state.date);
+          if (isVisibleDate(date)) inp.replaceWith(el);
         });
     }
     inp.addEventListener("keydown", function(e){ if (e.key === "Enter") finish(true); if (e.key === "Escape") finish(false); });
@@ -4485,9 +4794,9 @@ const APP_HTML = `<!doctype html>
     if (b.dataset.date) { tick(); load(b.dataset.date); }
     if (b.dataset.w) addWater(b);
     if (b.dataset.del) {
-      var id = b.dataset.del;
+      var date = state.date, id = b.dataset.del;
       haptic("rigid");
-      var go = function(){ call("POST", "/api/meal/delete", { date: state.date, mealId: id }).then(function(){ notify("warning"); load(state.date); }); };
+      var go = function(){ call("POST", "/api/meal/delete", { date: date, mealId: id }).then(function(){ notify("warning"); if (isVisibleDate(date)) load(date); }); };
       if (tg && tg.showConfirm) tg.showConfirm(T("Удалить этот приём пищи?", "Delete this meal?"), function(ok){ if (ok) go(); }); else if (confirm(T("Удалить?", "Delete?"))) go();
     }
   }
@@ -4504,11 +4813,17 @@ const APP_HTML = `<!doctype html>
     if (!inp.dataset.meal) return;
     var g = Number(inp.value);
     if (!(g > 0 && g <= 3000)) { load(state.date); return; }
-    call("POST", "/api/item/edit", { date: state.date, mealId: inp.dataset.meal, idx: Number(inp.dataset.idx), grams: g })
-      .then(function(){ notify("success"); load(state.date); });
+    var date = state.date;
+    call("POST", "/api/item/edit", { date: date, mealId: inp.dataset.meal, idx: Number(inp.dataset.idx), grams: g })
+      .then(function(){ notify("success"); if (isVisibleDate(date)) load(date); });
   });
-  document.getElementById("prev").onclick = function(){ if (state.date) { tick(); load(shift(state.date, -1)); } };
-  document.getElementById("next").onclick = function(){ if (state.date) { tick(); load(shift(state.date, 1)); } };
+  function moveDate(delta){
+    if (!state.data) return;
+    var date = shift(requestedDate || state.date, delta);
+    if (date <= state.data.today) { tick(); load(date); }
+  }
+  document.getElementById("prev").onclick = function(){ moveDate(-1); };
+  document.getElementById("next").onclick = function(){ moveDate(1); };
 
   // Синхронизация с чатом: отметки таблеток, вода и записи из бота появляются без перезапуска дневника
   function sync(){

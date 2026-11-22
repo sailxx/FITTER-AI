@@ -100,9 +100,9 @@
   <h2>6. How data is protected</h2>
   <ul>
     <li>The bot accepts requests only from Telegram, with a secret key.</li>
-    <li>The diary verifies Telegram's signature, so nobody else's diary can be opened. The signature is valid for no more than a day.</li>
-    <li>The Fitter Android app signs in to the diary only after you confirm the sign-in with a button in the bot. It gets its own access key; the server stores not the key itself but its hash. The key stops working after you sign out of the app or delete your data with <code>/delete</code>. Up to 5 phones can be connected; on the sixth, the oldest sign-in is disconnected.</li>
-    <li>The app stores on the phone only its access key and a copy of today's summary, so that widgets open without the internet. It requests no permissions except internet access. After you sign out, all of this is erased.</li>
+    <li>The Mini App verifies a fresh Telegram signature and exchanges it for a 15-minute diary session.</li>
+    <li>To sign in on Android, confirm the request in the bot and enter its one-time code in the app. The access key lasts 30 days. The server stores the key hash, device name and sign-in time. Revoke access with <code>/devices</code>, by signing out, or by deleting your data with <code>/delete</code>. Signing in on a sixth device closes the oldest session.</li>
+    <li>Android stores an encrypted key and local copies of the diary, summary and workouts. Signing out clears this cache. Android may ask permission to show reminder notifications.</li>
     <li>While the app is open it holds a secure connection to the server so that entries from the bot appear instantly. Only your day's summary is sent over it, and the connection closes together with the app.</li>
     <li>Access keys are kept in Cloudflare's protected settings, not in the code.</li>
   </ul>
@@ -111,7 +111,7 @@
   <ul>
     <li><b>View</b> your data — in the diary and the bot commands.</li>
     <li><b>Correct</b> — edit entries in the diary, redo the questionnaire with <code>/reset</code>.</li>
-    <li><b>Delete</b> individual entries — in the diary; all your data at once — with the <code>/delete</code> command in the bot, immediately and irreversibly. If something didn't work, write to the author on <a href="https://t.me/arkhitkovv">Telegram</a>.</li>
+    <li><b>Delete</b> individual entries in the diary, or the full account with <code>/delete</code> in the bot. After confirmation, the server revokes access and clears account data. Manage your chat history separately in Telegram. If something didn't work, contact the author on <a href="https://t.me/arkhitkovv">Telegram</a>.</li>
     <li><b>Turn off</b> reminders — in the bot settings. To stop the bot from writing to you at all, block it in Telegram.</li>
   </ul>
 

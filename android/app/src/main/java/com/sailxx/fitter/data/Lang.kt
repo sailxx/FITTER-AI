@@ -1,5 +1,6 @@
 package com.sailxx.fitter.data
 
+import androidx.core.content.edit
 import android.content.Context
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -31,7 +32,7 @@ object Lang {
 
     fun set(context: Context, c: String) {
         if (c != "ru" && c != "en") return
-        prefs(context).edit().putString("lang", c).apply()
+        prefs(context).edit { putString("lang", c) }
         changedAt = System.currentTimeMillis()
         code = c
     }
@@ -40,7 +41,7 @@ object Lang {
     fun fromServer(context: Context, c: String?) {
         if (c != "ru" && c != "en") return
         if (c == code || System.currentTimeMillis() - changedAt < HOLD_MS) return
-        prefs(context).edit().putString("lang", c).apply()
+        prefs(context).edit { putString("lang", c) }
         code = c
     }
 

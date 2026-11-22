@@ -379,7 +379,7 @@ private fun RemindersScreen(onBack: () -> Unit) {
                 Column(Modifier.padding(16.dp)) {
                     Text(tr("Уведомления выключены", "Notifications are off"), color = Palette.Danger, fontWeight = FontWeight.Bold)
                     Text(tr("Без разрешения напоминания не придут. Включи уведомления для Fitter в настройках телефона.", "Without permission, reminders won't arrive. Turn on notifications for Fitter in your phone settings."), color = t.hint, fontSize = 13.sp, lineHeight = 17.sp, modifier = Modifier.padding(top = 4.dp, bottom = 12.dp))
-                    SoftButton(tr("Открыть настройки уведомлений", "Open notification settings")) {
+                    SoftButton(tr("Открыть настройки уведомлений", "Open notification settings"), Modifier.fillMaxWidth()) {
                         context.startActivity(Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
                     }
                 }
@@ -433,7 +433,7 @@ private fun RemindersScreen(onBack: () -> Unit) {
 
         if (s.any) item {
             Spacer(Modifier.height(24.dp))
-            PrimaryButton(tr("Прислать пример уведомления", "Send a sample notification")) {
+            PrimaryButton(tr("Прислать пример уведомления", "Send a sample notification"), Modifier.fillMaxWidth()) {
                 if (!allowed && Build.VERSION.SDK_INT >= 33) ask.launch(Manifest.permission.POST_NOTIFICATIONS) else Reminders.test(context)
             }
         }

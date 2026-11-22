@@ -3,10 +3,11 @@ package com.sailxx.fitter.ui
 import com.sailxx.fitter.data.tr
 import android.content.Context
 import android.content.Intent
-import android.net.Uri
+import androidx.core.net.toUri
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.SystemBarStyle
+import androidx.activity.compose.LocalActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.annotation.DrawableRes
@@ -107,7 +108,7 @@ object Launch {
 }
 
 fun openUrl(context: Context, url: String) {
-    context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+    context.startActivity(Intent(Intent.ACTION_VIEW, url.toUri()).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
 }
 
 class MainActivity : ComponentActivity() {
@@ -162,7 +163,7 @@ class MainActivity : ComponentActivity() {
     // Каждый раз при открытии подтягиваем свежие данные: пока приложение было свёрнуто, могли что-то записать
     override fun onResume() {
         super.onResume()
-        if (FitterRepository.token(this) != null) lifecycleScope.launch { FitterRepository.refresh(this@MainActivity) }
+        if (FitterRepository.token(this) != null) lifecycleScope.launch { FitterRepository.refresh(this@MainActivity, reuseRecent = true) }
     }
 }
 
@@ -203,7 +204,7 @@ private fun Home(st: AppState) {
 private fun StatusBarIcons() {
     val dark = LocalTokens.current.dark
     val view = LocalView.current
-    val window = (LocalContext.current as? android.app.Activity)?.window ?: return
+    val window = LocalActivity.current?.window ?: return
     DisposableEffect(dark) {
         WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = !dark
         onDispose { WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = true }

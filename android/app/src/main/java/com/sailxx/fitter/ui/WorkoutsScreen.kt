@@ -201,7 +201,7 @@ private fun WorkoutList(list: List<Workout>, loaded: Boolean, today: String, onN
             }
         }
         item {
-            Box(Modifier.padding(horizontal = Side).padding(top = Gap).rise(60)) { PrimaryButton(tr("＋ Новая тренировка", "＋ New workout"), onClick = onNew) }
+            Box(Modifier.padding(horizontal = Side).padding(top = Gap).rise(60)) { PrimaryButton(tr("＋ Новая тренировка", "＋ New workout"), Modifier.fillMaxWidth(), onClick = onNew) }
         }
         if (list.isEmpty() && loaded) {
             item {
@@ -351,7 +351,7 @@ private fun WorkoutEditor(d: Draft, history: List<Workout>, custom: List<Exercis
             error?.let { item { Text(it, color = Palette.Danger, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(horizontal = 20.dp, vertical = 4.dp)) } }
         }
         Box(Modifier.align(Alignment.BottomCenter).fillMaxWidth().background(t.bg).navigationBarsPadding().imePadding().padding(horizontal = Side, vertical = 12.dp)) {
-            PrimaryButton(if (busy) tr("Сохраняю…", "Saving…") else tr("Сохранить тренировку", "Save workout")) { if (!busy) save() }
+            PrimaryButton(if (busy) tr("Сохраняю…", "Saving…") else tr("Сохранить тренировку", "Save workout"), Modifier.fillMaxWidth()) { if (!busy) save() }
         }
     }
 
@@ -625,7 +625,7 @@ private fun CustomForm(initialName: String, initialGroup: String, onCancel: () -
         item { Chips(GROUPS, group, ::groupLabel) { group = if (group == it) "" else it } }
         error?.let { item { Text(it, color = Palette.Danger, fontWeight = FontWeight.SemiBold) } }
         item {
-            PrimaryButton(if (busy) tr("Сохраняю…", "Saving…") else tr("Добавить", "Add")) {
+            PrimaryButton(if (busy) tr("Сохраняю…", "Saving…") else tr("Добавить", "Add"), Modifier.fillMaxWidth()) {
                 if (busy) return@PrimaryButton
                 if (name.trim().length < 2) { error = tr("Напиши название", "Enter a name"); return@PrimaryButton }
                 busy = true

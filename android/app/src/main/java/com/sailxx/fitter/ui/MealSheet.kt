@@ -176,7 +176,7 @@ fun MealSheet(m: Meal, onClose: () -> Unit, onDeleteMeal: () -> Unit) {
                 tr("Меняешь вес — калории и БЖУ пересчитываются сами, их можно поправить вручную. «Пересчитать ИИ» подберёт КБЖУ по новому названию.", "Change the weight and calories and macros recalculate on their own; you can also edit them by hand. “Recalculate with AI” picks the values for a new name."),
                 fontSize = 12.sp, color = t.hint, lineHeight = 16.sp,
             )
-            SoftButton(tr("Удалить приём пищи", "Delete meal"), color = Palette.Danger) { onDeleteMeal(); onClose() }
+            SoftButton(tr("Удалить приём пищи", "Delete meal"), Modifier.fillMaxWidth(), color = Palette.Danger) { onDeleteMeal(); onClose() }
         }
     }
 }
