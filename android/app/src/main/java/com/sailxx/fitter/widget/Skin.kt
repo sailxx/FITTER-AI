@@ -1,5 +1,7 @@
 package com.sailxx.fitter.widget
 
+import androidx.core.graphics.createBitmap
+import androidx.core.graphics.withClip
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.Canvas
@@ -52,7 +54,7 @@ fun skinOf(dark: Boolean, look: WidgetLook): Skin {
 
 /** Фон виджета картинкой: скругление и прозрачность из настроек работают на любой версии Android. */
 fun bgBitmap(s: Skin, wPx: Int, hPx: Int, density: Float): Bitmap {
-    val bmp = Bitmap.createBitmap(wPx.coerceAtLeast(1), hPx.coerceAtLeast(1), Bitmap.Config.ARGB_8888)
+    val bmp = createBitmap(wPx.coerceAtLeast(1), hPx.coerceAtLeast(1))
     val c = Canvas(bmp)
     val a = s.look.opacity / 100f
     val r = s.look.corners * density
@@ -75,7 +77,7 @@ private fun paint(c: Color, stroke: Float = 0f) = Paint(Paint.ANTI_ALIAS_FLAG).a
 
 /** Кольцо: дорожка и дуга с круглыми концами. При превышении нормы дуга оранжевая. */
 fun ringBitmap(g: Skin, progress: Float, sizePx: Int, strokePx: Float, color: Color? = null): Bitmap {
-    val bmp = Bitmap.createBitmap(sizePx, sizePx, Bitmap.Config.ARGB_8888)
+    val bmp = createBitmap(sizePx, sizePx)
     val c = Canvas(bmp)
     val pad = strokePx / 2 + 1
     val r = RectF(pad, pad, sizePx - pad, sizePx - pad)
@@ -87,7 +89,7 @@ fun ringBitmap(g: Skin, progress: Float, sizePx: Int, strokePx: Float, color: Co
 
 /** Полоска прогресса со скруглёнными концами. */
 fun barBitmap(g: Skin, progress: Float, color: Color, wPx: Int, hPx: Int): Bitmap {
-    val bmp = Bitmap.createBitmap(wPx.coerceAtLeast(1), hPx.coerceAtLeast(1), Bitmap.Config.ARGB_8888)
+    val bmp = createBitmap(wPx.coerceAtLeast(1), hPx.coerceAtLeast(1))
     val c = Canvas(bmp)
     val rad = hPx / 2f
     c.drawRoundRect(RectF(0f, 0f, wPx.toFloat(), hPx.toFloat()), rad, rad, paint(g.trk))
@@ -98,7 +100,7 @@ fun barBitmap(g: Skin, progress: Float, color: Color, wPx: Int, hPx: Int): Bitma
 
 /** Стаканчики воды по 250 мл: залитые и пустые. */
 fun cupsBitmap(g: Skin, on: Int, all: Int, color: Color, cupW: Int, cupH: Int, gap: Int): Bitmap {
-    val bmp = Bitmap.createBitmap((all * cupW + (all - 1) * gap).coerceAtLeast(1), cupH, Bitmap.Config.ARGB_8888)
+    val bmp = createBitmap((all * cupW + (all - 1) * gap).coerceAtLeast(1), cupH)
     val c = Canvas(bmp)
     for (i in 0 until all) {
         val x = i * (cupW + gap).toFloat()
@@ -112,7 +114,7 @@ fun cupsBitmap(g: Skin, on: Int, all: Int, color: Color, cupW: Int, cupH: Int, g
 
 /** Стакан с водой и волной сверху. */
 fun glassBitmap(level: Float, color: Color, wPx: Int, hPx: Int): Bitmap {
-    val bmp = Bitmap.createBitmap(wPx, hPx, Bitmap.Config.ARGB_8888)
+    val bmp = createBitmap(wPx, hPx)
     val c = Canvas(bmp)
     val sw = wPx * 0.065f
     val outline = Path().apply {
@@ -120,25 +122,24 @@ fun glassBitmap(level: Float, color: Color, wPx: Int, hPx: Int): Bitmap {
         quadTo(wPx * 0.8f, hPx - sw / 2, wPx * 0.7f, hPx - sw / 2); lineTo(wPx * 0.3f, hPx - sw / 2)
         quadTo(wPx * 0.2f, hPx - sw / 2, wPx * 0.18f, hPx - sw * 1.5f); close()
     }
-    c.save()
-    c.clipPath(outline)
-    c.drawColor(color.copy(alpha = 0.16f).toArgb())
-    val top = sw + (hPx - sw * 2) * (1f - level.coerceIn(0f, 1f) * 0.92f)
-    val wave = Path().apply {
-        moveTo(0f, hPx.toFloat())
-        var x = 0f
-        while (x <= wPx) { lineTo(x, top + sin(x / wPx * 2 * PI.toFloat() * 1.3f) * hPx * 0.03f); x += 1f }
-        lineTo(wPx.toFloat(), hPx.toFloat()); close()
+    c.withClip(outline) {
+        drawColor(color.copy(alpha = 0.16f).toArgb())
+        val top = sw + (hPx - sw * 2) * (1f - level.coerceIn(0f, 1f) * 0.92f)
+        val wave = Path().apply {
+            moveTo(0f, hPx.toFloat())
+            var x = 0f
+            while (x <= wPx) { lineTo(x, top + sin(x / wPx * 2 * PI.toFloat() * 1.3f) * hPx * 0.03f); x += 1f }
+            lineTo(wPx.toFloat(), hPx.toFloat()); close()
+        }
+        drawPath(wave, paint(color.copy(alpha = 0.92f)))
     }
-    c.drawPath(wave, paint(color.copy(alpha = 0.92f)))
-    c.restore()
     c.drawPath(outline, paint(color, sw).apply { strokeJoin = Paint.Join.ROUND })
     return bmp
 }
 
 /** Неделя: столбики калорий, пунктир нормы, сегодняшний день обведён. */
 fun weekBitmap(g: Skin, kcal: List<Int>, goal: Int, todayIdx: Int, wPx: Int, hPx: Int, density: Float): Bitmap {
-    val bmp = Bitmap.createBitmap(wPx.coerceAtLeast(1), hPx.coerceAtLeast(1), Bitmap.Config.ARGB_8888)
+    val bmp = createBitmap(wPx.coerceAtLeast(1), hPx.coerceAtLeast(1))
     val c = Canvas(bmp)
     val top = maxOf(goal * 1.2f, (kcal.maxOrNull() ?: 0).toFloat(), 1f)
     val col = wPx / 7f

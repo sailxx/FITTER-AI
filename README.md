@@ -51,6 +51,7 @@
 | `/awards` · `/analysis` | Achievements and AI weekly review |
 | `/app` | Open the diary |
 | `/reset` · `/help` | Retake the survey and help |
+| `/devices` | View and disconnect signed-in Android devices |
 | `/delete` | Delete all your data |
 
 </div>
@@ -68,7 +69,7 @@ sequenceDiagram
     participant T as Telegram
     participant W as FITTER (Cloudflare Worker)
     participant G as Google Gemini
-    participant D as Cloudflare KV
+    participant D as Diary storage
 
     U->>T: Photo of a meal
     T->>W: Webhook
@@ -86,7 +87,7 @@ sequenceDiagram
 | Interface | Telegram Bot API + Mini App | Everyone already has Telegram, nothing to download |
 | Server | Cloudflare Workers | Free, 24/7, no servers to manage |
 | AI | Google Gemini (Flash / Flash-Lite) | Understands photos, replies in strict JSON |
-| Database | Cloudflare KV | Free and built into Workers |
+| Database | Cloudflare Durable Objects and KV | Consistent diary writes and cached data |
 | Deploy | GitHub → Cloudflare Builds | Every commit ships to the server by itself |
 
 The whole server is a single file, [`worker.js`](worker.js), with zero dependencies.
@@ -111,6 +112,7 @@ More: [privacy policy](https://sailxx.github.io/FITTER-AI/privacy.html).
 - [x] **v2.6** New diary look, macro hints, week chart; redesigned water and pills in the bot
 - [x] **v3.0** Product: a standalone Android app with widgets
 - [x] **v3.8** English and Russian everywhere: bot, diary, Android app, widgets and website, with a language switch
+- [x] **v3.12** One-time Android sign-in codes, device revocation and faster diary sync
 
 Full history: [CHANGELOG.md](CHANGELOG.md) ([in Russian](CHANGELOG.ru.md)).
 

@@ -1,5 +1,6 @@
 package com.sailxx.fitter.notify
 
+import androidx.core.content.edit
 import com.sailxx.fitter.data.Lang
 import com.sailxx.fitter.data.tr
 import android.annotation.SuppressLint
@@ -153,7 +154,7 @@ object Reminders {
     suspend fun fire(context: Context, kind: Kind, time: String?) {
         val s = ReminderPrefs.load(context)
         if (FitterRepository.token(context) == null) return schedule(context)
-        if (kind == Kind.WATER) prefs(context).edit().remove("water_snooze").apply()
+        if (kind == Kind.WATER) prefs(context).edit { remove("water_snooze") }
         withTimeoutOrNull(7000) { FitterRepository.refresh(context) }
         val st = FitterRepository.load(context)
         when (kind) {
@@ -190,7 +191,7 @@ object Reminders {
     /** «Через 30 мин»: убрать уведомление и напомнить снова. */
     fun snoozeWater(context: Context) {
         cancel(context, ID_WATER)
-        prefs(context).edit().putLong("water_snooze", System.currentTimeMillis() + SNOOZE_MIN * 60_000).apply()
+        prefs(context).edit { putLong("water_snooze", System.currentTimeMillis() + SNOOZE_MIN * 60_000) }
         schedule(context)
     }
 
@@ -202,6 +203,11 @@ object Reminders {
         post(
             context, nid,
             base(context, CH_PILLS, R.drawable.ic_nav_pill, R.drawable.ic_pill, PILL_PINK)
+                .setVisibility(NotificationCompat.VISIBILITY_PRIVATE)
+                .setPublicVersion(NotificationCompat.Builder(context, CH_PILLS)
+                    .setSmallIcon(R.drawable.ic_nav_pill)
+                    .setContentTitle(tr("Напоминание Fitter", "Fitter reminder"))
+                    .build())
                 .setContentTitle(if (s == "taken") tr("Отметил: $name ✓", "Marked: $name ✓") else tr("Пропустил: $name", "Skipped: $name"))
                 .setContentText(if (s == "taken") tr("Так держать! Отметка уже в дневнике", "Keep it up! The mark is already in your diary") else tr("Отметка «пропущено» в дневнике", "“Skipped” is noted in your diary"))
                 .setOnlyAlertOnce(true)

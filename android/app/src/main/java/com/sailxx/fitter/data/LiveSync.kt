@@ -26,6 +26,7 @@ object LiveSync {
     private const val TAG = "FitterLive"
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val client = OkHttpClient.Builder()
+        .followRedirects(false)
         .pingInterval(25, TimeUnit.SECONDS)
         .readTimeout(0, TimeUnit.MILLISECONDS)
         .build()
@@ -46,7 +47,7 @@ object LiveSync {
             override fun onOpen(ws: WebSocket, response: Response) {
                 backoff = 2_000L
                 // Пока были отключены, могли что-то записать — подтягиваем один раз
-                scope.launch { FitterRepository.refresh(app) }
+                scope.launch { FitterRepository.refresh(app, reuseRecent = true) }
             }
 
             override fun onMessage(ws: WebSocket, text: String) {
@@ -54,7 +55,7 @@ object LiveSync {
                 if (j.optString("type") != "sync") return
                 val w = j.optJSONObject("widget") ?: return
                 val d = j.optJSONObject("day") ?: return
-                scope.launch { FitterRepository.applyLive(app, w, d) }
+                scope.launch { FitterRepository.applyLive(app, token, w, d) }
             }
 
             override fun onClosed(ws: WebSocket, code: Int, reason: String) = reconnect(app, ws)

@@ -1,5 +1,6 @@
 package com.sailxx.fitter.data
 
+import androidx.core.content.edit
 import android.content.Context
 import android.content.res.Configuration
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -29,7 +30,7 @@ object ThemePref {
     }
 
     fun set(context: Context, m: ThemeMode) {
-        context.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().putString("theme", m.name).apply()
+        context.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit { putString("theme", m.name) }
         _mode.value = m
     }
 

@@ -1,5 +1,6 @@
 package com.sailxx.fitter.data
 
+import androidx.core.content.edit
 import android.content.Context
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -56,12 +57,22 @@ object ReminderPrefs {
 
     fun save(context: Context, s: ReminderSettings) {
         _settings.value = s
-        val e = context.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit()
-        fun slot(key: String, v: MealSlot) { e.putBoolean("${key}_on", v.on).putInt("${key}_at", v.at) }
-        e.putBoolean("water", s.water).putInt("water_every", s.waterEvery)
-            .putInt("water_from", s.waterFrom).putInt("water_to", s.waterTo).putBoolean("water_quiet", s.waterQuietDone)
-            .putBoolean("meals", s.meals).putBoolean("meals_quiet", s.mealQuietLogged).putBoolean("pills", s.pills)
-        slot("breakfast", s.breakfast); slot("lunch", s.lunch); slot("dinner", s.dinner)
-        e.apply()
+        context.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit {
+            fun slot(key: String, v: MealSlot) {
+                putBoolean("${key}_on", v.on)
+                putInt("${key}_at", v.at)
+            }
+            putBoolean("water", s.water)
+            putInt("water_every", s.waterEvery)
+            putInt("water_from", s.waterFrom)
+            putInt("water_to", s.waterTo)
+            putBoolean("water_quiet", s.waterQuietDone)
+            putBoolean("meals", s.meals)
+            putBoolean("meals_quiet", s.mealQuietLogged)
+            putBoolean("pills", s.pills)
+            slot("breakfast", s.breakfast)
+            slot("lunch", s.lunch)
+            slot("dinner", s.dinner)
+        }
     }
 }

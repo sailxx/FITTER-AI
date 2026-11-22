@@ -2,11 +2,13 @@
 // Запуск: node test/test.js
 import assert from "node:assert/strict";
 import worker, { _test } from "../worker.js";
+import { attachDiary } from "./durable-fixture.js";
 
 const TOKEN = "123:TEST";
 const sent = [];
 let geminiReply = null;
 let geminiCalls = [];
+let photoStatusGate = null;
 let offCalls = 0;
 const usdaCalls = [];
 let rejectQuote = false;
@@ -44,10 +46,14 @@ globalThis.fetch = async (url, opts = {}) => {
     if (method === "sendMessage" && rejectQuote && /<blockquote[^>]*>(?:(?!<\/blockquote>)[\s\S])*<tg-emoji/.test(body.text || "")) {
       return Response.json({ ok: false, description: "Bad Request: test reject" });
     }
-    if (method === "sendMessage") return Response.json({ ok: true, result: { message_id: ++msgId } });
+    if (method === "sendMessage") {
+      if (photoStatusGate && body.text.includes("Смотрю на фото")) await photoStatusGate.promise;
+      return Response.json({ ok: true, result: { message_id: ++msgId } });
+    }
     return Response.json({ ok: true, result: true });
   }
   if (url.startsWith("https://generativelanguage.googleapis.com/")) {
+    photoStatusGate?.resolve(true);
     const body = JSON.parse(opts.body);
     geminiCalls.push({ url, body });
     if (url.includes("gemini-3.5-flash:")) return new Response("model not found", { status: 404 }); // проверяем запасную модель
@@ -73,7 +79,9 @@ globalThis.fetch = async (url, opts = {}) => {
   throw new Error("unexpected fetch " + url);
 };
 
-const env = { BOT_TOKEN: TOKEN, GEMINI_API_KEY: "k", WEBHOOK_SECRET: "s3cret", DB: new FakeKV() };
+const SETUP = "test-private-setup-secret-1234";
+const env = { BOT_TOKEN: TOKEN, GEMINI_API_KEY: "k", WEBHOOK_SECRET: "s3cret", SETUP_SECRET: SETUP, PUBLIC_ORIGIN: "https://fitter.example.workers.dev", DB: new FakeKV() };
+const diaryNamespace = attachDiary(env);
 const pending = [];
 const ctx = { waitUntil: (p) => pending.push(p) };
 const base = "https://fitter.example.workers.dev";
@@ -131,9 +139,14 @@ geminiReply = {
   ],
 };
 geminiCalls = [];
+photoStatusGate = Promise.withResolvers();
+const photoStatusTimeout = setTimeout(() => photoStatusGate.resolve(false), 1000);
 s = await call({ message: { message_id: 2, from, chat, photo: [
   { file_id: "small", width: 90, height: 90 }, { file_id: "mid", width: 800, height: 600 }, { file_id: "big", width: 1280, height: 960 },
 ], caption: "это обед" } });
+clearTimeout(photoStatusTimeout);
+assert.equal(await photoStatusGate.promise, true, "распознавание начинается, пока Telegram ещё отправляет статус");
+photoStatusGate = null;
 assert.equal(s.find((x) => x.method === "getFile").body.file_id, "mid", "выбираем фото до 1000px");
 assert.equal(geminiCalls.length, 2, "первая модель 404 → запасная");
 const g = geminiCalls[1].body;
@@ -238,9 +251,16 @@ const apiCall = (path, method = "GET", body, initData = init) =>
 let r = await apiCall("/api/day", "GET", null, init.replace(/hash=[0-9a-f]{4}/, "hash=0000"));
 assert.equal(r.status, 401, "поддельная подпись");
 r = await apiCall("/api/day", "GET", null, await signInit({ id: 42, first_name: "Влад" }, TOKEN, Math.floor(Date.now() / 1000) - 2 * 86400));
-assert.equal(r.status, 401, "подпись старше суток");
+assert.equal(r.status, 401, "просроченная подпись");
+r = await apiCall("/api/day", "GET", null, await signInit({ id: 42 }, TOKEN, Math.floor(Date.now() / 1000) + 120));
+assert.equal(r.status, 401, "подпись с датой в будущем");
 r = await apiCall("/api/day");
 assert.equal(r.status, 200);
+const miniSession = r.headers.get("X-Fitter-Mini");
+assert.ok(miniSession, "дневник обменивает свежую подпись на короткую сессию");
+const miniRequest = (key) => worker.fetch(new Request(base + "/api/widget", { headers: { "X-Fitter-Mini": key } }), env, ctx);
+assert.equal((await miniRequest(miniSession)).status, 200);
+assert.equal((await miniRequest(miniSession.slice(0, -64) + "0".repeat(64))).status, 401);
 let d = await r.json();
 assert.equal(d.meals.length, 2);
 assert.equal(d.week.length, 7);
@@ -452,16 +472,19 @@ r = await setupPost("wrong");
 assert.equal(r.status, 403);
 assert.ok(!sent.some((x) => x.method === "setWebhook"));
 sent.length = 0;
-r = await setupPost("s3cret", "ru-RU,ru;q=0.9");
+r = await setupPost("s3cret");
+assert.equal(r.status, 403, "секрет вебхука не даёт доступа к настройке");
+r = await setupPost(SETUP, "ru-RU,ru;q=0.9");
 const setupHtml = await r.text();
 assert.match(setupHtml, /Всё готово/);
 assert.equal(sent.find((x) => x.method === "setWebhook").body.url, base + "/webhook");
+assert.equal(sent.find((x) => x.method === "setWebhook").body.drop_pending_updates, undefined);
 const cmdCalls = sent.filter((x) => x.method === "setMyCommands");
 assert.equal(cmdCalls.length, 2, "меню команд: английское и русское");
 assert.equal(cmdCalls[0].body.language_code, undefined);
 assert.equal(cmdCalls[1].body.language_code, "ru");
 assert.ok(cmdCalls[0].body.commands.some((c) => c.command === "lang"));
-r = await setupPost("s3cret");
+r = await setupPost(SETUP);
 assert.match(await r.text(), /All set!/, "страница настройки по умолчанию на английском");
 console.log("✓ /app и /setup");
 
@@ -677,7 +700,7 @@ console.log("✓ /app и /setup");
   assert.equal(kb[0][0].callback_data, "adv|0");
   a = await cb("adv|0");
   assert.match(lastText(a), /Творог с бананом/);
-  const advMeal = [...env.DB.m.entries()].filter(([k]) => k.startsWith("d:42:")).flatMap(([, v]) => JSON.parse(v).meals).find((m) => m.source === "advice");
+  const advMeal = [...diaryNamespace.get("42").m.entries()].filter(([k]) => k.startsWith("day:")).flatMap(([, day]) => day.meals).find((m) => m.source === "advice");
   assert.equal(advMeal.title, "Творог с бананом");
   assert.equal(advMeal.items.length, 2);
   a = await cb("adv|1");
@@ -821,16 +844,24 @@ console.log("✓ проверка даты");
   await env.DB.put("pl:ids", JSON.stringify([55]));
   s = await call({ message: { message_id: 1, from: del, chat: dchat, text: "/delete" } });
   assert.match(lastText(s), /Удалить все твои данные/);
+  const buttons = s.find((x) => x.body.reply_markup?.inline_keyboard?.[0]?.[0]?.callback_data?.startsWith("delall|")).body.reply_markup.inline_keyboard[0];
   assert.ok(await env.DB.get("u:55"), "без подтверждения ничего не удаляем");
-  s = await call({ callback_query: { id: "q", from: del, data: "delno", message: { message_id: 7, chat: dchat } } });
+  s = await call({ callback_query: { id: "q", from: del, data: buttons[1].callback_data, message: { message_id: 7, chat: dchat } } });
   assert.ok(await env.DB.get("u:55"));
-  s = await call({ callback_query: { id: "q", from: del, data: "delall", message: { message_id: 7, chat: dchat } } });
+  await call({ callback_query: { id: "q", from: del, data: buttons[0].callback_data, message: { message_id: 7, chat: dchat } } });
+  assert.ok(await env.DB.get("u:55"), "отменённое подтверждение уже недействительно");
+  s = await call({ message: { message_id: 1, from: del, chat: dchat, text: "/delete" } });
+  const confirm = s.find((x) => x.body.reply_markup?.inline_keyboard?.[0]?.[0]?.callback_data?.startsWith("delall|")).body.reply_markup.inline_keyboard[0][0].callback_data;
+  s = await call({ callback_query: { id: "q", from: del, data: confirm, message: { message_id: 7, chat: dchat } } });
   assert.match(lastText(s), /данные удалены/);
   const left = (await env.DB.list({ prefix: "" })).keys.map((k) => k.name).filter((k) => /^(u|w|adv):55$|^(d|an|wk):55:/.test(k));
   assert.deepEqual(left, []);
   assert.ok(await env.DB.get("d:555:2026-10-01"), "чужие данные на месте");
   assert.deepEqual(JSON.parse(await env.DB.get("wr:ids")), [42]);
   assert.deepEqual(JSON.parse(await env.DB.get("pl:ids")), []);
+  const stub = diaryNamespace.get("55");
+  const write = await stub.fetch("https://live/account/write", { method: "POST", body: JSON.stringify({ key: "u:55", value: "{}", epoch: 0 }) });
+  assert.equal(write.status, 409, "запись от старой сессии после удаления не восстанавливает профиль");
   s = await call({ message: { message_id: 1, from: { id: 56, language_code: "ru" }, chat: { id: 56, type: "private" }, text: "/delete" } });
   assert.match(lastText(s), /нет твоих данных/);
   console.log("✓ /delete: удаление всех данных");
@@ -838,11 +869,11 @@ console.log("✓ проверка даты");
 
 // 15. Лимит ИИ: параллельные запросы со старым счётчиком из базы не обходят лимит
 {
-  const lim = { DAILY_AI_LIMIT: "1" };
+  const lim = { ...env, DAILY_AI_LIMIT: "1" };
   const a = { id: 991, tz: 180 }, b = { id: 991, tz: 180 };
-  assert.equal(_test.checkAiLimit(lim, a), true);
-  assert.equal(_test.checkAiLimit(lim, b), false, "второй запрос с устаревшими данными");
-  assert.equal(_test.checkAiLimit(lim, { id: 992, tz: 180 }), true, "другой пользователь не задет");
+  const results = await Promise.all([_test.checkAiLimit(lim, a), _test.checkAiLimit(lim, b)]);
+  assert.deepEqual(results.sort(), [false, true], "квота допускает один из параллельных запросов");
+  assert.equal(await _test.checkAiLimit(lim, { id: 992, tz: 180 }), true, "другой пользователь не задет");
   console.log("✓ лимит ИИ при параллельных запросах");
 }
 
@@ -850,6 +881,9 @@ console.log("✓ проверка даты");
 {
   const post = (path, body, headers = {}) =>
     worker.fetch(new Request(base + path, { method: "POST", headers: { "content-type": "application/json", ...headers }, body: JSON.stringify(body || {}) }), env, ctx);
+  const large = new ReadableStream({ start(controller) { controller.enqueue(new Uint8Array(4097)); controller.close(); } });
+  const limited = await worker.fetch(new Request(base + "/api/link/start", { method: "POST", body: large, duplex: "half" }), env, ctx);
+  assert.equal(limited.status, 413, "лимит действует на поток без Content-Length");
   let r = await post("/api/link/start");
   const ln = await r.json();
   assert.match(ln.code, /^[0-9a-z]{8}[0-9a-f]{12}$/);
@@ -864,15 +898,19 @@ console.log("✓ проверка даты");
   s = await msg("/start link_" + ln.code);
   assert.match(lastText(s), /Войти в приложение Fitter/);
   s = await cb("lnk|y|" + ln.code);
-  assert.match(lastText(s), /подключено/);
-  r = await post("/api/link/poll", { code: ln.code, secret: ln.secret, device: "Pixel <8>" });
-  const { token } = await r.json();
-  assert.match(token, /^ft_[0-9a-f]{64}$/);
+  const pin = lastText(s).match(/<code>(\d{8})<\/code>/)[1];
   r = await post("/api/link/poll", { code: ln.code, secret: ln.secret });
-  assert.equal((await r.json()).status, "wait", "токен выдаётся один раз");
-  const uu = await env.DB.get("u:42", "json");
-  assert.equal(uu.apps.length, 1);
-  assert.equal(uu.apps[0].device, "Pixel 8");
+  assert.equal((await r.json()).status, "pin_required");
+  const exchanges = await Promise.all([1, 2].map(() => post("/api/link/poll", { code: ln.code, secret: ln.secret, pin, device: "Pixel <8>" })));
+  assert.deepEqual(exchanges.map((x) => x.status).sort(), [200, 403]);
+  r = exchanges.find((x) => x.ok);
+  const { token } = await r.json();
+  assert.match(token, /^ft2_42_[0-9a-f]{64}$/);
+  r = await post("/api/link/poll", { code: ln.code, secret: ln.secret });
+  assert.equal(r.status, 403, "токен выдаётся один раз");
+  const sessions = diaryNamespace.get("42").m.get("sessions");
+  assert.equal(sessions.length, 1);
+  assert.equal(sessions[0].device, "Pixel 8");
   assert.equal([...env.DB.m.keys()].some((k) => k.includes(token)), false, "в базе только хэш токена");
 
   const bearer = { Authorization: "Bearer " + token };
@@ -885,6 +923,10 @@ console.log("✓ проверка даты");
   assert.equal(typeof w.pills.total, "number");
   r = await worker.fetch(new Request(base + "/api/day", { headers: bearer }), env, ctx);
   assert.equal(r.status, 200, "весь API работает с токеном");
+  const day = await r.json();
+  r = await worker.fetch(new Request(base + "/api/dashboard", { headers: bearer }), env, ctx);
+  assert.equal(r.status, 200);
+  assert.deepEqual(await r.json(), { widget: w, day }, "один запрос возвращает привычные сводку и дневник");
   r = await post("/api/water", { date: w.date, delta: 250 }, bearer);
   assert.equal(r.status, 200);
   r = await worker.fetch(new Request(base + "/api/widget", { headers: { Authorization: "Bearer ft_" + "0".repeat(64) } }), env, ctx);
@@ -904,11 +946,19 @@ console.log("✓ проверка даты");
   assert.match(lastText(s), /устарела/);
 
   // Выход
+  const socketClosures = [];
+  const account = diaryNamespace.get("42");
+  const socket = {
+    deserializeAttachment: () => ({ hash: sessions[0].hash }),
+    close(code) { socketClosures.push(code); account.sockets.splice(account.sockets.indexOf(this), 1); },
+  };
+  account.sockets.push(socket);
   r = await post("/api/logout", {}, bearer);
   assert.equal(r.status, 200);
+  assert.deepEqual(socketClosures, [1008], "выход закрывает уже открытый WebSocket");
   r = await worker.fetch(new Request(base + "/api/widget", { headers: bearer }), env, ctx);
   assert.equal(r.status, 401, "после выхода токен не работает");
-  assert.equal((await env.DB.get("u:42", "json")).apps.length, 0);
+  assert.deepEqual(diaryNamespace.get("42").m.get("sessions"), []);
   console.log("✓ приложение: вход через бота, токен, виджет");
 }
 
@@ -961,17 +1011,28 @@ console.log("✓ проверка даты");
 
   // Живая синхронизация: после изменения из приложения и из бота открытое приложение получает свежую сводку
   const pushes = [];
+  const dayReads = [];
+  let batchReads = 0;
   env.LIVE = {
     idFromName: (n) => n,
     get: () => ({
       fetch: async (u, o) => {
-        const path = new URL(typeof u === "string" ? u : u.url).pathname;
+        const url = new URL(typeof u === "string" ? u : u.url);
+        const path = url.pathname;
+        if (path === "/day" && o?.method !== "POST") dayReads.push(url.searchParams.get("date"));
+        if (path === "/days") { batchReads++; dayReads.push(...url.searchParams.get("dates").split(",")); }
+        if (path === "/day" || path === "/days" || path.startsWith("/account/") || path === "/erase-days") return diaryNamespace.get('42').fetch(u, o);
         if (path === "/count") return new Response("1");
         if (path === "/push") { pushes.push(JSON.parse(o.body)); return new Response("ok"); }
         return new Response(null, { status: 101 });
       },
     }),
   };
+  r = await apiCall("/api/dashboard");
+  assert.equal(r.status, 200);
+  assert.equal(dayReads.length, 7);
+  assert.equal(batchReads, 1, "неделя загружается одним обращением к Durable Object");
+  assert.equal(dayReads.filter((date) => date === today).length, 1, "сводка переиспользует сегодняшнюю запись");
   r = await apiCall("/api/water", "POST", { date: today, delta: 250 });
   await Promise.all(pending.splice(0));
   assert.equal(pushes.length, 1);
@@ -982,7 +1043,7 @@ console.log("✓ проверка даты");
   assert.equal(pushes.length, 2, "запись в боте тоже приходит в приложение");
   r = await apiCall("/api/live");
   assert.equal(r.status, 426, "живой канал только по WebSocket");
-  delete env.LIVE;
+  env.LIVE = diaryNamespace;
   console.log("✓ приложение: фото еды, советы ИИ, живая синхронизация");
 }
 

@@ -1,5 +1,6 @@
 package com.sailxx.fitter.data
 
+import androidx.core.content.edit
 import android.content.Context
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -45,17 +46,17 @@ object WidgetPrefs {
     }
 
     fun save(context: Context, l: WidgetLook) {
-        context.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit()
-            .putInt("w_opacity", l.opacity)
-            .putInt("w_corners", l.corners)
-            .putBoolean("w_eaten", l.showEaten)
-            .putBoolean("w_macros", l.showMacros)
-            .putBoolean("w_water", l.showWater)
-            .putInt("w_num", l.numSize)
-            .putInt("w_text", l.textSize)
-            .putInt("w_cap", l.capSize)
-            .putBoolean("w_fixed", l.fixedFont)
-            .apply()
+        context.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit {
+            putInt("w_opacity", l.opacity)
+            putInt("w_corners", l.corners)
+            putBoolean("w_eaten", l.showEaten)
+            putBoolean("w_macros", l.showMacros)
+            putBoolean("w_water", l.showWater)
+            putInt("w_num", l.numSize)
+            putInt("w_text", l.textSize)
+            putInt("w_cap", l.capSize)
+            putBoolean("w_fixed", l.fixedFont)
+        }
         _look.value = l
     }
 }

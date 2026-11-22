@@ -25,7 +25,7 @@
 
 **[Скачать Fitter.apk](https://github.com/sailxx/FITTER-AI/releases/latest/download/Fitter.apk)** · Android 8.0+
 
-- Вход через бота кнопкой «Войти через Telegram» — без паролей
+- Вход по одноразовому коду из бота через «Войти через Telegram»
 - Экран «Сегодня»: кольцо калорий, БЖУ, вода стаканами, таблетки и еда за день
 - 8 виджетов: «Калории», «Сегодня», «Вода» с кнопками, «БЖУ», «Неделя», «Таблетки», «Осталось» и «Фото еды» — белые или чёрные по теме Fitter, прозрачность и содержимое настраиваются
 - Еда прямо в приложении: текстом, снимком с камеры или фото из галереи
@@ -65,6 +65,7 @@
 | `/awards` · `/analysis` | Достижения и ИИ-разбор недели |
 | `/app` | Открыть дневник |
 | `/reset` · `/help` | Пройти анкету заново и справка |
+| `/devices` | Посмотреть и отключить подключённые устройства Android |
 | `/delete` | Удалить все свои данные |
 
 </div>
@@ -82,7 +83,7 @@ sequenceDiagram
     participant T as Telegram
     participant W as FITTER (Cloudflare Worker)
     participant G as Google Gemini
-    participant D as Cloudflare KV
+    participant D as Хранилище дневника
 
     U->>T: Фото еды
     T->>W: Webhook
@@ -100,7 +101,7 @@ sequenceDiagram
 | Интерфейс | Telegram Bot API + Mini App | У всех уже есть Telegram, ничего не нужно скачивать |
 | Сервер | Cloudflare Workers | Бесплатно, 24/7, без настройки серверов |
 | ИИ | Google Gemini (Flash / Flash-Lite) | Понимает фото, ответ в строгом JSON |
-| База | Cloudflare KV | Бесплатно и встроена в Workers |
+| База | Cloudflare Durable Objects и KV | Согласованные записи дневника и кэш |
 | Деплой | GitHub → Cloudflare Builds | Каждый коммит сам попадает на сервер |
 
 Весь сервер — один файл [`worker.js`](worker.js) без единой зависимости.
@@ -150,6 +151,7 @@ sequenceDiagram
 - [x] **v3.7.1** Виджет «Вода»: содержимое по центру при любом размере
 - [x] **v3.7.2** Виджеты без обводки
 - [x] **v3.8** Английский и русский везде: бот, дневник, приложение Android, виджеты и сайт, с переключателем языка
+- [x] **v3.12** Вход на Android по одноразовому коду, отзыв доступа устройств и быстрая синхронизация дневника
 
 Полная история версий — в [CHANGELOG.ru.md](CHANGELOG.ru.md) ([English](CHANGELOG.md)).
 

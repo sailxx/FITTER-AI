@@ -39,10 +39,8 @@ Everything is free:
 2. On the left open **Compute (Workers)** → **Workers & Pages** → **Create** → **Create Worker**
    (the button may be called **Start with Hello World!**)
 3. Name it `fitter-ai` and click **Deploy**
-4. Click **Edit code**
-5. Delete all the code in the editor and paste the whole code from [`worker.js`](worker.js) instead
-   (on GitHub open the file → the **Copy raw file** button at the top right)
-6. Click **Deploy** at the top right
+4. Connect this repository to Workers Builds, or deploy the repository with Wrangler using [`wrangler.toml`](wrangler.toml). The Worker imports multiple files and needs the `LIVE` Durable Object binding.
+5. Set `PUBLIC_ORIGIN` to the HTTPS address of your Worker, without a trailing slash.
 
 ## Step 4. Connect the database
 
@@ -55,13 +53,14 @@ Everything is free:
 
 ## Step 5. Add the secret keys
 
-In the worker open **Settings** → **Variables and Secrets** → **Add**. Add three of them, type **Secret**:
+In the worker open **Settings** → **Variables and Secrets** → **Add**. Add these as **Secret**:
 
 | Variable name | Value |
 |---|---|
 | `BOT_TOKEN` | the BotFather token from step 1 |
 | `GEMINI_API_KEY` | the Gemini key from step 2 |
-| `WEBHOOK_SECRET` | any password of Latin letters and digits, for example `fitter2026secret` |
+| `WEBHOOK_SECRET` | a random secret using letters, digits, `_` or `-` |
+| `SETUP_SECRET` | a separate random secret of at least 24 characters. `/setup` is disabled when this is unset |
 
 Click **Deploy** / **Save**.
 
@@ -73,7 +72,7 @@ Click **Deploy** / **Save**.
    ```
    https://fitter-ai.YOUR-NAME.workers.dev/setup
    ```
-3. Enter your WEBHOOK_SECRET in the field and click **Set up the bot**. Every line should have a ✅
+3. Enter your `SETUP_SECRET` in the field and click **Set up the bot**. Every line should have a ✅
    (the page is shown in Russian if your browser is set to Russian, otherwise in English)
    The bot also installs an English and a Russian command menu: the language follows the user's Telegram, and anyone can change it with `/lang`
 4. Open your bot in Telegram and tap **Start** 🎉
@@ -89,7 +88,7 @@ Click **Deploy** / **Save**.
 | ❌ “Gemini is not responding” with code 400 or 403 | The Gemini key is wrong, create a new one in AI Studio |
 | ❌ “Gemini is not responding” with code 429 | The free limit is used up, wait until tomorrow or create a key in another Google account |
 | The bot is silent | Open /setup again. In Cloudflare open the worker → **Logs**, errors are visible there |
-| The diary (Mini App) doesn't open | The workers.dev domain sometimes works poorly in some countries. You can connect your own domain in Cloudflare (Settings → Domains & Routes) and open /setup again on the new address |
+| The diary (Mini App) doesn't open | If you connect a custom domain, update `PUBLIC_ORIGIN` and run `/setup` again |
 | The Gemini model is outdated | Add a `GEMINI_MODEL` variable with the name of a new model from https://ai.google.dev/gemini-api/docs/models |
 
 ## Extra settings
@@ -102,7 +101,7 @@ Click **Deploy** / **Save**.
 
 ## Update the bot
 
-When a new version of `worker.js` appears: Cloudflare → the worker → **Edit code** → paste the new code → **Deploy**. Users' data is not lost, it lives in the database.
+Deploy the updated repository with the existing `DB` and `LIVE` bindings. After the security update users of the Android app need the version with Telegram code entry and must sign in again. Run `/setup` with the separate secret to refresh the bot commands, including `/devices`.
 
 ## For those comfortable with the command line
 
@@ -112,5 +111,6 @@ npx wrangler kv namespace create fitter-db   # put the id into wrangler.toml
 npx wrangler secret put BOT_TOKEN
 npx wrangler secret put GEMINI_API_KEY
 npx wrangler secret put WEBHOOK_SECRET
+npx wrangler secret put SETUP_SECRET
 npx wrangler deploy
 ```

@@ -4,10 +4,10 @@ import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Matrix
-import android.media.ExifInterface
 import android.net.Uri
 import android.util.Base64
 import androidx.core.content.FileProvider
+import androidx.exifinterface.media.ExifInterface
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.ByteArrayOutputStream
@@ -23,15 +23,25 @@ object Photos {
     /** Куда камера сохранит снимок: временный файл в кэше приложения, без разрешений на память. */
     fun cameraUri(context: Context): Uri {
         val dir = File(context.cacheDir, "photos").apply { mkdirs() }
-        val file = File(dir, "meal.jpg")
+        val olderThan = System.currentTimeMillis() - 24 * 60 * 60 * 1000L
+        dir.listFiles()?.filter { it.isFile && it.lastModified() < olderThan }?.forEach { it.delete() }
+        val file = File.createTempFile("meal-", ".jpg", dir)
         return FileProvider.getUriForFile(context, "${context.packageName}.photos", file)
+    }
+
+    fun removeCameraPhoto(context: Context, uri: Uri) {
+        runCatching { context.contentResolver.delete(uri, null, null) }
     }
 
     /** Уменьшить, повернуть по EXIF и отдать JPEG в base64. Миниатюра — для предпросмотра на экране. */
     suspend fun encode(context: Context, uri: Uri): Pair<String, Bitmap> = withContext(Dispatchers.IO) {
         val cr = context.contentResolver
         val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
-        cr.openInputStream(uri).use { BitmapFactory.decodeStream(it, null, bounds) }
+        requireNotNull(cr.openAssetFileDescriptor(uri, "r")).use { descriptor ->
+            require(descriptor.length <= 40L * 1024 * 1024) { "Image file is too large" }
+            descriptor.createInputStream().use { BitmapFactory.decodeStream(it, null, bounds) }
+        }
+        require(bounds.outWidth > 0 && bounds.outHeight > 0 && bounds.outWidth.toLong() * bounds.outHeight <= 120_000_000) { "Invalid image dimensions" }
         var sample = 1
         while (maxOf(bounds.outWidth, bounds.outHeight) / (sample * 2) >= MAX_SIDE) sample *= 2
         val raw = cr.openInputStream(uri).use { BitmapFactory.decodeStream(it, null, BitmapFactory.Options().apply { inSampleSize = sample }) }

@@ -2,6 +2,8 @@ package com.sailxx.fitter.data
 
 import com.sailxx.fitter.BuildConfig
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
 import java.io.IOException
@@ -19,6 +21,7 @@ data class LinkStart(val code: String, val secret: String, val url: String, val 
 
 sealed interface LinkPoll {
     data object Wait : LinkPoll
+    data object BadPin : LinkPoll
     data object Denied : LinkPoll
     data object Expired : LinkPoll
     data class Done(val token: String, val name: String) : LinkPoll
@@ -36,6 +39,7 @@ object Api {
             val conn = URL(BuildConfig.API + path).openConnection() as HttpURLConnection
             try {
                 conn.requestMethod = method
+                conn.instanceFollowRedirects = false
                 conn.connectTimeout = TIMEOUT
                 conn.readTimeout = timeout
                 conn.setRequestProperty("Accept", "application/json")
@@ -57,7 +61,7 @@ object Api {
     private suspend fun authed(path: String, token: String, method: String = "GET", body: JSONObject? = null, timeout: Int = TIMEOUT): JSONObject {
         val (code, json) = call(path, method, body, token, timeout)
         if (code == 401) throw UnauthorizedException()
-        if (code >= 400) throw ApiException(code, json.optString("error"), json.optString("answer"))
+        if (code !in 200..299) throw ApiException(code, json.optString("error"), json.optString("answer"))
         return json
     }
 
@@ -67,20 +71,36 @@ object Api {
         return LinkStart(j.getString("code"), j.getString("secret"), j.getString("url"), j.optInt("ttl", 600))
     }
 
-    suspend fun linkPoll(link: LinkStart, device: String): LinkPoll {
-        val body = JSONObject().put("code", link.code).put("secret", link.secret).put("device", device)
+    suspend fun linkPoll(link: LinkStart, device: String, pin: String): LinkPoll {
+        val body = JSONObject().put("code", link.code).put("secret", link.secret).put("device", device).put("pin", pin)
         val (code, j) = call("/api/link/poll", "POST", body)
         return when {
             code == 403 -> LinkPoll.Denied
             code == 410 -> LinkPoll.Expired
             code >= 400 -> throw ApiException(code, j.optString("error"))
             j.has("token") -> LinkPoll.Done(j.getString("token"), j.optString("name"))
+            j.optString("status") == "bad_pin" -> LinkPoll.BadPin
             else -> LinkPoll.Wait
         }
     }
 
     suspend fun widget(token: String) = authed("/api/widget", token)
     suspend fun day(token: String) = authed("/api/day", token)
+
+    suspend fun dashboard(token: String): Pair<JSONObject, JSONObject> {
+        val data = try {
+            authed("/api/dashboard", token)
+        } catch (e: ApiException) {
+            if (e.code != 404 || e.error != "not found") throw e
+            // Старый сервер поддерживает два отдельных запроса.
+            return coroutineScope {
+                val widgetRequest = async { widget(token) }
+                val dayRequest = async { day(token) }
+                widgetRequest.await() to dayRequest.await()
+            }
+        }
+        return data.getJSONObject("widget") to data.getJSONObject("day")
+    }
 
     suspend fun water(token: String, date: String, delta: Int) =
         authed("/api/water", token, "POST", JSONObject().put("date", date).put("delta", delta))
@@ -92,7 +112,7 @@ object Api {
 
     /** Еда текстом: «2 яйца и тост». 422 not_food — нейросеть не нашла еду (answer — её ответ). */
     suspend fun mealText(token: String, date: String, text: String) =
-        authed("/api/meal/add", token, "POST", JSONObject().put("date", date).put("text", text))
+        authed("/api/meal/add", token, "POST", JSONObject().put("date", date).put("text", text), timeout = 60_000)
 
     /** Еда по фото: сжатый JPEG в base64 и необязательная подсказка. */
     suspend fun mealPhoto(token: String, date: String, image: String, caption: String) =

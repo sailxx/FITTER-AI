@@ -2,6 +2,13 @@
 
 **English** · [Русский](CHANGELOG.ru.md)
 
+## v3.12.0 — Safer sign-in and faster diary
+
+- Sign in on Android with a one-time code from Telegram. Existing users need to update the app and sign in again. Use `/devices` to revoke access from another device.
+- The diary preserves concurrent edits. Deleting an account revokes access before deleting its data.
+- Android fetches the diary and summary together. The Mini App handles fast date switches, and photo recognition starts while the bot sends its status message.
+- Updated the Android build and libraries. Android 8.0 is still supported.
+
 ## v3.11.1 — Stricter dates
 - 🛡 The API now rejects impossible dates (such as 2026-13-45) with a clear error instead of a server failure, and refuses entries dated far in the future or before 2024
 - 🗑 “Delete my data” also erases the markers of weekly reviews

@@ -1,14 +1,17 @@
 package com.sailxx.fitter.data
 
+import androidx.core.content.edit
 import android.content.Context
 import android.content.SharedPreferences
 import android.os.Build
+import android.os.SystemClock
 import android.util.Log
+import android.widget.Toast
+import androidx.core.app.NotificationManagerCompat
 import com.sailxx.fitter.notify.Reminders
 import com.sailxx.fitter.widget.SyncWorker
 import com.sailxx.fitter.widget.updateFitterWidgets
-import kotlinx.coroutines.async
-import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.sync.Mutex
@@ -27,25 +30,28 @@ data class AppState(
 /**
  * Единственный источник данных для приложения и виджетов.
  * Сервер — главный: здесь только копия последнего ответа, чтобы виджеты и экран открывались сразу, без сети.
- * Токен и кэш лежат в SharedPreferences во внутренней памяти приложения.
+ * Кэш лежит во внутренней памяти, ключ доступа зашифрован ключом из Android Keystore.
  */
 object FitterRepository {
     private const val PREFS = "fitter"
     private const val TAG = "Fitter"
     private val lock = Mutex()
+    private const val RECONNECT_REFRESH_WINDOW_MS = 2_000L
+    @Volatile private var lastSuccessfulRefresh: Long? = null
     private val _state = MutableStateFlow(AppState(false, null, null, 0))
     val state: StateFlow<AppState> get() = _state
 
     private fun prefs(context: Context): SharedPreferences =
         context.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
 
-    fun token(context: Context): String? = prefs(context).getString("token", null)
+    fun token(context: Context): String? = SessionToken.get(prefs(context))
 
     /** Прочитать сохранённое без сети: для первого кадра приложения и для виджетов. */
     fun load(context: Context): AppState {
         val p = prefs(context)
-        val s = AppState(
-            loggedIn = p.getString("token", null) != null,
+        val loggedIn = token(context) != null
+        val s = if (!loggedIn) AppState(false, null, null, 0) else AppState(
+            loggedIn = true,
             summary = p.getString("summary", null)?.let { runCatching { Summary.parse(JSONObject(it)) }.getOrNull() },
             day = p.getString("day", null)?.let { runCatching { Day.parse(JSONObject(it)) }.getOrNull() },
             updatedAt = p.getLong("updatedAt", 0),
@@ -62,32 +68,41 @@ object FitterRepository {
     }
 
     suspend fun saveLogin(context: Context, token: String) {
-        prefs(context).edit().putString("token", token).apply()
+        lock.withLock {
+            SessionToken.save(prefs(context), token)
+            lastSuccessfulRefresh = null
+            WorkoutStore.reset()
+            _state.value = AppState(true, null, null, 0)
+        }
         load(context)
         SyncWorker.schedule(context)
         refresh(context)
     }
 
     /** Подтянуть сводку и дневник за сегодня и перерисовать виджеты. Возвращает false, если сети нет. */
-    suspend fun refresh(context: Context): Boolean = lock.withLock {
+    suspend fun refresh(context: Context, reuseRecent: Boolean = false): Boolean = lock.withLock {
         val token = token(context) ?: return@withLock false
+        val last = lastSuccessfulRefresh
+        if (reuseRecent && last != null && SystemClock.elapsedRealtime() - last < RECONNECT_REFRESH_WINDOW_MS) {
+            return@withLock true
+        }
         try {
-            val (w, d) = coroutineScope {
-                val w = async { Api.widget(token) }
-                val d = async { Api.day(token) }
-                w.await() to d.await()
-            }
+            val (w, d) = Api.dashboard(token)
+            if (token(context) != token) return@withLock false
             Lang.fromServer(context, w.optString("lang"))
-            prefs(context).edit()
-                .putString("summary", keepWater(context, w).toString())
-                .putString("day", d.toString())
-                .putLong("updatedAt", System.currentTimeMillis())
-                .apply()
+            prefs(context).edit {
+                putString("summary", keepWater(context, w).toString())
+                putString("day", d.toString())
+                putLong("updatedAt", System.currentTimeMillis())
+            }
             _state.value = _state.value.copy(error = null)
+            lastSuccessfulRefresh = SystemClock.elapsedRealtime()
             true
         } catch (e: UnauthorizedException) {
-            clear(context)
+            if (token(context) == token) clear(context)
             false
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             Log.w(TAG, "refresh failed", e)
             _state.value = _state.value.copy(error = tr("Нет связи с сервером", "Can't reach the server"))
@@ -110,7 +125,7 @@ object FitterRepository {
         val raw = p.getString("summary", null)?.let { JSONObject(it) } ?: return
         val date = raw.getString("date")
         raw.put("water", (raw.optInt("water") + delta).coerceAtLeast(0))
-        p.edit().putString("summary", raw.toString()).apply()
+        p.edit { putString("summary", raw.toString()) }
         load(context)
         // Нажатия подряд уходят на сервер по очереди; сверяемся с ним только после последнего,
         // иначе ответ на первое нажатие откатывал число назад и оно прыгало
@@ -118,14 +133,16 @@ object FitterRepository {
         try {
             waterLock.withLock { Api.water(token, date, delta) }
         } catch (e: UnauthorizedException) {
-            waterPending--
-            clear(context)
+            clearIfSession(context, token)
             return
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             Log.w(TAG, "water failed", e)
+        } finally {
+            waterPending--
         }
-        waterPending--
-        if (waterPending == 0) refresh(context)
+        if (waterPending == 0 && token(context) == token) refresh(context)
     }
 
     private val waterLock = Mutex()
@@ -139,14 +156,14 @@ object FitterRepository {
     }
 
     /** Данные из живой синхронизации: сохраняем как ответ /api/widget и /api/day и перерисовываем всё. */
-    suspend fun applyLive(context: Context, widget: JSONObject, day: JSONObject) {
-        if (token(context) == null) return
+    suspend fun applyLive(context: Context, session: String, widget: JSONObject, day: JSONObject) = lock.withLock {
+        if (token(context) != session) return@withLock
         Lang.fromServer(context, widget.optString("lang"))
-        prefs(context).edit()
-            .putString("summary", keepWater(context, widget).toString())
-            .putString("day", day.toString())
-            .putLong("updatedAt", System.currentTimeMillis())
-            .apply()
+        prefs(context).edit {
+            putString("summary", keepWater(context, widget).toString())
+            putString("day", day.toString())
+            putLong("updatedAt", System.currentTimeMillis())
+        }
         _state.value = _state.value.copy(error = null)
         load(context)
         updateFitterWidgets(context)
@@ -176,19 +193,24 @@ object FitterRepository {
             val delta = (if (s == "taken") 1 else 0) - (if (was == "taken") 1 else 0)
             it.put("taken", (it.optInt("taken") + delta).coerceAtLeast(0))
         }
-        p.edit().putString("summary", sum.toString()).putString("day", day.toString()).apply()
+        p.edit {
+            putString("summary", sum.toString())
+            putString("day", day.toString())
+        }
         load(context)
         updateFitterWidgets(context)
         try {
             Api.pillMark(token, date, id, time, s)
         } catch (e: UnauthorizedException) {
-            clear(context)
+            clearIfSession(context, token)
             return
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             Log.w(TAG, "pill failed", e)
             _state.value = _state.value.copy(error = tr("Не получилось отметить — нет связи", "Couldn't mark it — no connection"))
         }
-        refresh(context)
+        if (token(context) == token) refresh(context)
     }
 
     /** Сменить язык: сразу в приложении и на виджетах, потом на сервере — так же заговорит и бот. */
@@ -200,24 +222,46 @@ object FitterRepository {
         try {
             Api.setLang(token, code)
         } catch (e: UnauthorizedException) {
-            clear(context)
+            clearIfSession(context, token)
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             Log.w(TAG, "lang failed", e)
         }
     }
 
     suspend fun logout(context: Context) {
-        token(context)?.let { runCatching { Api.logout(it) } }
-        LiveSync.stop()
-        clear(context)
+        val session = token(context) ?: return
+        try {
+            Api.logout(session)
+        } catch (_: UnauthorizedException) {
+            // Сессия уже отозвана.
+        } catch (e: CancellationException) {
+            throw e
+        } catch (_: Exception) {
+            Toast.makeText(context, tr("Не удалось отключить устройство. Повтори при подключении к интернету.", "Couldn't revoke this device. Try again when online."), Toast.LENGTH_LONG).show()
+            return
+        }
+        clearIfSession(context, session)
+    }
+
+    internal suspend fun withSession(context: Context, session: String, update: () -> Unit) = lock.withLock {
+        if (token(context) == session) update()
+    }
+
+    private suspend fun clearIfSession(context: Context, session: String) = lock.withLock {
+        if (token(context) == session) clear(context)
     }
 
     private suspend fun clear(context: Context) {
-        prefs(context).edit().clear().apply()
+        lastSuccessfulRefresh = null
+        SessionToken.clear(prefs(context))
+        LiveSync.stop()
         WorkoutStore.reset()
         SyncWorker.cancel(context)
         load(context)
         updateFitterWidgets(context)
         Reminders.schedule(context)
+        NotificationManagerCompat.from(context).cancelAll()
     }
 }

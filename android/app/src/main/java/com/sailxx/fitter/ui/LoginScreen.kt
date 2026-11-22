@@ -74,6 +74,10 @@ import com.sailxx.fitter.data.Api
 import com.sailxx.fitter.data.FitterRepository
 import com.sailxx.fitter.data.LinkPoll
 import kotlinx.coroutines.CancellationException
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.text.input.KeyboardType
+import com.sailxx.fitter.data.LinkStart
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -92,39 +96,52 @@ fun LoginScreen() {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     var step by remember { mutableStateOf(Step.Hello) }
-    var linkUrl by remember { mutableStateOf<String?>(null) }
+    var link by remember { mutableStateOf<LinkStart?>(null) }
+    var pin by remember { mutableStateOf("") }
+    var checking by remember { mutableStateOf(false) }
     var message by remember { mutableStateOf<String?>(null) }
     var job by remember { mutableStateOf<Job?>(null) }
 
     fun start() = scope.launch {
         step = Step.Waiting
+        link = null
+        pin = ""
         message = null
         try {
-            val link = Api.linkStart()
-            linkUrl = link.url
-            openUrl(context, link.url)
-            val until = System.currentTimeMillis() + link.ttlSec * 1000L
-            while (System.currentTimeMillis() < until) {
-                delay(2500)
-                when (val r = runCatching { Api.linkPoll(link, FitterRepository.deviceName()) }.getOrNull()) {
-                    is LinkPoll.Done -> {
-                        step = Step.Done
-                        delay(1100) // даём порадоваться конфетти
-                        FitterRepository.saveLogin(context, r.token)
-                        return@launch
-                    }
-                    LinkPoll.Denied -> { message = tr("Вход отменён в боте. Попробуем ещё раз?", "Sign-in was cancelled in the bot. Try again?"); break }
-                    LinkPoll.Expired -> break
-                    else -> Unit // ждём или нет сети — пробуем ещё
-                }
-            }
-            if (message == null) message = tr("Время на вход вышло. Нажми кнопку ещё раз", "Sign-in timed out. Tap the button again")
+            val started = Api.linkStart()
+            link = started
+            openUrl(context, started.url)
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
             message = tr("Нет связи с сервером. Проверь интернет", "Can't reach the server. Check your internet connection")
+            step = Step.Hello
         }
-        step = Step.Hello
+    }
+
+    fun verify() = scope.launch {
+        val started = link ?: return@launch
+        if (checking || pin.length != 8) return@launch
+        checking = true
+        message = null
+        try {
+            when (val result = Api.linkPoll(started, FitterRepository.deviceName(), pin)) {
+                is LinkPoll.Done -> { step = Step.Done; FitterRepository.saveLogin(context, result.token) }
+                LinkPoll.BadPin -> message = tr("Код не совпал. Проверь его в боте", "The code did not match. Check it in the bot")
+                LinkPoll.Wait -> message = tr("Сначала подтверди вход в боте", "Confirm sign-in in the bot first")
+                LinkPoll.Denied, LinkPoll.Expired -> {
+                    message = tr("Попытка входа завершена. Начни заново", "This sign-in attempt ended. Start again")
+                    step = Step.Hello
+                }
+            }
+        } catch (e: CancellationException) {
+            throw e
+        } catch (_: Exception) {
+            message = tr("Не удалось войти. Попробуй ещё раз", "Couldn't sign in. Try again")
+            if (step == Step.Done) step = Step.Hello
+        } finally {
+            checking = false
+        }
     }
 
     Box(
@@ -147,7 +164,13 @@ fun LoginScreen() {
                 Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
                     when (s) {
                         Step.Hello -> Hello(message, onLogin = { job = start() }, onBot = { openUrl(context, BOT_URL) })
-                        Step.Waiting -> Waiting(onReopen = { linkUrl?.let { openUrl(context, it) } }, onCancel = { job?.cancel(); step = Step.Hello })
+                        Step.Waiting -> Waiting(
+                            pin, message, checking, link != null,
+                            onPin = { pin = it.filter { c -> c in '0'..'9' }.take(8); message = null },
+                            onVerify = { job = verify() },
+                            onReopen = { link?.let { openUrl(context, it.url) } },
+                            onCancel = { job?.cancel(); step = Step.Hello },
+                        )
                         Step.Done -> DoneView()
                     }
                 }
@@ -309,7 +332,7 @@ private fun Logo() {
 }
 
 @Composable
-private fun Waiting(onReopen: () -> Unit, onCancel: () -> Unit) {
+private fun Waiting(pin: String, message: String?, checking: Boolean, ready: Boolean, onPin: (String) -> Unit, onVerify: () -> Unit, onReopen: () -> Unit, onCancel: () -> Unit) {
     val t = rememberInfiniteTransition(label = "dots")
     val ph by t.animateFloat(0f, 1f, infiniteRepeatable(tween(1100, easing = LinearEasing)), label = "ph")
     Column(
@@ -327,7 +350,17 @@ private fun Waiting(onReopen: () -> Unit, onCancel: () -> Unit) {
         Spacer(Modifier.height(14.dp))
         Text(tr("Подтверди вход в Telegram", "Confirm sign-in in Telegram"), fontSize = 20.sp, fontWeight = FontWeight.ExtraBold, color = Ink, textAlign = TextAlign.Center)
         Spacer(Modifier.height(6.dp))
-        Text(tr("Нажми «✅ Да, это я» в чате с ботом — и сразу возвращайся сюда.", "Tap “✅ Yes, it's me” in the chat with the bot, then come right back here."), fontSize = 15.sp, color = Sub, textAlign = TextAlign.Center)
+        Text(tr("Подтверди вход в боте, затем введи полученный код.", "Confirm in the bot, then enter the code it sends."), fontSize = 15.sp, color = Sub, textAlign = TextAlign.Center)
+        Spacer(Modifier.height(12.dp))
+        OutlinedTextField(
+            value = pin, onValueChange = onPin, enabled = ready && !checking, singleLine = true,
+            label = { Text(tr("Код из Telegram", "Code from Telegram")) },
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
+            colors = fieldColors(),
+        )
+        message?.let { Text(it, color = Palette.Danger, fontSize = 14.sp, textAlign = TextAlign.Center) }
+        Spacer(Modifier.height(10.dp))
+        PrimaryButton(tr("Войти", "Sign in"), Modifier.fillMaxWidth(), enabled = ready && pin.length == 8 && !checking, onClick = onVerify)
         Spacer(Modifier.height(18.dp))
         Text(
             tr("Открыть Telegram ещё раз", "Open Telegram again"), color = Palette.G3, fontWeight = FontWeight.Bold,

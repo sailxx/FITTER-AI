@@ -87,7 +87,7 @@ fun ScreenHeader(title: String, sub: String? = null, trailing: (@Composable () -
 
 /** Заголовок блока внутри экрана: «Недавно добавлено», «Вчера». */
 @Composable
-fun BlockTitle(title: String, note: String? = null, modifier: Modifier = Modifier) {
+fun BlockTitle(title: String, modifier: Modifier = Modifier, note: String? = null) {
     val t = LocalTokens.current
     Row(modifier.fillMaxWidth().padding(start = Side + 2.dp, end = Side + 2.dp, top = 26.dp, bottom = 12.dp), verticalAlignment = Alignment.CenterVertically) {
         Text(title, fontSize = 20.sp, fontWeight = FontWeight.ExtraBold, color = t.text, letterSpacing = (-0.3).sp, modifier = Modifier.weight(1f))
@@ -97,17 +97,17 @@ fun BlockTitle(title: String, note: String? = null, modifier: Modifier = Modifie
 
 /** Главная кнопка: контрастная, со скруглением-капсулой. */
 @Composable
-fun PrimaryButton(text: String, modifier: Modifier = Modifier.fillMaxWidth(), height: Dp = 54.dp, onClick: () -> Unit) {
+fun PrimaryButton(text: String, modifier: Modifier = Modifier, height: Dp = 54.dp, enabled: Boolean = true, onClick: () -> Unit) {
     val t = LocalTokens.current
     Box(
-        modifier.height(height).clip(RoundedCornerShape(50)).background(t.text).clickable(onClick = onClick),
+        modifier.height(height).clip(RoundedCornerShape(50)).background(if (enabled) t.text else t.hint).clickable(enabled = enabled, onClick = onClick),
         contentAlignment = Alignment.Center,
     ) { Text(text, color = t.bg, fontWeight = FontWeight.ExtraBold, fontSize = 16.sp, maxLines = 1) }
 }
 
 /** Второстепенная кнопка: серая подложка. */
 @Composable
-fun SoftButton(text: String, modifier: Modifier = Modifier.fillMaxWidth(), height: Dp = 48.dp, color: Color? = null, onClick: () -> Unit) {
+fun SoftButton(text: String, modifier: Modifier = Modifier, height: Dp = 48.dp, color: Color? = null, onClick: () -> Unit) {
     val t = LocalTokens.current
     Box(
         modifier.height(height).clip(RoundedCornerShape(50)).background(t.fill).clickable(onClick = onClick),
