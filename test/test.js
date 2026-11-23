@@ -115,6 +115,15 @@ const cb = (data, photo) => call({ callback_query: { id: "q", from, data, messag
 // Поздравления с наградами проверяем отдельно, здесь их пропускаем
 const lastText = (s) => s.filter((x) => ["sendMessage", "editMessageText", "sendPhoto", "editMessageCaption"].includes(x.method))
   .map((x) => x.body.text || x.body.caption).filter((t) => t && !/^🏆 <b>Нов/.test(t)).pop();
+function assertHelpParagraphs(caption) {
+  const text = caption.replace(/<[^>]+>/g, "");
+  const commands = text.split("\n\n").map((paragraph) => paragraph.match(/\/[a-z]+\b/g) || []).filter((matches) => matches.length);
+  assert.deepEqual(commands, [
+    "/today", "/week", "/app", "/profile", "/analysis", "/awards", "/advice",
+    "/water", "/weight", "/pills", "/remind", "/lang", "/devices", "/reset", "/delete",
+  ].map((command) => [command]));
+  assert.ok(text.length <= 1024, "команды помещаются в подпись к фото");
+}
 
 // 1. Неверный секрет webhook
 {
@@ -844,6 +853,7 @@ console.log("✓ /app и /setup");
   assert.match(help, /<tg-emoji emoji-id="7056">❓<\/tg-emoji> <b>Помощь FITTER<\/b>/);
   assert.match(help, /<tg-emoji emoji-id="7024">📊<\/tg-emoji> \/today · итоги дня/, "у команд свои иконки");
   assert.match(help, /\/devices · подключённые устройства/);
+  assertHelpParagraphs(help);
   assert.ok(!s.some((x) => x.method === "sendMessage"), "вся помощь помещается в подпись к фото");
   const flags = (await msg("/lang")).find((x) => x.method === "sendPhoto").body.reply_markup.inline_keyboard[0];
   assert.deepEqual(flags.map((b) => b.icon_custom_emoji_id), [map["🇷🇺"], map["🇺🇸"]]);
@@ -1178,6 +1188,7 @@ console.log("✓ проверка даты");
   assert.equal(s.find((x) => x.method === "sendPhoto").body.photo, "help.jpg");
   assert.match(lastText(s), /Log a meal/);
   assert.match(lastText(s), /\/devices · connected devices/);
+  assertHelpParagraphs(lastText(s));
   noCyr(lastText(s));
   s = await e("/profile");
   assert.equal(s.find((x) => x.method === "sendPhoto").body.photo, "profile.jpg");

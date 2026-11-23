@@ -1120,19 +1120,40 @@ const HELP_TEXT = {
 ✏️ Название и вес можно поправить кнопкой под записью.
 
 📊 <b>Дневник и прогресс</b>
-📊 /today · итоги дня    📅 /week · последние 7 дней
-📱 /app · дневник    👤 /profile · профиль и норма
-🧠 /analysis · разбор недели    🏆 /awards · достижения
+
+📊 /today · итоги дня
+
+📅 /week · последние 7 дней
+
+📱 /app · дневник
+
+👤 /profile · профиль и норма
+
+🧠 /analysis · разбор недели
+
+🏆 /awards · достижения
+
 🥗 /advice · что съесть или спроси <code>сколько белка в твороге?</code>
 
 💧 <b>Вода, вес и напоминания</b>
-💧 Напиши <code>вода 300</code>, чтобы записать 300 мл. Сводка — /water.
+
+💧 /water · сводка по воде. Чтобы записать 300 мл, напиши <code>вода 300</code>.
+
 ⚖️ /weight 72.5 · записать вес и обновить норму
-💊 /pills · таблетки    ⏰ /remind · напоминания о воде
+
+💊 /pills · таблетки
+
+⏰ /remind · напоминания о воде
 
 ⌨️ <b>Настройки</b>
-🇷🇺 /lang · язык    🔒 /devices · подключённые устройства
-🔄 /reset · пройти анкету заново    🗑 /delete · удалить данные
+
+🇷🇺 /lang · язык
+
+🔒 /devices · подключённые устройства
+
+🔄 /reset · пройти анкету заново
+
+🗑 /delete · удалить данные
 
 <blockquote>Расчёты приблизительные. За медицинскими рекомендациями обращайся к специалисту.</blockquote>`,
   en: `❓ <b>FITTER help</b>
@@ -1143,19 +1164,40 @@ Send a photo of your meal, a nutrition label, or a barcode. I'll help estimate c
 ✏️ Use the button below a meal to fix its name or weight.
 
 📊 <b>Diary and progress</b>
-📊 /today · daily summary    📅 /week · last 7 days
-📱 /app · diary    👤 /profile · profile and goal
-🧠 /analysis · weekly review    🏆 /awards · achievements
+
+📊 /today · daily summary
+
+📅 /week · last 7 days
+
+📱 /app · diary
+
+👤 /profile · profile and goal
+
+🧠 /analysis · weekly review
+
+🏆 /awards · achievements
+
 🥗 /advice · meal ideas, or ask <code>how much protein is in cottage cheese?</code>
 
 💧 <b>Water, weight, and reminders</b>
-💧 Type <code>water 300</code> to log 300 ml. Use /water for your total.
+
+💧 /water · water total. Type <code>water 300</code> to log 300 ml.
+
 ⚖️ /weight 72.5 · log your weight and update your goal
-💊 /pills · pills    ⏰ /remind · water reminders
+
+💊 /pills · pills
+
+⏰ /remind · water reminders
 
 ⌨️ <b>Settings</b>
-🇺🇸 /lang · language    🔒 /devices · connected devices
-🔄 /reset · redo the questionnaire    🗑 /delete · delete your data
+
+🇺🇸 /lang · language
+
+🔒 /devices · connected devices
+
+🔄 /reset · redo the questionnaire
+
+🗑 /delete · delete your data
 
 <blockquote>These are estimates. For medical advice, talk to a healthcare professional.</blockquote>`,
 };
