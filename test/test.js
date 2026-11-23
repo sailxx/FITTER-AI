@@ -1,6 +1,7 @@
 // Проверка бота без интернета: подменяем Telegram, Gemini и базу данных.
 // Запуск: node test/test.js
 import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
 import worker, { _test } from "../worker.js";
 import { attachDiary } from "./durable-fixture.js";
 
@@ -31,7 +32,14 @@ globalThis.fetch = async (url, opts = {}) => {
   }
   if (url.startsWith(`https://api.telegram.org/bot${TOKEN}/`)) {
     const method = url.split("/").pop();
-    const body = JSON.parse(opts.body || "{}");
+    const body = opts.body instanceof FormData ? Object.fromEntries(opts.body) : JSON.parse(opts.body || "{}");
+    if (method === "sendPhoto") {
+      assert.ok(opts.body instanceof FormData && body.photo instanceof File, "фото передаётся во вложении");
+      assert.equal(body.photo.type, "image/jpeg");
+      assert.deepEqual(Array.from((await body.photo.bytes()).slice(0, 3)), [255, 216, 255]);
+      body.photo = body.photo.name;
+      if (body.reply_markup) body.reply_markup = JSON.parse(body.reply_markup);
+    }
     sent.push({ method, body });
     if (method === "getFile") return Response.json({ ok: true, result: { file_path: "photos/file_1.jpg" } });
     if (method === "getMe") return Response.json({ ok: true, result: { username: "fitter_test_bot" } });
@@ -83,6 +91,7 @@ globalThis.fetch = async (url, opts = {}) => {
 
 const SETUP = "test-private-setup-secret-1234";
 const env = { BOT_TOKEN: TOKEN, GEMINI_API_KEY: "k", WEBHOOK_SECRET: "s3cret", SETUP_SECRET: SETUP, PUBLIC_ORIGIN: "https://fitter.example.workers.dev", DB: new FakeKV() };
+env.BOT_CARDS = { fetch: async (url) => new Response(await readFile(new URL("../assets/telegram" + new URL(url).pathname, import.meta.url))) };
 const diaryNamespace = attachDiary(env);
 const pending = [];
 const ctx = { waitUntil: (p) => pending.push(p) };
@@ -116,7 +125,7 @@ const lastText = (s) => s.filter((x) => ["sendMessage", "editMessageText", "send
 // 2. Анкета
 let s = await msg("/start");
 const languageCard = s.find((x) => x.method === "sendPhoto").body;
-assert.match(languageCard.photo, /\/bot-cards\/language\.jpg$/);
+assert.equal(languageCard.photo, "language.jpg");
 assert.match(languageCard.caption, /Выбери язык \/ Choose your language/);
 assert.deepEqual(languageCard.reply_markup.inline_keyboard[0].map((b) => b.text), ["🇷🇺 Русский", "🇺🇸 English"]);
 assert.equal((await env.DB.get("u:42", "json")).state.step, "language");
@@ -526,7 +535,7 @@ console.log("✓ /app и /setup");
   s = await msg("/today");
   assert.ok(lastText(s).includes("💧 Вода  <b>0,75 л</b> / " + goalL));
   const card = s.find((x) => x.method === "sendPhoto").body;
-  assert.match(card.photo, /\/bot-cards\/today\.jpg$/);
+  assert.equal(card.photo, "today.jpg");
   const addWater = card.reply_markup.inline_keyboard[0][1].callback_data;
   s = await cb(addWater, [{}]);
   assert.ok(s.some((x) => x.method === "editMessageCaption" && x.body.caption.includes("1 л</b>")));
@@ -1160,15 +1169,15 @@ console.log("✓ проверка даты");
   assert.match(lastText(s), /Protein/);
   noCyr(lastText(s));
   s = await e("/week");
-  assert.match(s.find((x) => x.method === "sendPhoto").body.photo, /\/bot-cards\/week\.jpg$/);
+  assert.equal(s.find((x) => x.method === "sendPhoto").body.photo, "week.jpg");
   assert.match(lastText(s), /<b>Week<\/b>/);
   noCyr(lastText(s));
   s = await e("/help");
-  assert.match(s.find((x) => x.method === "sendPhoto").body.photo, /\/bot-cards\/help\.jpg$/);
+  assert.equal(s.find((x) => x.method === "sendPhoto").body.photo, "help.jpg");
   assert.match(lastText(s), /How it works/);
   noCyr(lastText(s));
   s = await e("/profile");
-  assert.match(s.find((x) => x.method === "sendPhoto").body.photo, /\/bot-cards\/profile\.jpg$/);
+  assert.equal(s.find((x) => x.method === "sendPhoto").body.photo, "profile.jpg");
   assert.match(lastText(s), /Daily goal/);
   noCyr(lastText(s).replace("Язык", ""));
   rejectBotPhoto = true;
@@ -1330,17 +1339,18 @@ console.log("✓ проверка даты");
   const id = 303;
   const date = new Date(Date.now() + 180 * 60000).toISOString().slice(0, 10);
   await env.DB.put(`u:${id}`, JSON.stringify({ id, lang: "en", tz: 180, targets: { kcal: 2000, p: 100, f: 60, c: 250 } }));
-  const meals = Array.from({ length: 24 }, (_, i) => ({
+  const meals = Array.from({ length: 80 }, (_, i) => ({
     id: String(i), time: "12:00", title: `Meal ${i}: roasted vegetables with rice, chicken and fresh herbs`, items: [],
   }));
   await env.DB.put(`d:${id}:${date}`, JSON.stringify({ meals }));
   s = await call({ message: { message_id: 1, from: { id }, chat: { id, type: "private" }, text: "Today" } });
   const card = s.find((x) => x.method === "sendPhoto").body;
-  assert.match(card.photo, /\/bot-cards\/today\.jpg$/);
-  assert.equal(card.caption, undefined);
-  const summary = s.find((x) => x.method === "sendMessage").body;
-  assert.match(summary.text, /Meal 23/);
-  assert.ok(summary.reply_markup.inline_keyboard.length > 0);
+  assert.equal(card.photo, "today.jpg");
+  assert.match(card.caption, /Today<\/b>.*[\s\S]*Protein/);
+  assert.ok(card.reply_markup.inline_keyboard.length > 0);
+  const continuation = s.filter((x) => x.method === "sendMessage").map((x) => x.body.text);
+  assert.equal(continuation.length, 2);
+  assert.match(continuation.join("\n"), /Meal 79/);
 }
 
 // 12. Лимит запросов к ИИ

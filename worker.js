@@ -230,9 +230,18 @@ function buttonIcons(markup) {
 
 async function tgRaw(env, method, payload) {
   try {
+    let body, headers;
+    if (payload.photo instanceof File) {
+      body = new FormData();
+      for (const [key, value] of Object.entries(payload)) {
+        body.set(key, value instanceof File ? value : typeof value === "object" ? JSON.stringify(value) : String(value));
+      }
+    } else {
+      body = JSON.stringify(payload);
+      headers = { "content-type": "application/json" };
+    }
     const r = await fetch(`https://api.telegram.org/bot${env.BOT_TOKEN}/${method}`, {
-      method: "POST", redirect: "manual", signal: AbortSignal.timeout(8000),
-      headers: { "content-type": "application/json" }, body: JSON.stringify(payload),
+      method: "POST", redirect: "manual", signal: AbortSignal.timeout(8000), headers, body,
     });
     return await r.json();
   } catch { return { ok: false, description: "Telegram API unavailable" }; }
@@ -438,17 +447,35 @@ function send(env, chatId, text, extra = {}) {
   return tg(env, "sendMessage", { chat_id: chatId, text, parse_mode: "HTML", disable_web_page_preview: true, ...extra });
 }
 
-async function sendCard(env, chatId, card, text, extra = {}) {
-  const photo = `${env.ORIGIN}/bot-cards/${card}.jpg`;
-  // Длинный дневник остаётся целым: фото сверху, текст и кнопки под ним.
-  const fits = text.replace(/<[^>]+>/g, "").length <= 1024;
-  if (!fits) {
-    await tgRaw(env, "sendPhoto", { chat_id: chatId, photo });
-  } else {
-    const result = await tg(env, "sendPhoto", { chat_id: chatId, photo, caption: text, parse_mode: "HTML", ...extra });
-    if (result.ok) return result;
+async function sendCard(env, chatId, card, text, extra = {}, details = "") {
+  const filename = `${card}.jpg`;
+  const fullText = text + details;
+  const fits = fullText.replace(/<[^>]+>/g, "").length <= 1024;
+  const asset = await env.BOT_CARDS?.fetch(`https://assets.local/bot-cards/${filename}`).catch(() => null);
+  if (asset?.ok) {
+    const photo = new File([await asset.arrayBuffer()], filename, { type: "image/jpeg" });
+    const result = await tg(env, "sendPhoto", {
+      chat_id: chatId, photo, caption: fits ? fullText : text.trimEnd(), parse_mode: "HTML", ...extra,
+    });
+    if (result.ok && fits) return result;
+    // У большой сводки итог и кнопки остаются на фото, список блюд идёт ниже.
+    if (result.ok) return sendCardDetails(env, chatId, details);
   }
-  return send(env, chatId, text, extra);
+  if (fits || !details) return send(env, chatId, fullText, extra);
+  await send(env, chatId, text.trimEnd(), extra);
+  return sendCardDetails(env, chatId, details);
+}
+
+async function sendCardDetails(env, chatId, details) {
+  let part = "";
+  for (const line of details.trim().split("\n")) {
+    if (part.length + line.length + 1 > 4000) {
+      await send(env, chatId, part.trimEnd());
+      part = "";
+    }
+    part += line + "\n";
+  }
+  if (part.trim()) return send(env, chatId, part.trimEnd());
 }
 
 function edit(env, chatId, messageId, text, extra = {}) {
@@ -2204,14 +2231,15 @@ async function sendDay(env, u, chatId, date) {
     `🍞 ${L(u, "Углеводы", "Carbs")}  <b>${round(t.c)}</b> / ${g.c} ${gU}\n` +
     `💧 ${L(u, "Вода", "Water")}  <b>${liters(water, u)}</b> / ${liters(wGoal, u)}${water >= wGoal ? " ✓" : ""}\n\n\n`;
 
+  let details = "";
   if (day.meals.length) {
-    text += `🍽 <b>${L(u, "Приёмы пищи", "Meals")}</b>\n\n` +
+    details = `🍽 <b>${L(u, "Приёмы пищи", "Meals")}</b>\n\n` +
       day.meals.map((m) => `${m.time}  ${esc(m.title)}  <b>${round(sumItems(m.items).kcal)}</b>`).join("\n");
     // Подсказка по белку во второй половине дня
     if (isToday && nowTime(u) >= "15:00" && t.p < g.p * 0.5 && left > 0) {
-      text += L(u, `\n\n\n💡 <i>Белка пока мало. Добавь творог, яйца, курицу или рыбу</i>`, `\n\n\n💡 <i>Protein is low so far. Add cottage cheese, eggs, chicken or fish</i>`);
+      details += L(u, `\n\n\n💡 <i>Белка пока мало. Добавь творог, яйца, курицу или рыбу</i>`, `\n\n\n💡 <i>Protein is low so far. Add cottage cheese, eggs, chicken or fish</i>`);
     } else if (left < 0) {
-      text += L(u, `\n\n\n💡 <i>Норма набрана. Если хочется есть, выбирай овощи и белок</i>`, `\n\n\n💡 <i>Goal reached. If you're still hungry, go for vegetables and protein</i>`);
+      details += L(u, `\n\n\n💡 <i>Норма набрана. Если хочется есть, выбирай овощи и белок</i>`, `\n\n\n💡 <i>Goal reached. If you're still hungry, go for vegetables and protein</i>`);
     }
   } else {
     text += isToday
@@ -2225,7 +2253,7 @@ async function sendDay(env, u, chatId, date) {
         [{ text: L(u, "📅 Неделя", "📅 Week"), callback_data: "week" }, appButton(env, u, "📱 Дневник", "📱 Diary")],
       ],
     },
-  });
+  }, details);
 }
 
 // Цветная полоска из 5 квадратиков: зелёный — норма, синий — мало, красный — больше нормы

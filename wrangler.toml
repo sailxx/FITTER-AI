@@ -6,6 +6,7 @@ compatibility_date = "2026-09-01"
 
 [assets]
 directory = "./assets/telegram"
+binding = "BOT_CARDS"
 
 [[kv_namespaces]]
 binding = "DB"
