@@ -588,7 +588,7 @@ console.log("✓ /app и /setup");
 // Иконки в цитатах не приняты — отправляем с иконками, но без цитат, и запоминаем ошибку
 {
   // В меню цитаты без иконок — уходят с первой попытки
-  assert.match(_test.HELP || "", /<tg-spoiler>/);
+  assert.match(_test.HELP || "", /<blockquote>Расчёты приблизительные/);
   rejectQuote = true;
   s = await msg("/help");
   assert.equal(s.filter((x) => x.method === "sendPhoto").length, 1);
@@ -841,8 +841,10 @@ console.log("✓ /app и /setup");
   assert.match(prof, /<tg-emoji emoji-id="7012">💪<\/tg-emoji> Набрать массу/);
   s = await msg("/help");
   const help = s.find((x) => x.method === "sendPhoto").body.caption;
-  assert.match(help, /<tg-emoji emoji-id="7064">1️⃣<\/tg-emoji> <b>Сфоткай<\/b> еду/);
-  assert.match(help, /<tg-emoji emoji-id="7024">📊<\/tg-emoji> \/today — итоги дня/, "у команд свои иконки");
+  assert.match(help, /<tg-emoji emoji-id="7056">❓<\/tg-emoji> <b>Помощь FITTER<\/b>/);
+  assert.match(help, /<tg-emoji emoji-id="7024">📊<\/tg-emoji> \/today · итоги дня/, "у команд свои иконки");
+  assert.match(help, /\/devices · подключённые устройства/);
+  assert.ok(!s.some((x) => x.method === "sendMessage"), "вся помощь помещается в подпись к фото");
   const flags = (await msg("/lang")).find((x) => x.method === "sendPhoto").body.reply_markup.inline_keyboard[0];
   assert.deepEqual(flags.map((b) => b.icon_custom_emoji_id), [map["🇷🇺"], map["🇺🇸"]]);
   console.log("✓ набор иконок FITTER: 74 цветные иконки, старые наборы удаляются");
@@ -1174,7 +1176,8 @@ console.log("✓ проверка даты");
   noCyr(lastText(s));
   s = await e("/help");
   assert.equal(s.find((x) => x.method === "sendPhoto").body.photo, "help.jpg");
-  assert.match(lastText(s), /How it works/);
+  assert.match(lastText(s), /Log a meal/);
+  assert.match(lastText(s), /\/devices · connected devices/);
   noCyr(lastText(s));
   s = await e("/profile");
   assert.equal(s.find((x) => x.method === "sendPhoto").body.photo, "profile.jpg");
