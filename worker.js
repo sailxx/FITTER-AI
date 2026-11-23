@@ -1112,98 +1112,52 @@ function mealDetails(u, meal) {
 
 // Цитаты — без иконок внутри: так Telegram принимает сообщение с первой попытки
 const HELP_TEXT = {
-  ru: `🍏 <b>FITTER</b>
-<blockquote><i>Считаю калории по фото — быстро, весело и без кухонных весов</i></blockquote>
+  ru: `❓ <b>Помощь FITTER</b>
 
+📸 <b>Как записать еду</b>
+Пришли фото блюда, этикетки или штрихкода. Я помогу посчитать калории и БЖУ.
+📝 Можно написать <code>съел 2 яйца и тост</code>.
+✏️ Название и вес можно поправить кнопкой под записью.
 
-📸 <b>Как это работает</b>
+📊 <b>Дневник и прогресс</b>
+📊 /today · итоги дня    📅 /week · последние 7 дней
+📱 /app · дневник    👤 /profile · профиль и норма
+🧠 /analysis · разбор недели    🏆 /awards · достижения
+🥗 /advice · что съесть или спроси <code>сколько белка в твороге?</code>
 
-1️⃣ <b>Сфоткай</b> еду и пришли мне
-2️⃣ Узнаю блюда и посчитаю <b>КБЖУ</b>
-3️⃣ Что-то не так? Нажми ✏️ — <u>поправлю</u>
-4️⃣ Всё ляжет в <b>дневник</b> 📱
+💧 <b>Вода, вес и напоминания</b>
+💧 Напиши <code>вода 300</code>, чтобы записать 300 мл. Сводка — /water.
+⚖️ /weight 72.5 · записать вес и обновить норму
+💊 /pills · таблетки    ⏰ /remind · напоминания о воде
 
+⌨️ <b>Настройки</b>
+🇷🇺 /lang · язык    🔒 /devices · подключённые устройства
+🔄 /reset · пройти анкету заново    🗑 /delete · удалить данные
 
-✨ <b>Ещё умею</b> — <i>просто напиши</i>
+<blockquote>Расчёты приблизительные. За медицинскими рекомендациями обращайся к специалисту.</blockquote>`,
+  en: `❓ <b>FITTER help</b>
 
-📝 <code>съел 2 яйца и тост</code> — запишу без фото
-💬 <code>сколько белка в твороге?</code> — отвечу
-💧 <code>вода 300</code> — отмечу воду
-⚖️ <code>/weight 72.5</code> — запишу вес и обновлю норму
-📦 Фото <b>этикетки</b> или <b>штрихкода</b> — найду КБЖУ
+📸 <b>Log a meal</b>
+Send a photo of your meal, a nutrition label, or a barcode. I'll help estimate calories and macros.
+📝 You can also type <code>ate 2 eggs and toast</code>.
+✏️ Use the button below a meal to fix its name or weight.
 
-💡 <b>Лайфхак:</b> <tg-spoiler>пиши «+500» — сразу запишу пол-литра воды</tg-spoiler>
+📊 <b>Diary and progress</b>
+📊 /today · daily summary    📅 /week · last 7 days
+📱 /app · diary    👤 /profile · profile and goal
+🧠 /analysis · weekly review    🏆 /awards · achievements
+🥗 /advice · meal ideas, or ask <code>how much protein is in cottage cheese?</code>
 
+💧 <b>Water, weight, and reminders</b>
+💧 Type <code>water 300</code> to log 300 ml. Use /water for your total.
+⚖️ /weight 72.5 · log your weight and update your goal
+💊 /pills · pills    ⏰ /remind · water reminders
 
-⌨️ <b>Команды</b>
+⌨️ <b>Settings</b>
+🇺🇸 /lang · language    🔒 /devices · connected devices
+🔄 /reset · redo the questionnaire    🗑 /delete · delete your data
 
-<u>Каждый день</u>
-📊 /today — итоги дня
-🥗 /advice — что съесть
-💧 /water — вода
-💊 /pills — таблетки
-
-<u>Итоги</u>
-📅 /week — неделя
-🧠 /analysis — разбор недели
-🏆 /awards — достижения
-
-<u>Профиль</u>
-👤 /profile — профиль и норма
-📱 /app — дневник
-⏰ /remind — напоминания
-🌐 /lang — язык
-🔄 /reset — пройти анкету заново
-🗑 /delete — удалить мои данные
-
-
-<blockquote><i>FITTER считает примерно и не заменяет врача или диетолога</i></blockquote>`,
-  en: `🍏 <b>FITTER</b>
-<blockquote><i>I count calories from photos — fast, fun and no kitchen scale</i></blockquote>
-
-
-📸 <b>How it works</b>
-
-1️⃣ <b>Snap</b> your food and send it to me
-2️⃣ I recognize the dishes and count the <b>macros</b>
-3️⃣ Something off? Tap ✏️ — <u>I'll fix it</u>
-4️⃣ Everything goes into your <b>diary</b> 📱
-
-
-✨ <b>Also</b> — <i>just type</i>
-
-📝 <code>ate 2 eggs and toast</code> — I'll log it without a photo
-💬 <code>how much protein is in cottage cheese?</code> — I'll answer
-💧 <code>water 300</code> — I'll log your water
-⚖️ <code>/weight 72.5</code> — log your weight and update your goal
-📦 A photo of a <b>label</b> or <b>barcode</b> — I'll find the nutrition values
-
-💡 <b>Pro tip:</b> <tg-spoiler>type “+500” — I'll instantly log half a liter of water</tg-spoiler>
-
-
-⌨️ <b>Commands</b>
-
-<u>Every day</u>
-📊 /today — today's summary
-🥗 /advice — what to eat
-💧 /water — water
-💊 /pills — pills
-
-<u>Summaries</u>
-📅 /week — week
-🧠 /analysis — weekly review
-🏆 /awards — achievements
-
-<u>Profile</u>
-👤 /profile — profile and goal
-📱 /app — diary
-⏰ /remind — reminders
-🌐 /lang — language
-🔄 /reset — redo the questionnaire
-🗑 /delete — delete my data
-
-
-<blockquote><i>FITTER's numbers are approximate and don't replace a doctor or dietitian</i></blockquote>`,
+<blockquote>These are estimates. For medical advice, talk to a healthcare professional.</blockquote>`,
 };
 const HELP = HELP_TEXT.ru;
 const helpText = (u) => HELP_TEXT[langOf(u)];
