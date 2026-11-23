@@ -1,6 +1,7 @@
 // Проверка бота без интернета: подменяем Telegram, Gemini и базу данных.
 // Запуск: node test/test.js
 import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
 import worker, { _test } from "../worker.js";
 import { attachDiary } from "./durable-fixture.js";
 
@@ -12,6 +13,7 @@ let photoStatusGate = null;
 let offCalls = 0;
 const usdaCalls = [];
 let rejectQuote = false;
+let rejectBotPhoto = false;
 
 class FakeKV {
   constructor() { this.m = new Map(); }
@@ -30,7 +32,14 @@ globalThis.fetch = async (url, opts = {}) => {
   }
   if (url.startsWith(`https://api.telegram.org/bot${TOKEN}/`)) {
     const method = url.split("/").pop();
-    const body = JSON.parse(opts.body || "{}");
+    const body = opts.body instanceof FormData ? Object.fromEntries(opts.body) : JSON.parse(opts.body || "{}");
+    if (method === "sendPhoto") {
+      assert.ok(opts.body instanceof FormData && body.photo instanceof File, "фото передаётся во вложении");
+      assert.equal(body.photo.type, "image/jpeg");
+      assert.deepEqual(Array.from((await body.photo.bytes()).slice(0, 3)), [255, 216, 255]);
+      body.photo = body.photo.name;
+      if (body.reply_markup) body.reply_markup = JSON.parse(body.reply_markup);
+    }
     sent.push({ method, body });
     if (method === "getFile") return Response.json({ ok: true, result: { file_path: "photos/file_1.jpg" } });
     if (method === "getMe") return Response.json({ ok: true, result: { username: "fitter_test_bot" } });
@@ -43,11 +52,12 @@ globalThis.fetch = async (url, opts = {}) => {
       const tg = { "🏃": "🏃‍♂️", "🚶": "🚶‍♂️", "💪": "💪🏻", "⚖️": "⚖" };
       return Response.json({ ok: true, result: { title: "FITTER", stickers: em.map((e, i) => ({ emoji: tg[e] || e, file_id: "f" + i, custom_emoji_id: String(7000 + i) })) } });
     }
-    if (method === "sendMessage" && rejectQuote && /<blockquote[^>]*>(?:(?!<\/blockquote>)[\s\S])*<tg-emoji/.test(body.text || "")) {
+    if (method === "sendPhoto" && rejectBotPhoto) return Response.json({ ok: false, description: "photo unavailable" });
+    if (rejectQuote && /<blockquote[^>]*>(?:(?!<\/blockquote>)[\s\S])*<tg-emoji/.test(body.text || body.caption || "")) {
       return Response.json({ ok: false, description: "Bad Request: test reject" });
     }
-    if (method === "sendMessage") {
-      if (photoStatusGate && body.text.includes("Смотрю на фото")) await photoStatusGate.promise;
+    if (method === "sendMessage" || method === "sendPhoto") {
+      if (photoStatusGate && body.text?.includes("Смотрю на фото")) await photoStatusGate.promise;
       return Response.json({ ok: true, result: { message_id: ++msgId } });
     }
     return Response.json({ ok: true, result: true });
@@ -81,6 +91,7 @@ globalThis.fetch = async (url, opts = {}) => {
 
 const SETUP = "test-private-setup-secret-1234";
 const env = { BOT_TOKEN: TOKEN, GEMINI_API_KEY: "k", WEBHOOK_SECRET: "s3cret", SETUP_SECRET: SETUP, PUBLIC_ORIGIN: "https://fitter.example.workers.dev", DB: new FakeKV() };
+env.BOT_CARDS = { fetch: async (url) => new Response(await readFile(new URL("../assets/telegram" + new URL(url).pathname, import.meta.url))) };
 const diaryNamespace = attachDiary(env);
 const pending = [];
 const ctx = { waitUntil: (p) => pending.push(p) };
@@ -100,9 +111,10 @@ async function call(update) {
 const from = { id: 42, first_name: "Влад", language_code: "ru" };
 const chat = { id: 42, type: "private" };
 const msg = (text) => call({ message: { message_id: 1, from, chat, text } });
-const cb = (data) => call({ callback_query: { id: "q", from, data, message: { message_id: 7, chat } } });
+const cb = (data, photo) => call({ callback_query: { id: "q", from, data, message: { message_id: 7, chat, photo } } });
 // Поздравления с наградами проверяем отдельно, здесь их пропускаем
-const lastText = (s) => s.filter((x) => (x.method === "sendMessage" || x.method === "editMessageText") && !/^🏆 <b>Нов/.test(x.body.text || "")).map((x) => x.body.text).pop();
+const lastText = (s) => s.filter((x) => ["sendMessage", "editMessageText", "sendPhoto", "editMessageCaption"].includes(x.method))
+  .map((x) => x.body.text || x.body.caption).filter((t) => t && !/^🏆 <b>Нов/.test(t)).pop();
 
 // 1. Неверный секрет webhook
 {
@@ -112,9 +124,18 @@ const lastText = (s) => s.filter((x) => (x.method === "sendMessage" || x.method 
 
 // 2. Анкета
 let s = await msg("/start");
+const languageCard = s.find((x) => x.method === "sendPhoto").body;
+assert.equal(languageCard.photo, "language.jpg");
+assert.match(languageCard.caption, /Выбери язык \/ Choose your language/);
+assert.deepEqual(languageCard.reply_markup.inline_keyboard[0].map((b) => b.text), ["🇷🇺 Русский", "🇺🇸 English"]);
+assert.equal((await env.DB.get("u:42", "json")).state.step, "language");
+s = await cb(languageCard.reply_markup.inline_keyboard[0][0].callback_data, [{}]);
+assert.ok(s.some((x) => x.method === "editMessageCaption"));
 assert.match(lastText(s), /Твой пол/);
 s = await cb("sex|m");
 assert.match(lastText(s), /Сколько тебе лет/);
+assert.equal((await cb("welcome_lang|en")).filter((x) => x.method === "sendMessage").length, 0);
+assert.equal((await env.DB.get("u:42", "json")).state.step, "age");
 s = await msg("abc");
 assert.match(lastText(s), /возраст числом/);
 await msg("16");
@@ -513,6 +534,12 @@ console.log("✓ /app и /setup");
   assert.match(lastText(s), /0,75 л/);
   s = await msg("/today");
   assert.ok(lastText(s).includes("💧 Вода  <b>0,75 л</b> / " + goalL));
+  const card = s.find((x) => x.method === "sendPhoto").body;
+  assert.equal(card.photo, "today.jpg");
+  const addWater = card.reply_markup.inline_keyboard[0][1].callback_data;
+  s = await cb(addWater, [{}]);
+  assert.ok(s.some((x) => x.method === "editMessageCaption" && x.body.caption.includes("1 л</b>")));
+  await cb(addWater.replace(/\|250$/, "|-250"), [{}]);
   d = await (await apiCall("/api/day")).json();
   assert.equal(d.water, 750);
   r = await apiCall("/api/water", "POST", { date: d.date, delta: -250 });
@@ -564,7 +591,7 @@ console.log("✓ /app и /setup");
   assert.match(_test.HELP || "", /<tg-spoiler>/);
   rejectQuote = true;
   s = await msg("/help");
-  assert.equal(s.filter((x) => x.method === "sendMessage").length, 1);
+  assert.equal(s.filter((x) => x.method === "sendPhoto").length, 1);
   // Цитаты остались в статистике владельца
   env.ADMIN_ID = "42";
   s = await msg("/stats");
@@ -768,7 +795,7 @@ console.log("✓ /app и /setup");
   assert.equal(created.name, "fitter_fun_by_fitter_test_bot");
   assert.equal(created.needs_repainting, false, "все иконки цветные");
   assert.equal(created.stickers.length, 50, "в createNewStickerSet не больше 50");
-  assert.equal(s.filter((x) => x.method === "addStickerToSet").length, 22, "остальные добавлены по одной");
+  assert.equal(s.filter((x) => x.method === "addStickerToSet").length, 24, "остальные добавлены по одной");
   assert.match(created.stickers[0].sticker, /icons\/fun\/plate\.png$/);
   assert.equal(map["🍽"], "7000");
   assert.equal(map["🔥"], "7004");
@@ -781,7 +808,9 @@ console.log("✓ /app и /setup");
   assert.equal(map["↩"], "7050");
   assert.equal(map["1️⃣"], "7064");
   assert.equal(map["⬜"], "7071");
-  assert.equal(Object.keys(map).length, 72);
+  assert.equal(map["🇷🇺"], "7072");
+  assert.equal(map["🇺🇸"], "7073");
+  assert.equal(Object.keys(map).length, 74);
   // Старые наборы удаляются только после того, как новый подключён
   const del = s.filter((x) => x.method === "deleteStickerSet").map((x) => x.body.name);
   assert.deepEqual(del, ["fitter", "fitter_ui", "fitter_icons", "fitter_food"].map((o) => o + "_by_fitter_test_bot"));
@@ -807,13 +836,16 @@ console.log("✓ /app и /setup");
   assert.match(lastText(s), /только для владельца/);
   delete env.ADMIN_ID;
   s = await msg("/profile");
-  const prof = s.find((x) => x.method === "sendMessage").body.text;
+  const prof = s.find((x) => x.method === "sendPhoto").body.caption;
   assert.match(prof, /<tg-emoji emoji-id="7011">🏃<\/tg-emoji> 3–5 тренировок/);
   assert.match(prof, /<tg-emoji emoji-id="7012">💪<\/tg-emoji> Набрать массу/);
   s = await msg("/help");
-  assert.match(s.find((x) => x.method === "sendMessage").body.text, /<tg-emoji emoji-id="7064">1️⃣<\/tg-emoji> <b>Сфоткай<\/b> еду/);
-  assert.match(s.find((x) => x.method === "sendMessage").body.text, /<tg-emoji emoji-id="7024">📊<\/tg-emoji> \/today — итоги дня/, "у команд свои иконки");
-  console.log("✓ набор иконок FITTER: 72 цветные иконки, старые наборы удаляются");
+  const help = s.find((x) => x.method === "sendPhoto").body.caption;
+  assert.match(help, /<tg-emoji emoji-id="7064">1️⃣<\/tg-emoji> <b>Сфоткай<\/b> еду/);
+  assert.match(help, /<tg-emoji emoji-id="7024">📊<\/tg-emoji> \/today — итоги дня/, "у команд свои иконки");
+  const flags = (await msg("/lang")).find((x) => x.method === "sendPhoto").body.reply_markup.inline_keyboard[0];
+  assert.deepEqual(flags.map((b) => b.icon_custom_emoji_id), [map["🇷🇺"], map["🇺🇸"]]);
+  console.log("✓ набор иконок FITTER: 74 цветные иконки, старые наборы удаляются");
 }
 
 // 13. Картинка файлом больше 5 МБ не уходит в нейросеть
@@ -1099,13 +1131,15 @@ console.log("✓ проверка даты");
 
 // 11a. Английский: язык по языку Telegram, ответы бота, переключатель и приложение
 {
-  const en = { id: 300, first_name: "Sam", language_code: "en" }, echat = { id: 300, type: "private" };
+  const en = { id: 300, first_name: "Sam", language_code: "ru" }, echat = { id: 300, type: "private" };
   const e = (text) => call({ message: { message_id: 1, from: en, chat: echat, text } });
   const ecb = (data) => call({ callback_query: { id: "q", from: en, data, message: { message_id: 7, chat: echat } } });
   const noCyr = (text) => assert.ok(!/[А-Яа-яЁё]/.test(String(text).replace(/Русский/g, "")), "русский текст в английской версии: " + text);
 
   // Анкета и первые ответы
   s = await e("/start");
+  assert.match(lastText(s), /Choose your language/);
+  s = await ecb("welcome_lang|en");
   assert.match(lastText(s), /Your sex/);
   assert.equal((await env.DB.get("u:300", "json")).lang, "en");
   s = await ecb("sex|f");
@@ -1135,14 +1169,21 @@ console.log("✓ проверка даты");
   assert.match(lastText(s), /Protein/);
   noCyr(lastText(s));
   s = await e("/week");
+  assert.equal(s.find((x) => x.method === "sendPhoto").body.photo, "week.jpg");
   assert.match(lastText(s), /<b>Week<\/b>/);
   noCyr(lastText(s));
   s = await e("/help");
+  assert.equal(s.find((x) => x.method === "sendPhoto").body.photo, "help.jpg");
   assert.match(lastText(s), /How it works/);
   noCyr(lastText(s));
   s = await e("/profile");
+  assert.equal(s.find((x) => x.method === "sendPhoto").body.photo, "profile.jpg");
   assert.match(lastText(s), /Daily goal/);
   noCyr(lastText(s).replace("Язык", ""));
+  rejectBotPhoto = true;
+  s = await e("Profile");
+  rejectBotPhoto = false;
+  assert.match(s.find((x) => x.method === "sendMessage").body.text, /Daily goal/);
   s = await e("/awards");
   assert.match(lastText(s), /Achievements/);
   noCyr(lastText(s));
@@ -1176,7 +1217,7 @@ console.log("✓ проверка даты");
 
   // Переключатель: /lang, кнопка в профиле, приложение
   s = await e("/lang");
-  assert.match(lastText(s), /Language/);
+  assert.match(lastText(s), /Choose your language/);
   s = await e("/lang ru");
   assert.equal((await env.DB.get("u:300", "json")).lang, "ru");
   s = await e("/today");
@@ -1292,6 +1333,25 @@ console.log("✓ проверка даты");
   console.log("✓ привязка к USDA: значения из базы, кэш, запасной вариант");
 }
 
+
+// Длинная сводка не обрезается до лимита подписи Telegram.
+{
+  const id = 303;
+  const date = new Date(Date.now() + 180 * 60000).toISOString().slice(0, 10);
+  await env.DB.put(`u:${id}`, JSON.stringify({ id, lang: "en", tz: 180, targets: { kcal: 2000, p: 100, f: 60, c: 250 } }));
+  const meals = Array.from({ length: 80 }, (_, i) => ({
+    id: String(i), time: "12:00", title: `Meal ${i}: roasted vegetables with rice, chicken and fresh herbs`, items: [],
+  }));
+  await env.DB.put(`d:${id}:${date}`, JSON.stringify({ meals }));
+  s = await call({ message: { message_id: 1, from: { id }, chat: { id, type: "private" }, text: "Today" } });
+  const card = s.find((x) => x.method === "sendPhoto").body;
+  assert.equal(card.photo, "today.jpg");
+  assert.match(card.caption, /Today<\/b>.*[\s\S]*Protein/);
+  assert.ok(card.reply_markup.inline_keyboard.length > 0);
+  const continuation = s.filter((x) => x.method === "sendMessage").map((x) => x.body.text);
+  assert.equal(continuation.length, 2);
+  assert.match(continuation.join("\n"), /Meal 79/);
+}
 
 // 12. Лимит запросов к ИИ
 env.DAILY_AI_LIMIT = "1";

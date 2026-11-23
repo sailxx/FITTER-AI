@@ -85,7 +85,7 @@ async function readImage(response, limit) {
 
 // ───────────────────────────── Язык ─────────────────────────────
 // u.lang = "en" | "ru". Поля нет — человек из версии до перевода, ему остаётся русский.
-// Новым пользователям язык выбирается по языку Telegram, сменить можно в /lang, в дневнике и в приложении.
+// Новые пользователи выбирают язык перед анкетой. Сменить его можно в /lang, в дневнике и в приложении.
 const langOf = (u) => (u && u.lang === "en" ? "en" : "ru");
 const L = (u, ru, en) => (langOf(u) === "en" ? en : ru);
 const aiLang = (u) => L(u, "Russian", "English");
@@ -230,9 +230,18 @@ function buttonIcons(markup) {
 
 async function tgRaw(env, method, payload) {
   try {
+    let body, headers;
+    if (payload.photo instanceof File) {
+      body = new FormData();
+      for (const [key, value] of Object.entries(payload)) {
+        body.set(key, value instanceof File ? value : typeof value === "object" ? JSON.stringify(value) : String(value));
+      }
+    } else {
+      body = JSON.stringify(payload);
+      headers = { "content-type": "application/json" };
+    }
     const r = await fetch(`https://api.telegram.org/bot${env.BOT_TOKEN}/${method}`, {
-      method: "POST", redirect: "manual", signal: AbortSignal.timeout(8000),
-      headers: { "content-type": "application/json" }, body: JSON.stringify(payload),
+      method: "POST", redirect: "manual", signal: AbortSignal.timeout(8000), headers, body,
     });
     return await r.json();
   } catch { return { ok: false, description: "Telegram API unavailable" }; }
@@ -240,11 +249,15 @@ async function tgRaw(env, method, payload) {
 
 async function tg(env, method, payload) {
   let j;
-  if (method === "sendMessage" || method === "editMessageText") await loadEmojiMap(env);
-  const fancy = emojiRe && env.CUSTOM_EMOJI !== "off" && (method === "sendMessage" || method === "editMessageText");
+  const field = {
+    sendMessage: "text", editMessageText: "text",
+    sendPhoto: "caption", editMessageCaption: "caption",
+  }[method];
+  if (field) await loadEmojiMap(env);
+  const fancy = field && emojiRe && env.CUSTOM_EMOJI !== "off";
   if (fancy) {
     const p = { ...payload };
-    if (p.parse_mode === "HTML") p.text = withIcons(p.text);
+    if (p.parse_mode === "HTML" && p[field]) p[field] = withIcons(p[field]);
     if (p.reply_markup) p.reply_markup = buttonIcons(p.reply_markup);
     j = await tgRaw(env, method, p);
     const failed = (r) => !r.ok && !(r.description || "").includes("message is not modified");
@@ -253,8 +266,8 @@ async function tg(env, method, payload) {
       console.error("custom emoji rejected", method, j.error_code || "unknown");
       if (env.DB) await env.DB.put("cfg:emojierr", JSON.stringify({ at: new Date().toISOString(), method, error: j.description || "" })).catch(() => {});
       // Вторая попытка: иконки оставляем, а цитаты-блоки превращаем в обычный текст
-      if (p.text && p.text.includes("<blockquote>")) {
-        j = await tgRaw(env, method, { ...p, text: p.text.replace(/<\/?blockquote>/g, "") });
+      if (p[field]?.includes("<blockquote>")) {
+        j = await tgRaw(env, method, { ...p, [field]: p[field].replace(/<\/?blockquote>/g, "") });
       }
       // Последняя попытка: обычные эмодзи (например, если закончился Premium)
       if (failed(j)) j = await tgRaw(env, method, payload);
@@ -318,6 +331,7 @@ const ICON_SETS = [
       // цифры и квадратики шкал
       ["num1", "1️⃣", "1️⃣"], ["num2", "2️⃣", "2️⃣"], ["num3", "3️⃣", "3️⃣"], ["num4", "4️⃣", "4️⃣"],
       ["sq_green", "🟩", "🟩"], ["sq_blue", "🟦", "🟦"], ["sq_red", "🟥", "🟥"], ["sq_empty", "⬜", "⬜"],
+      ["flag-ru", "🇷🇺", "🇷🇺"], ["flag-en", "🇺🇸", "🇺🇸"],
     ],
   },
 ];
@@ -433,8 +447,45 @@ function send(env, chatId, text, extra = {}) {
   return tg(env, "sendMessage", { chat_id: chatId, text, parse_mode: "HTML", disable_web_page_preview: true, ...extra });
 }
 
+async function sendCard(env, chatId, card, text, extra = {}, details = "") {
+  const filename = `${card}.jpg`;
+  const fullText = text + details;
+  const fits = fullText.replace(/<[^>]+>/g, "").length <= 1024;
+  const asset = await env.BOT_CARDS?.fetch(`https://assets.local/bot-cards/${filename}`).catch(() => null);
+  if (asset?.ok) {
+    const photo = new File([await asset.arrayBuffer()], filename, { type: "image/jpeg" });
+    const result = await tg(env, "sendPhoto", {
+      chat_id: chatId, photo, caption: fits ? fullText : text.trimEnd(), parse_mode: "HTML", ...extra,
+    });
+    if (result.ok && fits) return result;
+    // У большой сводки итог и кнопки остаются на фото, список блюд идёт ниже.
+    if (result.ok) return sendCardDetails(env, chatId, details);
+  }
+  if (fits || !details) return send(env, chatId, fullText, extra);
+  await send(env, chatId, text.trimEnd(), extra);
+  return sendCardDetails(env, chatId, details);
+}
+
+async function sendCardDetails(env, chatId, details) {
+  let part = "";
+  for (const line of details.trim().split("\n")) {
+    if (part.length + line.length + 1 > 4000) {
+      await send(env, chatId, part.trimEnd());
+      part = "";
+    }
+    part += line + "\n";
+  }
+  if (part.trim()) return send(env, chatId, part.trimEnd());
+}
+
 function edit(env, chatId, messageId, text, extra = {}) {
   return tg(env, "editMessageText", { chat_id: chatId, message_id: messageId, text, parse_mode: "HTML", disable_web_page_preview: true, ...extra });
+}
+
+function editCard(env, message, text, extra = {}) {
+  const { chat, message_id } = message;
+  if (!message.photo?.length) return edit(env, chat.id, message_id, text, extra);
+  return tg(env, "editMessageCaption", { chat_id: chat.id, message_id, caption: text, parse_mode: "HTML", ...extra });
 }
 
 function mainKb(u) {
@@ -1329,8 +1380,10 @@ async function onMessage(msg, env) {
   // Язык: /lang — выбор кнопками, /lang en и /lang ru — сразу
   if (text === "/lang" || text.startsWith("/lang ")) {
     const arg = text.split(/\s+/)[1]?.toLowerCase();
-    if (arg !== "en" && arg !== "ru") return sendLang(env, u, chatId);
+    if (arg !== "en" && arg !== "ru") return !known || u.state?.step === "language"
+      ? chooseWelcomeLanguage(env, u, chatId) : sendLang(env, chatId);
     u.lang = arg;
+    if (!known || u.state?.step === "language") return startOnboarding(env, u, chatId);
     await saveUser(env, u);
     return send(env, chatId, L(u, "🌐 Язык: <b>Русский</b>", "🌐 Language: <b>English</b>"), u.targets ? { reply_markup: mainKb(u) } : {});
   }
@@ -1338,17 +1391,6 @@ async function onMessage(msg, env) {
   const linkCode = text.match(/^\/start link_([0-9a-z]{20})$/);
   if (linkCode && u.targets) return askLinkConfirm(env, u, chatId, linkCode[1]);
   if (text === "/devices" && u.targets) return sendDevices(env, u, chatId);
-  if (text === "/start" || text.startsWith("/start ")) {
-    if (u.targets) {
-      u.state = null;
-      await saveUser(env, u);
-      return send(env, chatId, L(u,
-        `С возвращением, ${esc(u.name || "друг")}! 👋\nОтправь фото еды — я посчитаю калории.`,
-        `Welcome back, ${esc(u.name || "friend")}! 👋\nSend a photo of your food and I'll count the calories.`), { reply_markup: mainKb(u) });
-    }
-    return startOnboarding(env, u, chatId);
-  }
-  if (text === "/reset") return startOnboarding(env, u, chatId);
   if (text === "/delete") {
     if (!known) return send(env, chatId, L(u, "У меня нет твоих данных 🤷", "I don't have any of your data 🤷"));
     u.deletePrompt = { nonce: randHex(8), expires: Date.now() + 300000 };
@@ -1361,6 +1403,16 @@ async function onMessage(msg, env) {
   }
 
   // Анкета
+  if (!known || u.state?.step === "language") return chooseWelcomeLanguage(env, u, chatId);
+  if (text === "/reset") return startOnboarding(env, u, chatId);
+  if (text === "/start" || text.startsWith("/start ")) {
+    if (!u.targets) return startOnboarding(env, u, chatId);
+    u.state = null;
+    await saveUser(env, u);
+    return send(env, chatId, L(u,
+      `С возвращением, ${esc(u.name || "друг")}! 👋\nОтправь фото еды — я посчитаю калории.`,
+      `Welcome back, ${esc(u.name || "friend")}! 👋\nSend a photo of your food and I'll count the calories.`), { reply_markup: mainKb(u) });
+  }
   if (u.state && u.state.step) {
     if (text.startsWith("/") && u.targets) {
       u.state = null; // вышли из анкеты командой
@@ -1436,7 +1488,7 @@ async function onMessage(msg, env) {
     case "/advice": return sendAdvice(env, u, chatId);
     case "/water": return sendWater(env, u, chatId);
     case "/pills": return sendPills(env, u, chatId);
-    case "/help": return send(env, chatId, helpText(u), { reply_markup: mainKb(u) });
+    case "/help": return sendCard(env, chatId, "help", helpText(u), { reply_markup: mainKb(u) });
     case "/app":
       return send(env, chatId, L(u, "Твой дневник питания по дням 👇", "Your food diary, day by day 👇"), { reply_markup: { inline_keyboard: [[appButton(env, u)]] } });
     case "/weight": {
@@ -1453,10 +1505,18 @@ async function onMessage(msg, env) {
 }
 
 // Выбор языка бота и приложения: один на аккаунт
-function sendLang(env, u, chatId) {
-  return send(env, chatId, "🌐 <b>Language / Язык</b>\n\n" + L(u, "Выбери язык бота и приложения", "Choose the language of the bot and the app"), {
-    reply_markup: { inline_keyboard: [[{ text: "🇬🇧 English", callback_data: "lang|en" }, { text: "🇷🇺 Русский", callback_data: "lang|ru" }]] },
+function sendLang(env, chatId, kind = "lang") {
+  return sendCard(env, chatId, "language", "<b>Выбери язык / Choose your language</b>", {
+    reply_markup: { inline_keyboard: [[{ text: "🇷🇺 Русский", callback_data: `${kind}|ru` }, { text: "🇺🇸 English", callback_data: `${kind}|en` }]] },
   });
+}
+
+async function chooseWelcomeLanguage(env, u, chatId) {
+  if (u.state?.step !== "language") {
+    u.state = { step: "language" };
+    await saveUser(env, u);
+  }
+  return sendLang(env, chatId, "welcome_lang");
 }
 
 // Кнопки меню: с иконкой Telegram присылает текст без эмодзи, поэтому смотрим только на слово
@@ -1580,18 +1640,23 @@ async function onCallback(q, env) {
     return sendDevices(env, u, chatId);
   }
 
-  if (kind === "lang") {
+  if (kind === "welcome_lang" && u.state?.step !== "language") return answer();
+  if (kind === "lang" || kind === "welcome_lang") {
     if (a === "en" || a === "ru") {
       u.lang = a;
+      const text = L(u, "🌐 Язык: <b>Русский</b>", "🌐 Language: <b>English</b>");
+      if (!u.targets) {
+        await answer(L(u, "Язык: Русский", "Language: English"));
+        if (kind === "welcome_lang") await editCard(env, q.message, text, { reply_markup: { inline_keyboard: [] } });
+        return startOnboarding(env, u, chatId);
+      }
       await saveUser(env, u);
       await answer(L(u, "Язык: Русский", "Language: English"));
-      // Во время анкеты просто начинаем её заново на выбранном языке
-      if (!u.targets) return startOnboarding(env, u, chatId);
-      await edit(env, chatId, msgId, L(u, "🌐 Язык: <b>Русский</b>", "🌐 Language: <b>English</b>"));
+      await editCard(env, q.message, text, { reply_markup: { inline_keyboard: [] } });
       return send(env, chatId, L(u, "Готово! Меню обновлено 👇", "Done! The menu is updated 👇"), { reply_markup: mainKb(u) });
     }
     await answer();
-    return sendLang(env, u, chatId);
+    return sendLang(env, chatId, kind);
   }
 
   if (kind === "sex" && u.state?.step === "sex") {
@@ -1679,7 +1744,7 @@ async function onCallback(q, env) {
     if (![250, 500, -250].includes(delta)) return answer();
     const { day, reached, fresh } = await addWater(env, u, a, delta);
     await answer(delta > 0 ? `💧 +${delta} ${L(u, "мл", "ml")}` : L(u, "Убрал 250 мл", "Removed 250 ml"));
-    await edit(env, chatId, msgId, waterText(u, day, a, delta), { reply_markup: waterKeyboard(u, a) });
+    await editCard(env, q.message, waterText(u, day, a, delta), { reply_markup: waterKeyboard(u, a) });
     if (reached && !fresh.length) await send(env, chatId, L(u, "🎉 Норма воды на сегодня выполнена! Так держать 💧", "🎉 Water goal for today reached! Keep it up 💧"), { message_effect_id: EFFECT_PARTY });
     return announce(env, chatId, fresh, u);
   }
@@ -2166,28 +2231,29 @@ async function sendDay(env, u, chatId, date) {
     `🍞 ${L(u, "Углеводы", "Carbs")}  <b>${round(t.c)}</b> / ${g.c} ${gU}\n` +
     `💧 ${L(u, "Вода", "Water")}  <b>${liters(water, u)}</b> / ${liters(wGoal, u)}${water >= wGoal ? " ✓" : ""}\n\n\n`;
 
+  let details = "";
   if (day.meals.length) {
-    text += `🍽 <b>${L(u, "Приёмы пищи", "Meals")}</b>\n\n` +
+    details = `🍽 <b>${L(u, "Приёмы пищи", "Meals")}</b>\n\n` +
       day.meals.map((m) => `${m.time}  ${esc(m.title)}  <b>${round(sumItems(m.items).kcal)}</b>`).join("\n");
     // Подсказка по белку во второй половине дня
     if (isToday && nowTime(u) >= "15:00" && t.p < g.p * 0.5 && left > 0) {
-      text += L(u, `\n\n\n💡 <i>Белка пока мало. Добавь творог, яйца, курицу или рыбу</i>`, `\n\n\n💡 <i>Protein is low so far. Add cottage cheese, eggs, chicken or fish</i>`);
+      details += L(u, `\n\n\n💡 <i>Белка пока мало. Добавь творог, яйца, курицу или рыбу</i>`, `\n\n\n💡 <i>Protein is low so far. Add cottage cheese, eggs, chicken or fish</i>`);
     } else if (left < 0) {
-      text += L(u, `\n\n\n💡 <i>Норма набрана. Если хочется есть, выбирай овощи и белок</i>`, `\n\n\n💡 <i>Goal reached. If you're still hungry, go for vegetables and protein</i>`);
+      details += L(u, `\n\n\n💡 <i>Норма набрана. Если хочется есть, выбирай овощи и белок</i>`, `\n\n\n💡 <i>Goal reached. If you're still hungry, go for vegetables and protein</i>`);
     }
   } else {
     text += isToday
       ? L(u, "📸 <i>Отправь фото еды — я всё посчитаю</i>", "📸 <i>Send a photo of your food and I'll count everything</i>")
       : L(u, "<i>За этот день записей нет</i>", "<i>No entries for this day</i>");
   }
-  return send(env, chatId, text, {
+  return sendCard(env, chatId, "today", text, {
     reply_markup: {
       inline_keyboard: [
         [{ text: L(u, "🥗 Что съесть", "🥗 What to eat"), callback_data: "advice" }, { text: L(u, "💧 +250 мл воды", "💧 +250 ml water"), callback_data: `w|${date}|250` }],
         [{ text: L(u, "📅 Неделя", "📅 Week"), callback_data: "week" }, appButton(env, u, "📱 Дневник", "📱 Diary")],
       ],
     },
-  });
+  }, details);
 }
 
 // Цветная полоска из 5 квадратиков: зелёный — норма, синий — мало, красный — больше нормы
@@ -2260,7 +2326,7 @@ async function sendWeek(env, u, chatId) {
     text += `📊 <b>${L(u, "Итоги", "Summary")}</b>\n\n${stats.join("\n")}\n\n\n`;
     text += `💡 <i>${weekTip(u, avg, norm)}</i>`;
   }
-  return send(env, chatId, text, {
+  return sendCard(env, chatId, "week", text, {
     reply_markup: {
       inline_keyboard: [
         [{ text: L(u, "🥗 Что съесть сегодня", "🥗 What to eat today"), callback_data: "advice" }, { text: L(u, "🧠 Разбор от ИИ", "🧠 AI review"), callback_data: "ai_week" }],
@@ -2459,7 +2525,7 @@ async function sendProfile(env, u, chatId) {
     L(u,
       `<blockquote>Считаю по формуле <b>Миффлина — Сан-Жеора</b> с учётом активности и цели.\nНорма пересчитается сама, когда запишешь новый вес</blockquote>`,
       `<blockquote>Calculated with the <b>Mifflin–St Jeor</b> formula, based on your activity and goal.\nYour goal updates automatically when you log a new weight</blockquote>`);
-  return send(env, chatId, text, {
+  return sendCard(env, chatId, "profile", text, {
     reply_markup: {
       inline_keyboard: [
         [{ text: L(u, "⚖️ Записать вес", "⚖️ Log weight"), callback_data: "askw" }, { text: L(u, "🏆 Достижения", "🏆 Achievements"), callback_data: "awards" }],
